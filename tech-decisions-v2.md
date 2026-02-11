@@ -183,6 +183,9 @@ const openclawNode = spawn('openclaw', [
 | **Matrix/Synapse** | Python ❌ | PostgreSQL ✅ | ✅ 成熟 | AGPL ❌ | ✅ | 优秀（原生支持） |
 | **Tinode** | Go ❌ | MySQL/PG/MongoDB ⚠️ | 🚨 Dart SDK 已归档 | GPL ❌ | ✅ | 有限 |
 | **Revolt/Stoat** | Rust ❌ | MongoDB ❌ | ❌ 无 | AGPL ❌ | ✅ | 中等（需 fork Rust） |
+| **Tailchat** | TypeScript ✅ | **MongoDB ❌** | ❌ React Native | Apache-2.0 ✅ | Socket.IO ✅ | 好（MiniStar 插件） |
+| **Dendrite** | Go ❌ | PostgreSQL ✅ | ❌ 无（SDK=AGPL） | **AGPL ❌** | Matrix ✅ | 优秀（Matrix 原生） |
+| **Conduit** | Rust ❌ | **RocksDB ❌** | ❌ 无（SDK=AGPL） | Apache-2.0 ✅ | Matrix ✅ | 优秀（Matrix 原生） |
 | **Mattermost** | Go ❌ | PostgreSQL ✅ | ❌ 社区 | MIT ✅ | ✅ | 有限（Go 插件） |
 | **Zulip** | Python ❌ | PostgreSQL ✅ | ✅ 官方 | Apache-2.0 ✅ | ✅ | 有限 |
 
@@ -212,6 +215,9 @@ const openclawNode = spawn('openclaw', [
 | REST API 设计模式 | **Discord API 文档**（公开） | 端点命名、分页、限流、错误格式 |
 | 推送通知集成 | **Tinode** (TNPG 服务) | FCM / APNs 模式 |
 | 文件存储架构 | **Spacebar CDN** + **Revolt/Stoat Autumn** | 独立文件服务 + 预签名 URL + 元数据追踪 |
+| 前端微内核插件架构 | **Tailchat MiniStar** | 桌面端 Electron 模块化设计参考 |
+| Flutter DDD 分层架构 | **ValkyrieApp** | Application/Domain/Infrastructure/Presentation 四层 + BLoC + freezed |
+| Extensible Events 消息扩展 | **Matrix MSC1767** | AI 消息多内容块 + 降级回退机制 |
 
 ---
 
@@ -479,7 +485,33 @@ const openclawNode = spawn('openclaw', [
 
 ---
 
-## 附录 B：参考资源
+## 附录 B：Gemini 推荐项目调研结论（2026-02-11 补充）
+
+> 团队同事通过 Gemini 推荐了 Tailchat、Dendrite、Conduit 等项目。经深度调研后结论如下。
+> 完整调研报告见 `docs/dev-plan/research-gemini-projects.md`。
+
+### 结论：所有推荐项目均不适合作为 LinkingChat 核心后端
+
+**原始报告存在的重大错误**：
+
+| # | 错误 | 实际情况 |
+|---|------|---------|
+| 1 | Dendrite 许可证为 Apache-2.0 | **已变更为 AGPL-3.0**（2023-11） |
+| 2 | Tailchat 为旗舰级推荐 | MongoDB only / Moleculer 非 NestJS / React Native 非 Flutter |
+| 3 | Conduit 活跃开发中 | 已被 conduwuit → Tuwunel 取代，RocksDB only |
+
+**从这些项目借鉴的设计**：
+
+| 借鉴内容 | 来源 | 应用方式 |
+|---------|------|---------|
+| 前端微内核插件架构 | Tailchat MiniStar | Electron 桌面端模块化参考 |
+| Extensible Events (MSC1767) | Matrix 规范 | AI 消息扩展协议设计 |
+| Application Service 模式 | Matrix 规范 | 服务端事件拦截器设计参考 |
+| to-device 消息机制 | Matrix 规范 | 设备控制指令推送参考 |
+
+---
+
+## 附录 C：参考资源
 
 | 资源 | 链接 | 用途 |
 |------|------|------|
@@ -492,5 +524,9 @@ const openclawNode = spawn('openclaw', [
 | Discord API 文档 | https://discord.com/developers/docs | REST API 设计参考 |
 | Tinode 调研报告 | docs/dev-plan/research-tinode.md | Tinode 深度调研（许可证、协议、Flutter SDK、对比分析） |
 | Tinode Dart SDK（已归档） | https://github.com/tinode/dart-sdk | ⚠️ 2025-11 归档，仅供参考 |
+| Gemini 推荐项目调研报告 | docs/dev-plan/research-gemini-projects.md | Tailchat、Dendrite、Conduit、Matrix 评估 |
+| Tailchat | https://github.com/msgbyte/tailchat | 微内核插件架构参考（MongoDB，不直接使用） |
+| Dendrite | https://github.com/element-hq/dendrite | Matrix Go 服务端（AGPL-3.0，仅参考） |
+| ValkyrieApp (Flutter) | https://github.com/sentrionic/ValkyrieApp | Flutter DDD 架构 + BLoC 模式参考 |
 | Spacebar Server | https://github.com/spacebarchat/server | TypeORM Entity 设计参考（仅阅读） |
 | Mattermost | https://github.com/mattermost/mattermost | PostgreSQL Schema 参考 |

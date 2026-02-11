@@ -12,6 +12,7 @@
 | [database-schema.md](./database-schema.md) | 数据库 Entity 设计（PostgreSQL + TypeORM） |
 | [dev-environment-setup.md](./dev-environment-setup.md) | 开发环境搭建指南 |
 | [research-tinode.md](./research-tinode.md) | Tinode Chat 深度调研报告（许可证、协议、对比分析） |
+| [research-gemini-projects.md](./research-gemini-projects.md) | Gemini 推荐项目调研（Tailchat、Dendrite、Conduit、Matrix 协议评估） |
 
 ## 设计依据
 
@@ -20,5 +21,6 @@
 - WebSocket 架构参考：[mahdi-vajdi/nestjs-chat](https://github.com/mahdi-vajdi/nestjs-chat) (MIT)
 - 设备控制集成：[OpenClaw](https://github.com/openclaw/openclaw) (MIT)
 - IM 协议参考：[tinode/chat](https://github.com/tinode/chat) (GPL-3.0，仅参考协议设计，不直接使用)
+- 协议设计参考：[Matrix 规范](https://spec.matrix.org/) (自定义事件类型 + Extensible Events)
 
 详细调研结论见项目根目录 `tech-decisions-v2.md`。
