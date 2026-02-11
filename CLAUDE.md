@@ -83,14 +83,19 @@ All docs are at repository root:
 - `architecture.md` — System architecture v1.2 (⚠️ describes old Desktop Bridge, needs update)
 - `user-stories.md` — BDD acceptance criteria with happy/error/edge paths
 - `decision-checklist.md` — Team's confirmed technical decisions
-- `follow-up-questions.md` — Open questions pending team answers
+- `follow-up-questions.md` — Open questions pending team answers (v1)
+- `follow-up-questions-v2.md` — Architect follow-up questions v2 with team answers
+- `tech-decisions-v2.md` — **Comprehensive tech decisions: OpenClaw integration, IM protocol, scaffold selection, execution path**
+- `research-report.md` — Technical research report for project references
+- `research-projects-detailed.md` — Detailed reference project analysis
+- `research-im-protocols.md` — Open source IM protocol/platform research
 
 ## Open Questions (Blocking)
 
-Key decisions still needed (see `follow-up-questions.md` for full list):
+Most blocking questions from v1 have been resolved in `tech-decisions-v2.md`. Remaining:
 
-- **F1**: Scope of Desktop Bridge in new direction (just local work execution, or also third-party app control?)
-- **F2**: What is OpenClaw? (Own project? Third-party? Core capabilities? Existing code?)
-- **F3**: "Control own desktop" vs "control friend's desktop" — which is MVP?
-- **F4**: MVP social feature boundary (registration, friends, 1:1 chat, groups, push notifications?)
-- **F7**: Electron desktop app positioning (pure social client? Social + executor? Primarily executor?)
+- ~~**F1**: Scope of Desktop Bridge~~ → Resolved: OpenClaw Node as independent process
+- ~~**F2**: What is OpenClaw?~~ → Resolved: Open-source AI Agent Gateway (TypeScript, MIT), see tech-decisions-v2.md §2
+- ~~**F3**: "Control own desktop" vs "control friend's desktop"~~ → MVP: control own desktop
+- ~~**F4**: MVP social feature boundary~~ → Resolved: All features except voice/video calls, see tech-decisions-v2.md §1.2
+- **F7**: Electron desktop app positioning → **Social client + OpenClaw executor** (implied by architecture, needs explicit confirmation)
