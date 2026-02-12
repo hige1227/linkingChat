@@ -1,8 +1,8 @@
-# 📄 Project Brief: Neural Link (v2.0 Refined)
+# 📄 Project Brief: LinkingChat (v2.0 Refined)
 
 | 属性 | 内容 |
 | :--- | :--- |
-| **项目名称** | **Neural Link** (代号: Ghost Mate) |
+| **项目名称** | **LinkingChat** (代号: Ghost Mate) |
 | **版本** | v2.0 (Refined via Brainstorming) |
 | **核心定位** | **The Social-Native AI Operating System** (社交原生 AI 操作系统) |
 | **Slogan** | **Chat is your new Command Line.** (聊天即指令，好友即接口) |
@@ -13,7 +13,7 @@
 ## 1. 战略愿景 (Vision)
 
 打造一个打破“通讯”与“工具”界限的下一代 IM 平台。
-Neural Link 不仅仅是一个聊天软件，它通过将 **OpenClaw (Moltbot)** 的设备控制能力无缝融入社交界面，让用户在聊天窗口中不仅能与人交流，还能指挥自己的（或好友的）电脑完成复杂工作。
+LinkingChat 不仅仅是一个聊天软件，它通过将 **OpenClaw (Moltbot)** 的设备控制能力无缝融入社交界面，让用户在聊天窗口中不仅能与人交流，还能指挥自己的（或好友的）电脑完成复杂工作。
 
 **核心理念：** 用户不需要在“微信”和“终端”之间切换。你的 Bot 是你的数字替身，它既能帮你回消息，也能帮你跑代码。
 
@@ -21,7 +21,7 @@ Neural Link 不仅仅是一个聊天软件，它通过将 **OpenClaw (Moltbot)**
 
 ## 2. 核心痛点与解决方案 (Problem & Solution)
 
-| 当前痛点 | Neural Link 解决方案 |
+| 当前痛点 | LinkingChat 解决方案 |
 | :--- | :--- |
 | **割裂的工作流** | 用户需要“一边在 IM 聊需求，一边切到 IDE/终端跑代码”。 | **All-in-Chat:** 聊天窗口即控制台。输入自然语言，Bot 直接在后台调用本地 Node 环境执行。 |
 | **AI 恐惧感** | 害怕 AI 自动回复说错话，或自动操作删错文件。 | **Draft & Verify (草稿即正义):** Bot 永远只生成“草稿”或“建议”，必须由用户点击发送或确认。 |

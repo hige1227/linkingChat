@@ -2,7 +2,7 @@
 
 > Research Date: 2026-02-11
 > Purpose: Evaluate open source IM projects, protocols, and SDKs that could serve as the foundation (or reference) for building LinkingChat's social messaging layer
-> Context: LinkingChat (Neural Link) is an AI-native social app with remote desktop control. Stack: Node.js/TypeScript cloud, Flutter mobile, Electron desktop, PostgreSQL database.
+> Context: LinkingChat is an AI-native social app with remote desktop control. Stack: Node.js/TypeScript cloud, Flutter mobile, Electron desktop, PostgreSQL database.
 
 ---
 

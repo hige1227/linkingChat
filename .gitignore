@@ -43,3 +43,16 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# Archive directories
+_archive/
+
+# Tool directories
+.claude/
+.playwright-mcp/
+
+# Research temp clones
+tempvalkyrie-v1/
+
+# Windows null device artifact
+nul

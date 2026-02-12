@@ -1,9 +1,5 @@
 # 开发环境搭建指南
 
-> 权威来源：[reference-architecture-guide.md](./reference-architecture-guide.md) + [project-skeleton.md](./project-skeleton.md)
->
-> 旧版已归档至 `_archive/dev-environment-setup.md`
-
 ---
 
 ## 一、前置要求
@@ -13,22 +9,17 @@
 | **Node.js** | >= 22.0.0 | 服务端 + 桌面端运行时 |
 | **pnpm** | >= 9.0.0 | Monorepo 包管理器 |
 | **Docker & Docker Compose** | 最新稳定版 | 数据库 + Redis + MinIO |
+| **Flutter** | >= 3.22 | 移动端开发 |
 | **Git** | >= 2.40 | 版本控制 |
 | **VS Code** 或 **WebStorm** | 最新 | 推荐 IDE |
-
-### 移动端 (根据选择)
-
-| 工具 | 用途 |
-|------|------|
-| **Flutter** >= 3.22 | 若选 Flutter 方案 |
-| **Xcode** (macOS) | iOS 模拟器 |
-| **Android Studio** | Android 模拟器 |
 
 ### 可选
 
 | 工具 | 用途 |
 |------|------|
 | **OpenClaw** | 桌面端设备执行能力 (`npm i -g openclaw@latest`) |
+| **Xcode** (macOS) | iOS 模拟器 |
+| **Android Studio** | Android 模拟器 |
 
 ---
 
@@ -41,18 +32,16 @@ git clone https://github.com/ZenoWangzy/linkingChat.git
 cd linkingChat
 ```
 
-### Step 2: 创建 Turborepo + pnpm workspace
+### Step 2: 创建 Monorepo 结构
 
 ```bash
-# 创建目录结构
-mkdir -p apps/{server,web,desktop,mobile}
-mkdir -p packages/{shared,ws-protocol,api-client,ui}
+# 创建目录
+mkdir -p packages/{server,desktop,mobile,shared}
 mkdir -p docker
 
 # 初始化 pnpm workspace
 cat > pnpm-workspace.yaml << 'EOF'
 packages:
-  - "apps/*"
   - "packages/*"
 EOF
 
@@ -60,73 +49,35 @@ EOF
 pnpm install
 ```
 
-### Step 3: 初始化 Server (NestJS + Prisma)
+### Step 3: 初始化 Server (基于 brocoders 脚手架)
 
 ```bash
-cd apps/server
+# 方式一：直接克隆脚手架到 packages/server
+cd packages
+git clone --depth 1 https://github.com/brocoders/nestjs-boilerplate.git server
+cd server
+rm -rf .git  # 移除脚手架的 git 历史
 
-# 创建 NestJS 项目
-npx @nestjs/cli new . --package-manager pnpm --skip-git
+# 安装依赖
+pnpm install
 
-# 安装 Prisma
-pnpm add @prisma/client
-pnpm add -D prisma
+# 复制环境变量模板
+cp env-example-relational .env
 
-# 初始化 Prisma
-npx prisma init
-
-# 安装认证相关
-pnpm add @nestjs/jwt @nestjs/passport passport passport-jwt argon2
-pnpm add -D @types/passport-jwt
-
-# 安装 WebSocket 相关
-pnpm add @nestjs/websockets @nestjs/platform-socket.io socket.io
-pnpm add ioredis @socket.io/redis-adapter
-
-# 安装验证
-pnpm add class-validator class-transformer zod
-
-# 修改 package.json
+# 修改 package.json 的 name
 # "name": "@linkingchat/server"
 ```
 
-### Step 4: 配置 Prisma
+### Step 4: 初始化 Shared 类型包
 
 ```bash
-# 编辑 prisma/schema.prisma（参考 reference-architecture-guide.md §1.2）
-# 运行 migration
-npx prisma migrate dev --name init
-
-# 生成 Prisma Client
-npx prisma generate
-```
-
-### Step 5: 生成 RS256 密钥对
-
-```bash
-# 生成 JWT RS256 密钥对
-mkdir -p keys
-openssl genrsa -out keys/jwt-private.pem 2048
-openssl rsa -in keys/jwt-private.pem -pubout -out keys/jwt-public.pem
-
-# Refresh token 使用独立密钥对
-openssl genrsa -out keys/jwt-refresh-private.pem 2048
-openssl rsa -in keys/jwt-refresh-private.pem -pubout -out keys/jwt-refresh-public.pem
-
-# 将密钥内容 base64 编码后写入 .env（适合环境变量传递）
-echo "AUTH_JWT_PRIVATE_KEY=$(base64 -w 0 keys/jwt-private.pem)" >> .env
-echo "AUTH_JWT_PUBLIC_KEY=$(base64 -w 0 keys/jwt-public.pem)" >> .env
-echo "AUTH_REFRESH_PRIVATE_KEY=$(base64 -w 0 keys/jwt-refresh-private.pem)" >> .env
-echo "AUTH_REFRESH_PUBLIC_KEY=$(base64 -w 0 keys/jwt-refresh-public.pem)" >> .env
-```
-
-### Step 6: 初始化 Shared + WS Protocol 包
-
-```bash
-# packages/shared
 cd packages/shared
 pnpm init
-pnpm add -D typescript zod
+
+# 安装 TypeScript
+pnpm add -D typescript
+
+# 创建 tsconfig.json
 cat > tsconfig.json << 'EOF'
 {
   "compilerOptions": {
@@ -142,40 +93,28 @@ cat > tsconfig.json << 'EOF'
   "include": ["src"]
 }
 EOF
-
-# packages/ws-protocol (同样结构)
-cd ../ws-protocol
-pnpm init
-pnpm add -D typescript
-# 复制相同 tsconfig.json
 ```
 
-### Step 7: 初始化 Electron 桌面端
+### Step 5: 初始化 Flutter 移动端
 
 ```bash
-cd apps/desktop
-pnpm init
-
-# 推荐使用 electron-vite
-pnpm add electron electron-builder
-pnpm add -D typescript vite @vitejs/plugin-react electron-vite
-```
-
-### Step 8: 初始化移动端
-
-**Flutter 方案:**
-```bash
-cd apps
+cd packages
 flutter create --org com.linkingchat --project-name linkingchat_mobile mobile
 cd mobile
+
+# 添加核心依赖
 flutter pub add dio socket_io_client flutter_riverpod go_router flutter_secure_storage intl
 ```
 
-**React Native (Expo) 方案:**
+### Step 6: 初始化 Electron 桌面端
+
 ```bash
-cd apps/mobile
-npx create-expo-app@latest . --template blank-typescript
-pnpm add socket.io-client zustand expo-secure-store expo-router
+cd packages/desktop
+pnpm init
+
+# 推荐使用 electron-vite 或 electron-forge
+pnpm add electron electron-builder
+pnpm add -D typescript vite @vitejs/plugin-react  # 如用 React
 ```
 
 ---
@@ -226,8 +165,8 @@ services:
       MINIO_ROOT_USER: linkingchat
       MINIO_ROOT_PASSWORD: linkingchat_dev
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9000:9000"    # S3 API
+      - "9001:9001"    # Web Console
     volumes:
       - minio_data:/data
 
@@ -241,8 +180,8 @@ services:
     image: maildev/maildev
     container_name: linkingchat-maildev
     ports:
-      - "1080:1080"
-      - "1025:1025"
+      - "1080:1080"    # Web UI
+      - "1025:1025"    # SMTP
 
 volumes:
   postgres_data:
@@ -259,7 +198,7 @@ docker compose -f docker/docker-compose.yaml up -d
 # 验证服务状态
 docker compose -f docker/docker-compose.yaml ps
 
-# 管理界面
+# 访问管理界面
 # PostgreSQL Adminer:  http://localhost:8080
 # MinIO Console:       http://localhost:9001
 # MailDev:             http://localhost:1080
@@ -275,22 +214,30 @@ NODE_ENV=development
 APP_PORT=3000
 APP_NAME="LinkingChat"
 API_PREFIX=api
+APP_FALLBACK_LANGUAGE=en
+APP_HEADER_LANGUAGE=x-custom-lang
 FRONTEND_DOMAIN=http://localhost:5173
 BACKEND_DOMAIN=http://localhost:3000
 
-# Database (PostgreSQL + Prisma)
-DATABASE_URL="postgresql://linkingchat:linkingchat_dev@localhost:5432/linkingchat?schema=public"
+# Database (PostgreSQL)
+DATABASE_TYPE=postgres
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_USERNAME=linkingchat
+DATABASE_PASSWORD=linkingchat_dev
+DATABASE_NAME=linkingchat
+DATABASE_SYNCHRONIZE=false
+DATABASE_MAX_CONNECTIONS=100
+DATABASE_SSL_ENABLED=false
 
 # Redis (Socket.IO adapter + 缓存)
 REDIS_URL=redis://localhost:6379
 
-# Auth (JWT RS256 — 非对称密钥对)
-AUTH_JWT_PRIVATE_KEY=<base64 encoded private key>
-AUTH_JWT_PUBLIC_KEY=<base64 encoded public key>
+# Auth (JWT)
+AUTH_JWT_SECRET=your-jwt-secret-change-in-production
 AUTH_JWT_TOKEN_EXPIRES_IN=15m
-AUTH_REFRESH_PRIVATE_KEY=<base64 encoded refresh private key>
-AUTH_REFRESH_PUBLIC_KEY=<base64 encoded refresh public key>
-AUTH_REFRESH_TOKEN_EXPIRES_IN=30d
+AUTH_REFRESH_SECRET=your-refresh-secret-change-in-production
+AUTH_REFRESH_TOKEN_EXPIRES_IN=3650d
 
 # File Storage (MinIO as S3-compatible)
 FILE_DRIVER=s3
@@ -307,12 +254,10 @@ MAIL_USER=
 MAIL_PASSWORD=
 MAIL_IGNORE_TLS=true
 MAIL_SECURE=false
+MAIL_REQUIRE_TLS=false
 MAIL_DEFAULT_EMAIL=noreply@linkingchat.com
 MAIL_DEFAULT_NAME=LinkingChat
 ```
-
-> **重要**: JWT 使用 RS256 非对称密钥对，不再使用旧的 `AUTH_JWT_SECRET` 单密钥。
-> 见 Step 5 生成密钥对，或参考 reference-architecture-guide.md §三。
 
 ---
 
@@ -324,14 +269,24 @@ MAIL_DEFAULT_NAME=LinkingChat
 # 启动开发服务器 (热重载)
 pnpm --filter @linkingchat/server start:dev
 
-# Prisma 操作
-pnpm --filter @linkingchat/server prisma migrate dev --name <migration_name>
-pnpm --filter @linkingchat/server prisma generate
-pnpm --filter @linkingchat/server prisma studio     # 可视化数据库浏览
+# 生成数据库 migration
+pnpm --filter @linkingchat/server migration:generate -- src/database/migrations/MigrationName
+
+# 执行 migration
+pnpm --filter @linkingchat/server migration:run
+
+# 执行种子数据
+pnpm --filter @linkingchat/server seed:run:relational
+
+# 生成新模块 (Hygen)
+pnpm --filter @linkingchat/server generate:resource:relational -- --name friends
 
 # 运行测试
 pnpm --filter @linkingchat/server test
 pnpm --filter @linkingchat/server test:e2e
+
+# Swagger 文档
+# 启动后访问 http://localhost:3000/docs
 ```
 
 ### Desktop
@@ -344,38 +299,36 @@ pnpm --filter @linkingchat/desktop dev
 pnpm --filter @linkingchat/desktop build
 ```
 
-### Mobile (Flutter)
+### Mobile
 
 ```bash
-cd apps/mobile
+# 启动 Flutter
+cd packages/mobile
 flutter run
+
+# iOS 模拟器
 flutter run -d ios
+
+# Android 模拟器
 flutter run -d android
+
+# 代码生成 (如用 riverpod_generator / freezed)
 flutter pub run build_runner build
-```
-
-### Mobile (RN Expo)
-
-```bash
-cd apps/mobile
-npx expo start
-npx expo start --ios
-npx expo start --android
 ```
 
 ### Monorepo
 
 ```bash
-# Turborepo 全量操作
-turbo run build           # 构建所有
-turbo run lint            # 全量 lint
-turbo run test            # 全量测试
-turbo run type-check      # 全量类型检查
+# 同时启动 server + desktop
+pnpm run dev:all
 
-# 并行启动 server + desktop
-turbo run dev --filter=@linkingchat/server --filter=@linkingchat/desktop
+# 构建 shared 类型包
+pnpm --filter @linkingchat/shared build
 
-# Docker 环境
+# 全量 lint
+pnpm -r lint
+
+# Docker 环境管理
 pnpm run docker:up
 pnpm run docker:down
 ```
@@ -392,11 +345,11 @@ pnpm run docker:down
   "recommendations": [
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
-    "Prisma.prisma",
-    "ms-azuretools.vscode-docker",
-    "ms-vscode.vscode-typescript-next",
     "Dart-Code.dart-code",
-    "Dart-Code.flutter"
+    "Dart-Code.flutter",
+    "ms-azuretools.vscode-docker",
+    "Prisma.prisma",
+    "ms-vscode.vscode-typescript-next"
   ]
 }
 ```
@@ -409,16 +362,7 @@ pnpm run docker:down
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "typescript.preferences.importModuleSpecifier": "relative",
-  "eslint.workingDirectories": [
-    "apps/server",
-    "apps/web",
-    "apps/desktop",
-    "packages/shared",
-    "packages/ws-protocol"
-  ],
-  "[prisma]": {
-    "editor.defaultFormatter": "Prisma.prisma"
-  }
+  "eslint.workingDirectories": ["packages/server", "packages/desktop", "packages/shared"]
 }
 ```
 
@@ -437,5 +381,4 @@ pnpm run docker:down
 | **MailDev Web** | 1080 | 邮件测试界面 |
 | **MailDev SMTP** | 1025 | 邮件测试 SMTP |
 | **Electron Dev** | 5173 | 桌面端渲染进程 (Vite) |
-| **Web Dev** | 5174 | Web 客户端 (Vite) |
-| **Expo Dev** | 8081 | React Native (若选 Expo) |
+| **Flutter Dev** | - | 模拟器 / 真机 |

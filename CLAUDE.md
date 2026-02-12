@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-Neural Link (codename: Ghost Mate) is in **pre-development / design phase**. No implementation code exists yet — only architectural documentation at the repository root. The team's technical decisions are captured in `decision-checklist.md`. Open questions pending team answers are in `follow-up-questions.md`.
+LinkingChat (codename: Ghost Mate) is in **pre-development / design phase**. No implementation code exists yet — only architectural documentation under `docs/`. The team's technical decisions are captured in `docs/decisions/decision-checklist.md` and `docs/decisions/tech-decisions-v2.md`.
 
 ## What This Project IS
 
-Neural Link is a **new AI-native social app** (similar in form to Discord/Telegram/WhatsApp) with deep integration of OpenClaw remote-control capabilities. It is **NOT** about attaching to or automating existing apps like WeChat/Slack.
+LinkingChat is a **new AI-native social app** (similar in form to Discord/Telegram/WhatsApp) with deep integration of OpenClaw remote-control capabilities. It is **NOT** about attaching to or automating existing apps like WeChat/Slack.
 
-> Note: The original design docs (prd.md, architecture.md) describe a "parasitic Desktop Bridge" controlling WeChat — this direction has been superseded by the decision-checklist. The team has clarified the product is an independent social app. These docs need updating to reflect the current vision.
+> Note: The original design docs (prd.md, architecture.md) have been archived to `docs/_archive/` — they describe a superseded "parasitic Desktop Bridge" direction.
 
 **Dual functionality:**
 1. **Social**: Chat, groups, friends — a standalone messaging platform
@@ -27,7 +27,7 @@ Neural Link is a **new AI-native social app** (similar in form to Discord/Telegr
 Three-tier distributed system: "Cloud Brain + Local Hands"
 
 ```
-Flutter Mobile App  <--WSS-->  Cloud Brain (Node.js/TS)  <--WSS-->  Electron Desktop Client
+Flutter Mobile App  <--WSS-->  Cloud Brain (NestJS)  <--WSS-->  Electron Desktop Client
   (Controller)                   ├── WebSocket Gateway                 ├── Social UI (chat)
   ├── Social UI                  ├── Intent Planner                    ├── OpenClaw Worker
   ├── Send commands              ├── LLM Router                        ├── Shell Exec
@@ -36,7 +36,7 @@ Flutter Mobile App  <--WSS-->  Cloud Brain (Node.js/TS)  <--WSS-->  Electron Des
 ```
 
 - **Mobile App (Flutter)**: Social interface + remote command issuer. iOS & Android from one codebase.
-- **Cloud Brain (Node.js/TypeScript)**: WebSocket gateway, intent planning, LLM inference with multi-provider routing (cheap models like DeepSeek for simple tasks, powerful models like Kimi 2.5 for complex tasks). Hosts all Agent logic.
+- **Cloud Brain (NestJS / TypeScript)**: WebSocket gateway, intent planning, LLM inference with multi-provider routing (cheap models like DeepSeek for simple tasks, powerful models like Kimi 2.5 for complex tasks). Hosts all Agent logic.
 - **Desktop Client (Electron + Node.js/TypeScript)**: Full GUI social client (like Discord desktop) + local OpenClaw worker that receives and executes remote commands.
 
 ## Confirmed Tech Decisions
@@ -45,7 +45,7 @@ Flutter Mobile App  <--WSS-->  Cloud Brain (Node.js/TS)  <--WSS-->  Electron Des
 |---|---|
 | Implementation strategy | Full-chain minimal PoC (all 3 components simultaneously) |
 | Language | TypeScript everywhere |
-| Cloud framework | Node.js / TypeScript |
+| Cloud framework | NestJS (Node.js / TypeScript) |
 | Mobile framework | Flutter |
 | Desktop framework | Electron |
 | Database | PostgreSQL |
@@ -76,23 +76,42 @@ Mobile sends a work command → Desktop executes → Desktop reports completion 
 
 ## Documentation Map
 
-All docs are at repository root:
-
-- `project-brief.md` — Strategic vision v2.0, core interaction patterns, success metrics
-- `prd.md` — Product requirements v1.3 (⚠️ describes old "parasitic" direction, needs update)
-- `architecture.md` — System architecture v1.2 (⚠️ describes old Desktop Bridge, needs update)
-- `user-stories.md` — BDD acceptance criteria with happy/error/edge paths
-- `decision-checklist.md` — Team's confirmed technical decisions
-- `follow-up-questions.md` — Open questions pending team answers (v1)
-- `follow-up-questions-v2.md` — Architect follow-up questions v2 with team answers
-- `tech-decisions-v2.md` — **Comprehensive tech decisions: OpenClaw integration, IM protocol, scaffold selection, execution path**
-- `research-report.md` — Technical research report for project references
-- `research-projects-detailed.md` — Detailed reference project analysis
-- `research-im-protocols.md` — Open source IM protocol/platform research
+```
+docs/
+├── decisions/                          # Strategic & technical decisions
+│   ├── project-brief.md                — Strategic vision v2.0, core interaction patterns
+│   ├── decision-checklist.md           — Team's confirmed technical decisions
+│   ├── follow-up-questions.md          — Architect follow-up questions v1
+│   ├── follow-up-questions-v2.md       — Architect follow-up questions v2 with team answers
+│   ├── tech-decisions-v2.md            — ★ Core: OpenClaw, IM protocol, scaffold, execution path
+│   └── user-stories.md                 — BDD acceptance criteria
+│
+├── research/                           # Technical research & analysis
+│   ├── research-report.md              — Technical research report for project references
+│   ├── research-projects-detailed.md   — Detailed reference project analysis
+│   ├── research-im-protocols.md        — Open source IM protocol/platform research
+│   ├── research-tinode.md              — Tinode Chat deep-dive
+│   ├── research-gemini-projects.md     — Gemini-recommended projects analysis
+│   ├── fork-vs-build-analysis.md       — Fork Tailchat vs self-build evaluation
+│   └── tech-route-final-comparison.md  — Route A (fork) vs Route C (build) final comparison
+│
+├── dev-plan/                           # Implementation plans & specs
+│   ├── reference-architecture-guide.md — ★ "Copy homework" guide from Valkyrie/nestjs-chat/Tailchat
+│   ├── project-skeleton.md             — Monorepo structure & module design
+│   ├── sprint-1-plan.md                — Sprint 1 detailed plan (minimal PoC)
+│   ├── websocket-protocol.md           — WebSocket protocol design
+│   ├── database-schema.md              — Database entity design
+│   └── dev-environment-setup.md        — Dev environment setup guide
+│
+└── _archive/                           # Superseded documents
+    ├── architecture.md                 — Old "parasitic Desktop Bridge" direction
+    ├── prd.md                          — Old product requirements
+    └── gemini-research.md              — Original Gemini report (errors corrected in research/)
+```
 
 ## Open Questions (Blocking)
 
-Most blocking questions from v1 have been resolved in `tech-decisions-v2.md`. Remaining:
+Most blocking questions from v1 have been resolved in `docs/decisions/tech-decisions-v2.md`. Remaining:
 
 - ~~**F1**: Scope of Desktop Bridge~~ → Resolved: OpenClaw Node as independent process
 - ~~**F2**: What is OpenClaw?~~ → Resolved: Open-source AI Agent Gateway (TypeScript, MIT), see tech-decisions-v2.md §2
