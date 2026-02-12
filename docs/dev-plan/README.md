@@ -10,7 +10,7 @@
 | [project-skeleton.md](./project-skeleton.md) | Monorepo 项目骨架结构、目录布局、模块设计 |
 | [sprint-1-plan.md](./sprint-1-plan.md) | 第一个 Sprint 详细实施计划（最小 PoC） |
 | [websocket-protocol.md](./websocket-protocol.md) | WebSocket 协议设计（聊天 + 设备控制 + AI 事件） |
-| [database-schema.md](./database-schema.md) | 数据库 Entity 设计（PostgreSQL + TypeORM） |
+| [database-schema.md](./database-schema.md) | 数据库 Schema 设计（Prisma + PostgreSQL，18 Models） |
 | [dev-environment-setup.md](./dev-environment-setup.md) | 开发环境搭建指南 |
 
 ## 相关文档

@@ -1,21 +1,22 @@
 # WebSocket 协议设计
 
-> 基于 NestJS + Socket.IO，双命名空间（/chat + /device），JWT 认证，Redis 适配器
+> 基于 NestJS + Socket.IO，双命名空间（/chat + /device），JWT RS256 认证，Redis 适配器
+>
+> 权威来源：[reference-architecture-guide.md](./reference-architecture-guide.md) §二、§十一
+>
+> 旧版已归档至 `_archive/websocket-protocol.md`
 
 ---
 
 ## 一、协议概览
 
 ```
-┌─────────────┐       WSS /chat        ┌───────────────────┐       WSS /chat        ┌─────────────┐
-│ Flutter App  │ ◄─────────────────────► │  Cloud Brain      │ ◄─────────────────────► │ Electron    │
-│ (Mobile)     │                         │  (NestJS)         │                         │ (Desktop)   │
-│              │       WSS /device       │                   │       WSS /device       │             │
-│              │ ◄─────────────────────► │                   │ ◄─────────────────────► │             │
-└─────────────┘                         └───────────────────┘                         └─────────────┘
-                                               │
-                                          Redis Pub/Sub
-                                         (Socket.IO Adapter)
+Flutter/RN App   <--WSS-->  Cloud Brain (NestJS)  <--WSS-->  Electron Desktop
+  (Mobile)                    ├── /chat namespace              ├── Social UI
+  ├── Social UI               │   └── Redis Pub/Sub            ├── /chat client
+  ├── /chat client            ├── /device namespace            ├── /device client
+  └── /device client          │   └── Redis Pub/Sub            └── OpenClaw Worker
+                              └── BroadcastService (@Global)
 ```
 
 ### 设计原则
@@ -25,6 +26,7 @@
 3. **标准 Envelope**: 所有 payload 使用统一信封格式
 4. **Acknowledgement**: 需要确认的操作使用 Socket.IO callback
 5. **命名规范**: `resource:action` 格式
+6. **JWT RS256**: 非对称密钥认证，access token 短期 + refresh token 长期
 
 ---
 
@@ -36,7 +38,7 @@
 // 客户端连接示例
 const chatSocket = io('wss://api.linkingchat.com/chat', {
   auth: {
-    token: jwtAccessToken,
+    token: jwtAccessToken,      // RS256 签名的 JWT
     deviceType: 'mobile',       // 'mobile' | 'desktop' | 'web'
   },
   transports: ['websocket'],
@@ -48,40 +50,44 @@ const chatSocket = io('wss://api.linkingchat.com/chat', {
 const deviceSocket = io('wss://api.linkingchat.com/device', {
   auth: {
     token: jwtAccessToken,
-    deviceId: 'device-uuid',
+    deviceId: 'device-cuid',
     deviceType: 'desktop',
   },
   transports: ['websocket'],
 });
 ```
 
-### 2.2 JWT 认证中间件
-
-服务端在 `afterInit` 中注册 Socket.IO 中间件：
+### 2.2 JWT RS256 认证中间件
 
 ```typescript
-// 认证流程
-1. 客户端连接时在 handshake.auth.token 中携带 JWT
-2. 中间件验证 token 有效性（签名 + 过期时间）
-3. 从 token payload 提取 userId，查询用户信息
-4. 将用户信息挂载到 socket.data.user
-5. 验证失败则 next(new Error('...'))，Socket.IO 自动断开连接
+// 认证流程（RS256 非对称密钥）
+// 1. 客户端在 handshake.auth.token 中携带 JWT
+// 2. 中间件用 RS256 公钥验证签名 + 过期时间
+// 3. 从 token payload 提取 userId
+// 4. 将用户信息挂载到 socket.data
+// 5. 验证失败 → next(new Error('...'))，Socket.IO 自动断开
+```
+
+```typescript
+// RS256 密钥对：
+// - 私钥：签发 token（仅 auth service 持有）
+// - 公钥：验证 token（所有服务可持有，包括 WS 中间件）
+// - 好处：微服务拆分时 WS 网关无需持有私钥
 ```
 
 ### 2.3 连接后自动加入房间
 
 ```typescript
-// handleConnection 中自动加入的房间
-handleConnection(client: Socket) {
+handleConnection(client: TypedSocket) {
   const userId = client.data.userId;
   const deviceId = client.handshake.auth?.deviceId;
 
-  // 个人房间：收取好友请求、通知等
-  client.join(`user:${userId}`);
+  // 个人房间：好友请求、通知等
+  client.join(`u-${userId}`);
 
   // 设备房间（仅 /device 命名空间）
   if (deviceId) {
-    client.join(`device:${deviceId}`);
+    client.join(`d-${deviceId}`);
   }
 }
 ```
@@ -92,16 +98,19 @@ handleConnection(client: Socket) {
 
 | 房间类型 | 命名格式 | 命名空间 | 用途 |
 |---------|---------|---------|------|
-| 用户房间 | `user:{userId}` | /chat + /device | 个人事件：好友请求、设备状态、通知 |
-| 会话房间 | `conversation:{convId}` | /chat | 消息事件：新消息、撤回、已读、输入中 |
-| 设备房间 | `device:{deviceId}` | /device | 设备命令：command.execute 发送到特定设备 |
+| 用户房间 | `u-{userId}` | /chat + /device | 个人事件：好友请求、设备状态、通知 |
+| 会话房间 | `{converseId}` | /chat | 消息事件：新消息、撤回、已读、输入中 |
+| 群组房间 | `g-{groupId}` | /chat | 群组级事件：成员变更、频道 CRUD |
+| 设备房间 | `d-{deviceId}` | /device | 设备命令：command.execute 发送到特定设备 |
+
+> 房间命名学 Tailchat 短格式（`u-`, `g-`），而非旧设计的 `user:`, `conversation:` 长格式。
 
 ### 房间生命周期
 
 ```
-用户连接 → 自动加入 user:{userId}
-用户打开会话 → 客户端发送 conversation:join → 加入 conversation:{convId}
-用户离开会话 → 客户端发送 conversation:leave → 离开 conversation:{convId}
+用户连接    → 自动加入 u-{userId}
+用户打开会话 → 客户端 emit converse:join → 加入 {converseId}
+用户离开会话 → 客户端 emit converse:leave → 离开 {converseId}
 用户断开连接 → Socket.IO 自动从所有房间移除
 ```
 
@@ -113,7 +122,7 @@ handleConnection(client: Socket) {
 
 ```typescript
 interface WsEnvelope<T> {
-  requestId: string;       // UUID, 用于关联请求和响应
+  requestId: string;       // cuid, 关联请求和响应
   timestamp: string;       // ISO 8601
   data: T;                 // 业务数据
 }
@@ -140,154 +149,60 @@ interface WsError {
 
 ## 五、/chat 命名空间 — 事件清单
 
-### 5.1 客户端 → 服务端
+### 5.1 客户端 → 服务端 (12 事件)
 
 | 事件名 | Payload | ACK | 说明 |
 |--------|---------|-----|------|
-| `conversation:join` | `{ conversationId: string }` | - | 加入会话房间 |
-| `conversation:leave` | `{ conversationId: string }` | - | 离开会话房间 |
-| `message:typing` | `{ conversationId: string, isTyping: boolean }` | - | 输入状态变化 |
-| `message:read` | `{ conversationId: string, lastReadMessageId: string }` | - | 标记已读 |
-| `presence:update` | `{ isOnline: boolean }` | - | 在线状态变更 |
+| `converse:join` | `{ converseId }` | - | 加入会话房间 |
+| `converse:leave` | `{ converseId }` | - | 离开会话房间 |
+| `message:typing` | `{ converseId, isTyping }` | - | 输入状态 |
+| `message:read` | `{ converseId, lastSeenMessageId }` | - | 标记已读 (游标) |
+| `presence:update` | `{ status }` | - | 在线状态变更 |
+| `ai:draft:approve` | `{ draftId }` | `WsResponse` | 批准 AI 草稿 |
+| `ai:draft:reject` | `{ draftId, reason? }` | - | 拒绝草稿 |
+| `ai:draft:edit` | `{ draftId, editedContent }` | `WsResponse` | 编辑后批准 |
+| `ai:predictive:execute` | `{ suggestionId, actionIndex }` | `WsResponse` | 执行预测动作 |
+| `ai:predictive:dismiss` | `{ suggestionId }` | - | 忽略预测 |
+| `ai:whisper:select` | `{ suggestionId, selectedIndex }` | - | 选择耳语建议 |
+| `user:ping` | `{}` | - | 保活心跳 |
 
-> **注意**: `message:send`, `message:recall` 等变更操作通过 REST API 完成。REST handler 内部调用 SocketService 推送事件。
+> **注意**: `message:send`, `message:recall` 等变更操作通过 REST API 完成。REST handler 内部调用 BroadcastService 推送事件。
 
-### 5.2 服务端 → 客户端
-
-| 事件名 | Payload | Target | 触发条件 |
-|--------|---------|--------|---------|
-| `message:new` | `MessageResponse` | `conversation:{convId}` | REST: POST /messages |
-| `message:updated` | `MessageResponse` | `conversation:{convId}` | REST: PATCH /messages/:id |
-| `message:recalled` | `{ messageId, conversationId }` | `conversation:{convId}` | REST: POST /messages/:id/recall |
-| `message:typing` | `{ conversationId, userId, username, isTyping }` | `conversation:{convId}` | WS: message:typing |
-| `message:read` | `{ conversationId, userId, lastReadAt }` | `conversation:{convId}` | WS: message:read |
-| `conversation:new` | `ConversationResponse` | `user:{userId}` (each member) | REST: POST /conversations |
-| `conversation:updated` | `ConversationResponse` | `user:{userId}` (each member) | REST: PATCH /conversations/:id |
-| `friend:request` | `{ requestId, senderId, senderName, senderAvatar }` | `user:{receiverId}` | REST: POST /friends/request |
-| `friend:accepted` | `{ userId, username, avatar }` | `user:{userId}` (both) | REST: POST /friends/accept |
-| `friend:removed` | `{ userId }` | `user:{userId}` (both) | REST: DELETE /friends/:id |
-| `presence:changed` | `{ userId, isOnline, lastSeenAt }` | 好友+共同会话成员 | WS: presence:update / disconnect |
-| `notification:new` | `{ type, conversationId, messagePreview }` | `user:{userId}` | 新消息通知 (不在会话房间的成员) |
-
-### 5.3 AI 事件（Sprint 2+，Q5 确认三个模式全做）
-
-> 以下事件在 `/chat` 命名空间内，用于三个 AI 交互模式。
-> 设计灵感来自 Tinode 的 FireHose 拦截器模式（CONTINUE/DROP/RESPOND/REPLACE）。
-
-#### Client → Server
-
-| 事件名 | Payload | ACK | 说明 |
-|--------|---------|-----|------|
-| `ai:draft:approve` | `{ draftId: string }` | `{ success, executedResult? }` | 批准 AI 草稿并执行 |
-| `ai:draft:reject` | `{ draftId: string, reason?: string }` | - | 拒绝 AI 草稿 |
-| `ai:draft:edit` | `{ draftId: string, editedContent: string }` | `{ success }` | 编辑后批准 |
-| `ai:predictive:execute` | `{ suggestionId: string, actionIndex: number }` | `{ commandId }` | 执行预测动作 |
-| `ai:predictive:dismiss` | `{ suggestionId: string }` | - | 忽略预测动作 |
-| `ai:whisper:select` | `{ suggestionId: string, selectedIndex: number }` | - | 选择耳语建议 |
-
-#### Server → Client
+### 5.2 服务端 → 客户端 (24 事件)
 
 | 事件名 | Payload | Target | 触发条件 |
 |--------|---------|--------|---------|
-| `ai:whisper:suggestions` | `WhisperPayload` | `user:{userId}` | 收到新消息后 <800ms 推送 |
-| `ai:draft:created` | `DraftPayload` | `user:{userId}` | 用户发送意图后 AI 生成草稿 |
-| `ai:draft:expired` | `{ draftId: string }` | `user:{userId}` | 草稿超时未审批（5 分钟） |
-| `ai:predictive:action` | `PredictivePayload` | `user:{userId}` | AI 分析上下文后推送动作卡片 |
-
-#### Payload 类型定义
-
-```typescript
-// Whisper 耳语建议
-interface WhisperPayload {
-  suggestionId: string;
-  conversationId: string;
-  triggerMessageId: string;          // 触发建议的消息
-  suggestions: Array<{
-    text: string;
-    confidence: number;              // 0-1
-  }>;
-  latencyMs: number;                 // AI 生成耗时，>1000ms 客户端应忽略
-  provider: string;
-}
-
-// Draft & Verify 草稿
-interface DraftPayload {
-  draftId: string;
-  conversationId?: string;           // 聊天草稿
-  deviceId?: string;                 // 命令草稿
-  type: 'message' | 'command';
-  originalIntent: string;            // 用户原始输入
-  draftContent: string;              // AI 生成的草稿
-  expiresAt: string;                 // ISO 8601，默认 5 分钟后
-}
-
-// Predictive Actions 预测动作
-interface PredictivePayload {
-  suggestionId: string;
-  conversationId: string;
-  actions: Array<{
-    type: 'shell' | 'file' | 'app';
-    action: string;                  // 具体命令
-    description: string;             // 人类可读描述
-    dangerLevel: 'safe' | 'warning' | 'dangerous';
-    confidence: number;
-  }>;
-}
-```
-
-#### Whisper 建议流程
-
-```
-User B 发消息给 User A
-       │
-Cloud Brain 收到 message:new 事件
-       │
-       ├── 并行：正常广播 message:new 给 conversation room
-       │
-       └── 异步：调用 LLM (DeepSeek，低延迟模型)
-             │
-             ├── <800ms → WS: ai:whisper:suggestions → User A
-             │            客户端展示建议气泡
-             │
-             └── >1000ms → 放弃，不推送
-                            客户端不展示
-```
-
-### 5.4 事件流程示例（原有）
-
-**发送消息**:
-```
-Mobile                    Cloud Brain                 Desktop
-  │                           │                          │
-  ├── POST /api/v1/messages ─>│                          │
-  │   { conversationId,       │                          │
-  │     type: "text",         │                          │
-  │     content: "Hello" }    │                          │
-  │                           ├── DB: INSERT message     │
-  │                           ├── DB: UPDATE conversation │
-  │                           │     .lastActivityAt      │
-  │<── 201 { message } ──────│                          │
-  │                           │                          │
-  │                           ├── WS: message:new ──────>│ (conversation room)
-  │<── WS: message:new ──────│                          │ (conversation room)
-  │                           │                          │
-  │                           ├── WS: notification:new ─>│ (不在 room 的成员)
-  │                           │      (via user:{userId})  │
-```
-
-**已读回执**:
-```
-Desktop                   Cloud Brain                 Mobile
-  │                           │                          │
-  ├── WS: message:read ──────>│                          │
-  │   { conversationId,       │                          │
-  │     lastReadMessageId }   ├── DB: UPDATE             │
-  │                           │   conversation_members   │
-  │                           │   .lastReadAt            │
-  │                           │                          │
-  │                           ├── WS: message:read ─────>│ (conversation room)
-  │<── WS: message:read ─────│                          │ (conversation room)
-```
+| **消息** | | | |
+| `message:new` | `MessageResponse` | `{converseId}` | REST: POST /messages |
+| `message:updated` | `MessageResponse` | `{converseId}` | REST: PATCH /messages/:id |
+| `message:deleted` | `{ messageId, converseId }` | `{converseId}` | REST: DELETE /messages/:id (软删除) |
+| `message:typing` | `{ converseId, userId, isTyping }` | `{converseId}` | WS: message:typing |
+| `message:read` | `{ converseId, userId, lastSeenMessageId }` | `{converseId}` | WS: message:read |
+| **会话** | | | |
+| `converse:new` | `ConverseResponse` | `u-{userId}` (各成员) | REST: 创建 DM/群组 |
+| `converse:updated` | `ConverseResponse` | `u-{userId}` (各成员) | REST: 更新会话 |
+| **好友** | | | |
+| `friend:request` | `FriendRequestPayload` | `u-{receiverId}` | REST: POST /friends/request |
+| `friend:accepted` | `FriendPayload` | `u-{userId}` (双方) | REST: POST /friends/accept |
+| `friend:removed` | `{ userId }` | `u-{userId}` (双方) | REST: DELETE /friends/:id |
+| **群组** | | | |
+| `group:new` | `GroupResponse` | `u-{userId}` | 被邀请加入群组 |
+| `group:updated` | `GroupResponse` | `g-{groupId}` | REST: PATCH /groups/:id |
+| `group:deleted` | `{ groupId }` | `g-{groupId}` | REST: DELETE /groups/:id |
+| `group:member:joined` | `MemberPayload` | `g-{groupId}` | 新成员加入 |
+| `group:member:left` | `{ userId, groupId }` | `g-{groupId}` | 成员离开 |
+| `channel:new` | `ChannelResponse` | `g-{groupId}` | REST: POST /groups/:id/channels |
+| `channel:updated` | `ChannelResponse` | `g-{groupId}` | REST: PATCH /channels/:id |
+| `channel:deleted` | `{ channelId }` | `g-{groupId}` | REST: DELETE /channels/:id |
+| **在线状态** | | | |
+| `presence:changed` | `{ userId, status, lastSeenAt? }` | 好友 + 共同群成员 | WS: presence:update / disconnect |
+| **通知** | | | |
+| `notification:new` | `NotificationPayload` | `u-{userId}` | 不在会话房间的成员 |
+| **AI (Sprint 2+)** | | | |
+| `ai:whisper:suggestions` | `WhisperPayload` | `u-{userId}` | 收到消息后 <800ms |
+| `ai:draft:created` | `DraftPayload` | `u-{userId}` | AI 生成草稿 |
+| `ai:draft:expired` | `{ draftId }` | `u-{userId}` | 草稿超时 (5min) |
+| `ai:predictive:action` | `PredictivePayload` | `u-{userId}` | AI 推送动作卡片 |
 
 ---
 
@@ -297,63 +212,155 @@ Desktop                   Cloud Brain                 Mobile
 
 | 事件名 | 发送方 | Payload | ACK | 说明 |
 |--------|--------|---------|-----|------|
-| `device:register` | Desktop | `{ deviceId, name, platform, capabilities }` | `{ success }` | 设备上线注册 |
-| `device:heartbeat` | Desktop | `{ deviceId, cpuUsage?, memoryUsage?, timestamp }` | - | 心跳 (30s) |
-| `device:command:send` | Mobile | `DeviceCommandPayload` | `{ commandId, status: 'dispatched' }` | 发送命令 |
-| `device:command:cancel` | Mobile | `{ commandId }` | `{ success }` | 取消命令 |
-| `device:result:complete` | Desktop | `DeviceResultPayload` | - | 命令执行完成 |
+| `device:register` | Desktop | `{ deviceId, name, platform, capabilities }` | `WsResponse` | 设备上线 |
+| `device:heartbeat` | Desktop | `{ deviceId, cpuUsage?, memoryUsage? }` | - | 心跳 (30s) |
+| `device:command:send` | Mobile | `WsEnvelope<DeviceCommandPayload>` | `{ commandId, status }` | 发送命令 |
+| `device:command:cancel` | Mobile | `{ commandId }` | `WsResponse` | 取消命令 |
+| `device:result:complete` | Desktop | `WsEnvelope<DeviceResultPayload>` | - | 执行完成 |
 | `device:result:progress` | Desktop | `{ commandId, progress, output? }` | - | 进度更新 |
 
 ### 6.2 服务端 → 客户端
 
 | 事件名 | 目标 | Payload | 说明 |
 |--------|------|---------|------|
-| `device:command:execute` | `device:{deviceId}` | `DeviceCommandPayload` | 指示桌面端执行命令 |
-| `device:command:ack` | `user:{userId}` | `{ commandId, status }` | 命令已分发确认 |
-| `device:result:delivered` | `user:{userId}` | `DeviceResultPayload` | 命令结果推送到手机 |
-| `device:result:progress` | `user:{userId}` | `{ commandId, progress, output? }` | 进度转发 |
-| `device:status:changed` | `user:{userId}` | `DeviceStatusPayload` | 设备上线/下线 |
+| `device:command:execute` | `d-{deviceId}` | `DeviceCommandPayload` | 指示执行命令 |
+| `device:command:ack` | `u-{userId}` | `{ commandId, status }` | 命令已分发确认 |
+| `device:result:delivered` | `u-{userId}` | `DeviceResultPayload` | 结果推送到手机 |
+| `device:result:progress` | `u-{userId}` | `{ commandId, progress, output? }` | 进度转发 |
+| `device:status:changed` | `u-{userId}` | `DeviceStatusPayload` | 设备上/下线 |
 
 ### 6.3 Payload 类型定义
 
 ```typescript
-// DeviceCommandPayload — 手机端发送
 interface DeviceCommandPayload {
-  commandId: string;              // UUID
-  targetDeviceId: string;         // 目标设备 ID
-  type: 'shell' | 'file' | 'app' | 'automation';
-  action: string;                 // 具体命令, e.g. "ls -la /tmp"
+  commandId: string;              // cuid
+  targetDeviceId: string;
+  type: 'shell' | 'file' | 'automation';
+  action: string;                 // e.g. "ls -la /tmp"
   args?: Record<string, unknown>;
-  timeout?: number;               // 超时 ms, 默认 30000
-  dangerLevel: 'safe' | 'warning' | 'dangerous';
+  timeout?: number;               // ms, 默认 30000
 }
 
-// DeviceResultPayload — 桌面端回报
 interface DeviceResultPayload {
   commandId: string;
   status: 'success' | 'error' | 'partial' | 'cancelled';
   data?: {
-    output?: string;              // stdout
+    output?: string;
     exitCode?: number;
   };
-  error?: {
-    code: string;
-    message: string;
-  };
+  error?: WsError;
   executionTimeMs: number;
 }
 
-// DeviceStatusPayload
 interface DeviceStatusPayload {
   deviceId: string;
   name: string;
-  platform: 'windows' | 'macos' | 'linux';
+  platform: 'darwin' | 'win32' | 'linux';
   online: boolean;
   lastSeenAt: string;
 }
 ```
 
-### 6.4 命令执行流程
+---
+
+## 七、AI 事件 Payload (Sprint 2+)
+
+```typescript
+// Whisper 耳语建议
+interface WhisperPayload {
+  suggestionId: string;
+  converseId: string;
+  triggerMessageId: string;
+  suggestions: Array<{
+    text: string;
+    confidence: number;           // 0-1
+  }>;
+  latencyMs: number;              // >1000ms 客户端应忽略
+  provider: string;
+}
+
+// Draft & Verify 草稿
+interface DraftPayload {
+  draftId: string;
+  converseId?: string;
+  deviceId?: string;
+  type: 'message' | 'command';
+  originalIntent: string;
+  draftContent: string;
+  expiresAt: string;              // ISO 8601, 默认 5 分钟后
+}
+
+// Predictive Actions 预测动作
+interface PredictivePayload {
+  suggestionId: string;
+  converseId: string;
+  actions: Array<{
+    type: 'shell' | 'file' | 'app';
+    action: string;
+    description: string;
+    dangerLevel: 'safe' | 'warning' | 'dangerous';
+    confidence: number;
+  }>;
+}
+```
+
+### Whisper 建议流程
+
+```
+User B 发消息给 User A
+       │
+Cloud Brain 收到 message:new 事件
+       │
+       ├── 并行：广播 message:new → {converseId} 房间
+       │
+       └── 异步：调用 LLM (DeepSeek, 低延迟)
+             │
+             ├── <800ms → WS: ai:whisper:suggestions → u-{userId}
+             │            客户端展示建议气泡
+             │
+             └── >1000ms → 放弃，不推送
+```
+
+---
+
+## 八、事件流程示例
+
+### 发送消息
+
+```
+Mobile                    Cloud Brain                 Desktop
+  │                           │                          │
+  ├── POST /api/v1/messages ─>│                          │
+  │   { converseId,           │                          │
+  │     type: "TEXT",         │                          │
+  │     content: "Hello" }    │                          │
+  │                           ├── DB: INSERT message     │
+  │                           ├── DB: UPDATE converse    │
+  │                           │     member lastMessageId │
+  │<── 201 { message } ──────│                          │
+  │                           │                          │
+  │                           ├── WS: message:new ──────>│ ({converseId} room)
+  │<── WS: message:new ──────│                          │ ({converseId} room)
+  │                           │                          │
+  │                           ├── WS: notification:new ─>│ (u-{userId}, 不在 room 的)
+```
+
+### 已读回执
+
+```
+Desktop                   Cloud Brain                 Mobile
+  │                           │                          │
+  ├── WS: message:read ──────>│                          │
+  │   { converseId,           │                          │
+  │     lastSeenMessageId }   ├── DB: UPDATE             │
+  │                           │   converse_members       │
+  │                           │   .lastSeenMessageId     │
+  │                           │                          │
+  │                           ├── WS: message:read ─────>│ ({converseId} room)
+  │<── WS: message:read ─────│                          │
+```
+
+### 命令执行
 
 ```
 Mobile                    Cloud Brain                   Desktop (Electron)
@@ -365,24 +372,18 @@ Mobile                    Cloud Brain                   Desktop (Electron)
   │                           │                              │
   │   ACK: { commandId,       │                              │
   │<──  status: dispatched }──│                              │
-  │                           ├── DB: INSERT command_log     │
-  │                           │     status = 'dispatched'    │
+  │                           ├── DB: INSERT commands        │
+  │                           │     status = 'PENDING'       │
   │                           │                              │
   │                           ├── WS: device:command:execute │
-  │                           │   → device:{deviceId} room ─>│
+  │                           │   → d-{deviceId} room ──────>│
   │                           │                              │
-  │                           │                              ├── OpenClaw Node:
-  │                           │                              │   system.run("ls -la")
-  │                           │                              │
-  │                           │  WS: device:result:progress  │
-  │ WS: device:result:progress│<─────────────────────────────│ (optional)
-  │<──────────────────────────│                              │
+  │                           │                              ├── exec / OpenClaw
   │                           │                              │
   │                           │  WS: device:result:complete  │
   │                           │<─────────────────────────────│
-  │                           ├── DB: UPDATE command_log     │
-  │                           │     status = 'success'       │
-  │                           │     result = { output }      │
+  │                           ├── DB: UPDATE commands        │
+  │                           │     status = 'COMPLETED'     │
   │                           │                              │
   │ WS: device:result:delivered                              │
   │<──────────────────────────│                              │
@@ -390,9 +391,9 @@ Mobile                    Cloud Brain                   Desktop (Electron)
 
 ---
 
-## 七、Socket.IO 服务端配置
+## 九、Socket.IO 服务端配置
 
-### 7.1 Gateway 配置
+### 9.1 Gateway 配置
 
 ```typescript
 @WebSocketGateway({
@@ -402,16 +403,15 @@ Mobile                    Cloud Brain                   Desktop (Electron)
     credentials: true,
   },
   transports: ['websocket', 'polling'],
-  pingInterval: 25000,    // 心跳间隔
-  pingTimeout: 60000,     // 心跳超时
-  maxHttpBufferSize: 1e6, // 1MB 最大消息
+  pingInterval: 25000,
+  pingTimeout: 60000,
+  maxHttpBufferSize: 1e6, // 1MB
 })
 ```
 
-### 7.2 Redis 适配器
+### 9.2 Redis 适配器
 
 ```typescript
-// 用于多实例水平扩展
 import { createAdapter } from '@socket.io/redis-adapter';
 import { Redis } from 'ioredis';
 
@@ -420,37 +420,34 @@ const subClient = pubClient.duplicate();
 server.adapter(createAdapter(pubClient, subClient));
 ```
 
-### 7.3 Nginx 代理配置
+### 9.3 Nginx 代理
 
 ```nginx
-# proxy_read_timeout 必须 > pingInterval + pingTimeout (85s)
 location /socket.io/ {
     proxy_pass http://backend;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
     proxy_set_header Host $host;
-    proxy_read_timeout 120s;
+    proxy_read_timeout 120s;    # > pingInterval + pingTimeout (85s)
     proxy_send_timeout 120s;
 }
 ```
 
 ---
 
-## 八、TypeScript 类型安全
+## 十、TypeScript 类型安全
 
-### 8.1 共享接口 (packages/shared)
+### 10.1 共享接口 (packages/ws-protocol)
 
 ```typescript
-// 服务端和客户端共享同一套接口
-
 interface ClientToServerEvents {
   // Chat
-  'conversation:join':  (data: { conversationId: string }) => void;
-  'conversation:leave': (data: { conversationId: string }) => void;
-  'message:typing':     (data: { conversationId: string; isTyping: boolean }) => void;
-  'message:read':       (data: { conversationId: string; lastReadMessageId: string }) => void;
-  'presence:update':    (data: { isOnline: boolean }) => void;
+  'converse:join':  (data: { converseId: string }) => void;
+  'converse:leave': (data: { converseId: string }) => void;
+  'message:typing': (data: { converseId: string; isTyping: boolean }) => void;
+  'message:read':   (data: { converseId: string; lastSeenMessageId: string }) => void;
+  'presence:update': (data: { status: UserStatus }) => void;
 
   // AI (Sprint 2+)
   'ai:draft:approve':       (data: { draftId: string }, ack: (res: WsResponse) => void) => void;
@@ -461,30 +458,48 @@ interface ClientToServerEvents {
   'ai:whisper:select':      (data: { suggestionId: string; selectedIndex: number }) => void;
 
   // Device
-  'device:register':       (data: DeviceRegisterPayload, ack: (res: WsResponse) => void) => void;
-  'device:heartbeat':      (data: DeviceHeartbeatPayload) => void;
-  'device:command:send':   (data: WsEnvelope<DeviceCommandPayload>, ack: (res: WsResponse) => void) => void;
-  'device:command:cancel': (data: { commandId: string }, ack: (res: WsResponse) => void) => void;
-  'device:result:complete':(data: WsEnvelope<DeviceResultPayload>) => void;
-  'device:result:progress':(data: { commandId: string; progress: number; output?: string }) => void;
+  'device:register':        (data: DeviceRegisterPayload, ack: (res: WsResponse) => void) => void;
+  'device:heartbeat':       (data: DeviceHeartbeatPayload) => void;
+  'device:command:send':    (data: WsEnvelope<DeviceCommandPayload>, ack: (res: WsResponse) => void) => void;
+  'device:command:cancel':  (data: { commandId: string }, ack: (res: WsResponse) => void) => void;
+  'device:result:complete': (data: WsEnvelope<DeviceResultPayload>) => void;
+  'device:result:progress': (data: { commandId: string; progress: number; output?: string }) => void;
 }
 
 interface ServerToClientEvents {
-  // Chat
-  'message:new':          (data: MessageResponse) => void;
-  'message:updated':      (data: MessageResponse) => void;
-  'message:recalled':     (data: { messageId: string; conversationId: string }) => void;
-  'message:typing':       (data: { conversationId: string; userId: string; isTyping: boolean }) => void;
-  'message:read':         (data: { conversationId: string; userId: string; lastReadAt: string }) => void;
-  'conversation:new':     (data: ConversationResponse) => void;
-  'conversation:updated': (data: ConversationResponse) => void;
-  'friend:request':       (data: FriendRequestPayload) => void;
-  'friend:accepted':      (data: FriendPayload) => void;
-  'friend:removed':       (data: { userId: string }) => void;
-  'presence:changed':     (data: { userId: string; isOnline: boolean; lastSeenAt?: string }) => void;
-  'notification:new':     (data: NotificationPayload) => void;
+  // Messages
+  'message:new':      (data: MessageResponse) => void;
+  'message:updated':  (data: MessageResponse) => void;
+  'message:deleted':  (data: { messageId: string; converseId: string }) => void;
+  'message:typing':   (data: { converseId: string; userId: string; isTyping: boolean }) => void;
+  'message:read':     (data: { converseId: string; userId: string; lastSeenMessageId: string }) => void;
 
-  // AI (Sprint 2+)
+  // Converses
+  'converse:new':     (data: ConverseResponse) => void;
+  'converse:updated': (data: ConverseResponse) => void;
+
+  // Friends
+  'friend:request':   (data: FriendRequestPayload) => void;
+  'friend:accepted':  (data: FriendPayload) => void;
+  'friend:removed':   (data: { userId: string }) => void;
+
+  // Groups
+  'group:new':            (data: GroupResponse) => void;
+  'group:updated':        (data: GroupResponse) => void;
+  'group:deleted':        (data: { groupId: string }) => void;
+  'group:member:joined':  (data: MemberPayload) => void;
+  'group:member:left':    (data: { userId: string; groupId: string }) => void;
+  'channel:new':          (data: ChannelResponse) => void;
+  'channel:updated':      (data: ChannelResponse) => void;
+  'channel:deleted':      (data: { channelId: string }) => void;
+
+  // Presence
+  'presence:changed': (data: { userId: string; status: UserStatus; lastSeenAt?: string }) => void;
+
+  // Notifications
+  'notification:new': (data: NotificationPayload) => void;
+
+  // AI
   'ai:whisper:suggestions': (data: WhisperPayload) => void;
   'ai:draft:created':       (data: DraftPayload) => void;
   'ai:draft:expired':       (data: { draftId: string }) => void;
@@ -502,18 +517,18 @@ interface ServerToClientEvents {
 }
 ```
 
-### 8.2 服务端使用
+### 10.2 服务端使用
 
 ```typescript
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents, {}, SocketData>;
 type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, {}, SocketData>;
 
 interface SocketData {
-  user: { id: string; username: string; };
   userId: string;
+  username: string;
   deviceId?: string;
   deviceType: 'mobile' | 'desktop' | 'web';
 }
 ```
 
-IDE 自动补全 emit 的事件名和 payload 类型，编译时捕获错误。
+IDE 自动补全事件名和 payload 类型，编译时捕获错误。

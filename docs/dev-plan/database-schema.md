@@ -1,395 +1,345 @@
-# 数据库 Entity 设计
+# 数据库 Schema 设计
 
-> 基于 PostgreSQL + TypeORM，参考 Valkyrie v1 的领域模型 + brocoders 的 Hexagonal Architecture
+> 基于 Prisma ORM + PostgreSQL，综合 Valkyrie v1、nestjs-chat、Tailchat 三大参考项目。
+>
+> 权威来源：[reference-architecture-guide.md](./reference-architecture-guide.md) §一
+>
+> 旧版（TypeORM）已归档至 `_archive/database-schema.md`
 
 ---
 
-## 一、Entity 关系总览
+## 一、设计原则
+
+| 原则 | 来源 | 说明 |
+|------|------|------|
+| **PostgreSQL Schema 分区** | nestjs-chat | 用 PG schema 隔离领域：`user`、`auth`、`chat`、`group`、`device` |
+| **软删除** | nestjs-chat | 所有实体加 `deletedAt`，永不硬删除 |
+| **CUID 主键** | Valkyrie (snowflake 思路) | 用 `cuid2` 替代自增 ID / UUID，分布式安全、URL 安全 |
+| **JSONB 用于灵活字段** | Tailchat (MongoDB 嵌入) | 插件配置、消息 metadata 等用 JSONB，其余用关系表 |
+| **独立关联表** | Valkyrie | 好友、成员、频道权限等用显式关联表，不用 M2M 隐式表 |
+
+### 与旧设计的关键差异
+
+| 维度 | 旧 (TypeORM) | 新 (Prisma) | 原因 |
+|------|-------------|-------------|------|
+| ORM | TypeORM + 手写 Entity | **Prisma** + 声明式 Schema | 类型安全更强、Migration 更可靠 |
+| 主键 | `uuid` (`uuid_generate_v4()`) | **`cuid()`** | 分布式安全、URL 安全、无需数据库扩展 |
+| 密码哈希 | bcrypt | **argon2** | 更快、抗 GPU/ASIC 攻击 |
+| DM/群聊 | 单一 `conversations` 表 | **三层**: Group → Channel → Converse | 支持 Discord 式频道嵌套 |
+| 已读追踪 | `lastReadAt` 时间戳 | **`lastSeenMessageId`** 游标 | 精确到消息粒度 |
+| 消息撤回 | `isRecalled: boolean` | **`deletedAt`** 软删除 | 统一软删除模式 |
+
+---
+
+## 二、Entity 关系总览
 
 ```
-                    friends (self-join)
-                   ┌──────┬──────┐
-                   │userId│friendId│
-                   └──────┴──────┘
-                         │
-  friend_requests        │
-  ┌─────────┬──────────┐ │
-  │senderId │receiverId│ │
-  └─────────┴──────────┘ │
-                         │
-  ┌─────────────┐        │            ┌──────────────────┐
-  │ users       │────────┘──────1:N──>│ devices          │
-  │ id (PK)     │                     │ id (PK)          │
-  │ username    │                     │ userId (FK)      │
-  │ email       │                     │ name             │
-  │ password    │                     │ platform         │
-  │ avatar      │                     │ isOnline         │
-  │ isOnline    │                     │ lastSeen         │
-  └─────────────┘                     └──────────────────┘
-       │
-       │ 1:N (via conversation_members)
-       v
-  ┌──────────────────────┐           ┌──────────────────────┐
-  │ conversation_members │           │ conversations        │
-  │ id (PK)              │     N:1   │ id (PK)              │
-  │ userId (FK)       ───┼──────────>│ type (dm|group)      │
-  │ conversationId (FK)──┼──────────>│ name                 │
-  │ role                 │           │ avatar               │
-  │ lastReadAt           │           │ ownerId (FK)         │
-  │ isOpen               │           │ lastActivityAt       │
-  └──────────────────────┘           └──────────────────────┘
-                                          │
-                                          │ 1:N
-                                          v
-                                     ┌──────────────────────┐
-                                     │ messages             │
-                                     │ id (PK)              │
-                                     │ conversationId (FK)  │
-                                     │ senderId (FK)        │
-                                     │ type (text|image|...)│
-                                     │ content              │
-                                     │ isRecalled           │
-                                     └──────────────────────┘
-                                          │
-                                          │ 1:1 (optional)
-                                          v
-                                     ┌──────────────────────┐
-                                     │ attachments          │
-                                     │ id (PK)              │
-                                     │ messageId (FK)       │
-                                     │ url                  │
-                                     │ mimeType             │
-                                     │ fileName             │
-                                     │ fileSize             │
-                                     └──────────────────────┘
-
-  ┌──────────────────────┐
-  │ command_logs         │
-  │ id (PK)              │
-  │ userId (FK)          │
-  │ deviceId (FK)        │
-  │ type                 │
-  │ action               │
-  │ status               │
-  │ result               │
-  │ executionTimeMs      │
-  └──────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                           用户领域                                   │
+│  User ─┬── FriendRequest (pending)                                  │
+│        ├── Friendship (confirmed, bidirectional)                    │
+│        ├── UserBlock (拉黑)                                         │
+│        ├── Device ── Command (OpenClaw 远控)                        │
+│        └── ConverseMember                                           │
+├─────────────────────────────────────────────────────────────────────┤
+│                           群组领域                                   │
+│  Group ─┬── Channel (TEXT / SECTION / VOICE / PLUGIN)              │
+│         ├── GroupMember (roles[], muteUntil)                        │
+│         ├── GroupRole (permissions[])                                │
+│         └── GroupBan                                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                           会话领域                                   │
+│  Converse (DM / MULTI / GROUP)                                     │
+│    ├── ConverseMember (isOpen, lastSeenMessageId)                  │
+│    └── Message ── Attachment                                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                           AI 领域                                    │
+│  AiDraft (Draft & Verify 草稿)                                     │
+│  AiSuggestion (Whisper 建议 + Predictive Actions)                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                           认证领域                                   │
+│  RefreshToken (JWT RS256 刷新令牌)                                  │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 二、Entity 详细定义
+## 三、完整 Prisma Schema
 
-### 2.1 User Entity
+> 共 **18 个 Model**，完整定义见 reference-architecture-guide.md §1.2。
+> 此处列出每个表的要点和关键索引。
 
-**表名**: `users`
-**来源**: brocoders 已有，需扩展
+### 3.1 用户领域
 
-| 列名 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| `id` | `uuid` | PK, default uuid_generate_v4() | |
-| `username` | `varchar(50)` | NOT NULL, UNIQUE | 显示名 |
-| `email` | `varchar(255)` | NOT NULL, UNIQUE | 登录邮箱 |
-| `password` | `text` | NOT NULL | bcrypt 哈希 |
-| `avatar` | `text` | NULLABLE | 头像 URL (S3) |
-| `bio` | `varchar(200)` | NULLABLE | 个人简介 |
-| `isOnline` | `boolean` | DEFAULT false | 在线状态 |
-| `lastSeenAt` | `timestamp` | NULLABLE | 最后在线时间 |
-| `roleId` | `int` | FK -> roles.id | 用户角色 (已有) |
-| `statusId` | `int` | FK -> statuses.id | 账号状态 (已有) |
-| `createdAt` | `timestamp` | DEFAULT NOW() | |
-| `updatedAt` | `timestamp` | DEFAULT NOW() | |
+#### User
 
-**关系**:
-- `OneToMany -> Device[]` (用户的设备)
-- `OneToMany -> ConversationMember[]` (参与的会话)
-- `ManyToMany -> User[]` via `friends` (好友)
-- `ManyToMany -> User[]` via `friend_requests` (好友请求)
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | CUID 主键 |
+| `email` | `String @unique` | 登录邮箱 |
+| `username` | `String @unique` | 显示名 |
+| `password` | `String` | argon2 哈希 |
+| `displayName` | `String` | 昵称 |
+| `avatarUrl` | `String?` | 头像 URL |
+| `status` | `UserStatus @default(OFFLINE)` | ONLINE / IDLE / DND / OFFLINE |
+| `deletedAt` | `DateTime?` | 软删除 |
 
-### 2.2 Device Entity
+#### FriendRequest
 
-**表名**: `devices`
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | |
+| `senderId` | `String` | FK → User |
+| `receiverId` | `String` | FK → User |
+| `status` | `FriendRequestStatus @default(PENDING)` | PENDING / REJECTED |
 
-| 列名 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| `id` | `uuid` | PK | |
-| `userId` | `uuid` | FK -> users.id, NOT NULL | 所属用户 |
-| `name` | `varchar(100)` | NOT NULL | 设备显示名 (e.g. "My MacBook") |
-| `platform` | `enum` | NOT NULL | windows / macos / linux |
-| `isOnline` | `boolean` | DEFAULT false | |
-| `lastSeenAt` | `timestamp` | NULLABLE | |
-| `socketId` | `varchar(100)` | NULLABLE | 当前 Socket.IO 连接 ID |
-| `capabilities` | `jsonb` | DEFAULT '[]' | 设备能力列表 |
-| `createdAt` | `timestamp` | DEFAULT NOW() | |
-| `updatedAt` | `timestamp` | DEFAULT NOW() | |
+**约束**: `@@unique([senderId, receiverId])`
 
-**索引**: `(userId)`, `(userId, isOnline)`
+> 注意：接受后直接删除 FriendRequest 行 + 创建 Friendship 行，不设 ACCEPTED 状态。
 
-### 2.3 Friend System (Join Tables)
+#### Friendship
 
-**表名**: `friends` (双向好友关系)
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | |
+| `userAId` | `String` | 较小 ID 放 A |
+| `userBId` | `String` | 较大 ID 放 B |
 
-| 列名 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| `userId` | `uuid` | PK (composite), FK -> users.id | |
-| `friendId` | `uuid` | PK (composite), FK -> users.id | |
-| `createdAt` | `timestamp` | DEFAULT NOW() | 成为好友时间 |
+**约束**: `@@unique([userAId, userBId])`
 
-> 添加好友时双向写入：A->B 和 B->A
+> 双向查询：WHERE userAId = :me OR userBId = :me
 
-**表名**: `friend_requests` (单向请求)
+#### UserBlock
 
-| 列名 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| `id` | `uuid` | PK | |
-| `senderId` | `uuid` | FK -> users.id, NOT NULL | 发送者 |
-| `receiverId` | `uuid` | FK -> users.id, NOT NULL | 接收者 |
-| `status` | `enum` | DEFAULT 'pending' | pending / accepted / rejected |
-| `createdAt` | `timestamp` | DEFAULT NOW() | |
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | |
+| `blockerId` | `String` | 拉黑者 |
+| `blockedId` | `String` | 被拉黑者 |
 
-**索引**: `UNIQUE (senderId, receiverId)`
+**约束**: `@@unique([blockerId, blockedId])`
 
-### 2.4 Conversation Entity
+### 3.2 群组领域
 
-**表名**: `conversations`
-**设计**: 参考 Valkyrie 统一 Channel 模型（DM 和群聊用同一张表）
+#### Group
 
-| 列名 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| `id` | `uuid` | PK | |
-| `type` | `enum` | NOT NULL | `dm` / `group` |
-| `name` | `varchar(100)` | NULLABLE | 群名称 (DM 时为 null) |
-| `avatar` | `text` | NULLABLE | 群头像 (DM 时为 null) |
-| `ownerId` | `uuid` | FK -> users.id, NULLABLE | 群主 (DM 时为 null) |
-| `lastActivityAt` | `timestamp` | DEFAULT NOW() | 最后活动时间 (用于排序) |
-| `createdAt` | `timestamp` | DEFAULT NOW() | |
-| `updatedAt` | `timestamp` | DEFAULT NOW() | |
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | |
+| `name` | `String` | 群名 |
+| `iconUrl` | `String?` | 群头像 |
+| `description` | `String? @db.VarChar(120)` | 群简介 |
+| `inviteCode` | `String @unique @default(cuid())` | 邀请码 |
+| `ownerId` | `String` | 群主 |
+| `config` | `Json @default("{}")` | 插件配置 (学 Tailchat) |
 
-**索引**: `(lastActivityAt DESC)`
+#### Channel
 
-### 2.5 ConversationMember Entity
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | |
+| `name` | `String` | 频道名 |
+| `type` | `ChannelType @default(TEXT)` | TEXT / SECTION / VOICE / PLUGIN |
+| `parentId` | `String?` | 分类嵌套 (学 Tailchat) |
+| `groupId` | `String` | FK → Group |
+| `converseId` | `String? @unique` | 关联到 Converse |
+| `sortOrder` | `Int @default(0)` | 排序 |
+| `pluginProvider` | `String?` | 插件面板标识 |
+| `lastActivityAt` | `DateTime` | 排序依据 |
 
-**表名**: `conversation_members`
+**索引**: `@@index([groupId])`
 
-| 列名 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| `id` | `uuid` | PK | |
-| `userId` | `uuid` | FK -> users.id, NOT NULL | |
-| `conversationId` | `uuid` | FK -> conversations.id, NOT NULL, CASCADE | |
-| `role` | `enum` | DEFAULT 'member' | owner / admin / member |
-| `nickname` | `varchar(50)` | NULLABLE | 群内昵称 |
-| `lastReadAt` | `timestamp` | NULLABLE | 最后已读时间 (用于未读计数 + 已读回执) |
-| `isOpen` | `boolean` | DEFAULT true | DM 可见性 (关闭后不显示在列表) |
-| `isMuted` | `boolean` | DEFAULT false | 是否免打扰 |
-| `joinedAt` | `timestamp` | DEFAULT NOW() | |
+#### GroupMember
 
-**索引**: `UNIQUE (userId, conversationId)`, `(userId, isOpen)`
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `userId` | `String` | 复合主键 |
+| `groupId` | `String` | 复合主键 |
+| `nickname` | `String?` | 群内昵称 |
+| `roles` | `String[] @default([])` | 角色 ID 列表 |
+| `muteUntil` | `DateTime?` | 禁言到期 |
+| `lastSeenAt` | `DateTime` | 未读计算 |
 
-### 2.6 Message Entity
+**主键**: `@@id([userId, groupId])`
 
-**表名**: `messages`
+#### GroupRole / GroupBan
 
-| 列名 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| `id` | `uuid` | PK | |
-| `conversationId` | `uuid` | FK -> conversations.id, NOT NULL, CASCADE | |
-| `senderId` | `uuid` | FK -> users.id, NOT NULL | |
-| `type` | `enum` | NOT NULL | text / image / file / voice / system |
-| `content` | `text` | NULLABLE | 文字内容 (或系统消息文案) |
-| `replyToId` | `uuid` | FK -> messages.id, NULLABLE | 回复的消息 |
-| `isRecalled` | `boolean` | DEFAULT false | 是否已撤回 |
-| `createdAt` | `timestamp` | DEFAULT NOW() | |
-| `updatedAt` | `timestamp` | DEFAULT NOW() | |
+- `GroupRole`: `id`, `groupId`, `name`, `permissions[]`
+- `GroupBan`: `@@id([userId, groupId])`, `reason?`, `bannedAt`
 
-**索引**: `(conversationId, createdAt DESC)` — 分页查询核心索引
+### 3.3 会话领域
 
-**分页策略**: 游标分页 (cursor-based)，使用 `createdAt` 作为游标，每页 35 条，DESC 排序。参考 Valkyrie 的实现。
+#### Converse
 
-### 2.7 Attachment Entity
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | |
+| `type` | `ConverseType` | **DM** / **MULTI** / **GROUP** |
+| `name` | `String?` | DM 时为空 |
 
-**表名**: `attachments`
+> 统一消息管道：DM、多人私聊、群组频道的消息都通过 Converse 路由。
 
-| 列名 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| `id` | `uuid` | PK | |
-| `messageId` | `uuid` | FK -> messages.id, NOT NULL, CASCADE | |
-| `url` | `text` | NOT NULL | S3 文件 URL |
-| `mimeType` | `varchar(100)` | NOT NULL | MIME 类型 |
-| `fileName` | `varchar(255)` | NULLABLE | 原始文件名 |
-| `fileSize` | `bigint` | NULLABLE | 文件大小 (bytes) |
-| `duration` | `int` | NULLABLE | 语音消息时长 (秒) |
-| `width` | `int` | NULLABLE | 图片宽度 |
-| `height` | `int` | NULLABLE | 图片高度 |
-| `createdAt` | `timestamp` | DEFAULT NOW() | |
+#### ConverseMember
 
-### 2.8 CommandLog Entity
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `converseId` | `String` | 复合主键 |
+| `userId` | `String` | 复合主键 |
+| `isOpen` | `Boolean @default(true)` | DM 可见性 (学 Valkyrie) |
+| `lastSeenMessageId` | `String?` | 最后已读消息 ID (学 nestjs-chat) |
+| `lastMessageId` | `String?` | 最后一条消息 ID (反范式优化) |
 
-**表名**: `command_logs`
+**主键**: `@@id([converseId, userId])`
 
-| 列名 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| `id` | `uuid` | PK | |
-| `userId` | `uuid` | FK -> users.id, NOT NULL | 发送命令的用户 |
-| `deviceId` | `uuid` | FK -> devices.id, NOT NULL | 目标设备 |
-| `type` | `enum` | NOT NULL | shell / file / app / automation |
-| `action` | `text` | NOT NULL | 具体命令内容 |
-| `args` | `jsonb` | NULLABLE | 命令参数 |
-| `dangerLevel` | `enum` | NOT NULL | safe / warning / dangerous |
-| `status` | `enum` | DEFAULT 'pending' | pending / dispatched / executing / success / error / cancelled |
-| `result` | `jsonb` | NULLABLE | 执行结果 |
-| `errorMessage` | `text` | NULLABLE | 错误信息 |
-| `executionTimeMs` | `int` | NULLABLE | 执行耗时 (ms) |
-| `createdAt` | `timestamp` | DEFAULT NOW() | |
-| `completedAt` | `timestamp` | NULLABLE | 完成时间 |
+#### Message
 
-**索引**: `(userId, createdAt DESC)`, `(deviceId, status)`
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | |
+| `content` | `String?` | 可为空 (纯文件消息) |
+| `type` | `MessageType @default(TEXT)` | TEXT / IMAGE / FILE / VOICE / SYSTEM / AI_DRAFT / AI_WHISPER / AI_PREDICTIVE |
+| `converseId` | `String` | FK → Converse |
+| `authorId` | `String` | FK → User |
+| `metadata` | `Json?` | AI 扩展字段 |
+| `deletedAt` | `DateTime?` | 软删除 = 撤回 |
 
-### 2.9 AiSuggestion Entity（Sprint 2+）
+**索引**: `@@index([converseId, createdAt])` — 分页查询核心索引
 
-**表名**: `ai_suggestions`
+**分页策略**: 游标分页，每页 35 条，以 `createdAt` DESC 为游标。
 
-> AI 建议记录，覆盖 Whisper 耳语建议和 Predictive Actions 预测动作。
-> Q5 确认 MVP 三个 AI 模式全做，但此表在 Sprint 2+ 实现。
+#### Attachment
 
-| 列名 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| `id` | `uuid` | PK | |
-| `conversationId` | `uuid` | FK -> conversations.id, NOT NULL | 关联会话 |
-| `triggerMessageId` | `uuid` | FK -> messages.id, NULLABLE | 触发建议的消息 (Whisper) |
-| `userId` | `uuid` | FK -> users.id, NOT NULL | 目标用户 |
-| `type` | `enum` | NOT NULL | `whisper` / `predictive` |
-| `suggestions` | `jsonb` | NOT NULL | 建议内容数组（最多 3 条） |
-| `selectedIndex` | `int` | NULLABLE | 用户选择了第几条 (null=未选择) |
-| `dismissed` | `boolean` | DEFAULT false | 用户是否忽略 |
-| `latencyMs` | `int` | NULLABLE | AI 生成耗时 (ms) |
-| `provider` | `varchar(50)` | NOT NULL | 使用的 LLM 供应商 (deepseek / kimi) |
-| `model` | `varchar(100)` | NULLABLE | 模型名称 |
-| `createdAt` | `timestamp` | DEFAULT NOW() | |
+- `id`, `messageId` (FK → Message, CASCADE), `url`, `filename`, `mimeType`, `size?`
+- 1:N 关系 (一条消息可多个附件)
 
-**索引**: `(conversationId, createdAt DESC)`, `(userId, type, createdAt DESC)`
+### 3.4 设备领域 (OpenClaw)
 
-**建议内容格式 (suggestions jsonb)**:
-```json
-// Whisper 类型
-[
-  { "text": "好的，我马上处理", "confidence": 0.92 },
-  { "text": "收到，稍后回复你", "confidence": 0.85 },
-  { "text": "明白了", "confidence": 0.78 }
-]
+#### Device
 
-// Predictive 类型
-[
-  {
-    "type": "shell",
-    "action": "npm install missing-package",
-    "description": "安装缺失的依赖",
-    "dangerLevel": "safe",
-    "confidence": 0.88
-  }
-]
-```
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | |
+| `name` | `String` | 设备显示名 |
+| `platform` | `String` | `"darwin"` / `"win32"` / `"linux"` |
+| `status` | `DeviceStatus @default(OFFLINE)` | ONLINE / OFFLINE |
+| `lastSeenAt` | `DateTime?` | |
+| `userId` | `String` | FK → User |
 
-### 2.10 DraftState Entity（Sprint 2+）
+**索引**: `@@index([userId])`
 
-**表名**: `draft_states`
+#### Command
 
-> Draft & Verify 状态机，追踪 AI 生成草稿的审批流程。
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | |
+| `type` | `String` | `"shell"` / `"file"` / `"automation"` |
+| `payload` | `Json` | 命令内容 |
+| `result` | `Json?` | 执行结果 |
+| `status` | `CommandStatus @default(PENDING)` | PENDING / RUNNING / COMPLETED / FAILED / CANCELLED |
+| `deviceId` | `String` | FK → Device |
+| `issuerId` | `String` | 发命令的用户 |
+| `completedAt` | `DateTime?` | |
 
-| 列名 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| `id` | `uuid` | PK | |
-| `userId` | `uuid` | FK -> users.id, NOT NULL | 发起者 |
-| `conversationId` | `uuid` | FK -> conversations.id, NULLABLE | 关联会话 (聊天草稿) |
-| `deviceId` | `uuid` | FK -> devices.id, NULLABLE | 关联设备 (命令草稿) |
-| `type` | `enum` | NOT NULL | `message` / `command` |
-| `originalIntent` | `text` | NOT NULL | 用户原始意图 |
-| `draftContent` | `text` | NOT NULL | AI 生成的草稿内容 |
-| `status` | `enum` | DEFAULT 'pending' | `pending` / `approved` / `rejected` / `expired` |
-| `provider` | `varchar(50)` | NOT NULL | 使用的 LLM |
-| `latencyMs` | `int` | NULLABLE | AI 生成耗时 (ms) |
-| `createdAt` | `timestamp` | DEFAULT NOW() | |
-| `resolvedAt` | `timestamp` | NULLABLE | 审批/拒绝/过期时间 |
-| `expiresAt` | `timestamp` | NOT NULL | 过期时间 (默认创建后 5 分钟) |
+**索引**: `@@index([deviceId, createdAt])`
 
-**索引**: `(userId, status)`, `(userId, createdAt DESC)`
+### 3.5 AI 领域
+
+#### AiDraft (Draft & Verify)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | |
+| `content` | `String` | AI 生成的草稿 |
+| `status` | `DraftStatus @default(PENDING)` | PENDING / APPROVED / REJECTED / EXPIRED |
+| `userId` | `String` | |
+| `converseId` | `String` | |
+| `triggerMessageId` | `String?` | 触发草稿的消息 |
+| `resolvedAt` | `DateTime?` | |
+
+#### AiSuggestion (Whisper + Predictive)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | |
+| `type` | `SuggestionType` | WHISPER / PREDICTIVE |
+| `content` | `String` | |
+| `metadata` | `Json?` | |
+| `userId` | `String` | |
+| `converseId` | `String` | |
+| `triggerMessageId` | `String?` | |
+
+### 3.6 认证领域
+
+#### RefreshToken (学 nestjs-chat)
+
+- `id`, `token` (unique), `userId`, `expiresAt`, `createdAt`
+- 支持 JWT RS256 双密钥对 token 刷新
 
 ---
 
-## 三、关键设计决策
+## 四、关键设计决策
 
-### 3.1 ID 策略
+### 4.1 统一 Converse 模型
 
-使用 PostgreSQL 原生 UUID (`uuid_generate_v4()`)，而非 Valkyrie 的 nanoid snowflake。理由：
-- brocoders 脚手架已使用 UUID
-- PostgreSQL 对 UUID 有原生优化
-- 无需额外依赖
+学 Tailchat，所有消息流都经过 `Converse` 表。区别于旧设计的单一 `conversations` 表：
 
-### 3.2 统一 Conversation 模型
+- **DM**: 创建 `Converse(type=DM)` + 两个 `ConverseMember`
+- **多人私聊**: 创建 `Converse(type=MULTI)` + N 个 `ConverseMember`
+- **群组频道**: 创建 `Channel` 时自动创建关联的 `Converse(type=GROUP)`
 
-参考 Valkyrie 的 Channel 设计，DM 和群聊使用同一张 `conversations` 表，通过 `type` 字段区分：
-- `type = 'dm'`: 1对1 私聊，`name`/`avatar`/`ownerId` 为 null
-- `type = 'group'`: 群聊，有群名/群头像/群主
+好处：消息查询、未读计数、会话列表排序等逻辑完全统一。
 
-好处：消息查询、未读计数、会话列表排序等逻辑统一，不需要区分处理。
+### 4.2 已读追踪
 
-### 3.3 已读回执实现
-
-使用 `conversation_members.lastReadAt` 时间戳，对比 `messages.createdAt` 来计算未读消息数：
+使用 `ConverseMember.lastSeenMessageId`（消息 ID 游标），而非旧设计的 `lastReadAt` 时间戳。
 
 ```sql
--- 获取用户的未读消息数
-SELECT cm.conversationId, COUNT(m.id) as unreadCount
-FROM conversation_members cm
-LEFT JOIN messages m ON m.conversationId = cm.conversationId
-  AND m.createdAt > cm.lastReadAt
-  AND m.senderId != cm.userId
-WHERE cm.userId = :userId AND cm.isOpen = true
-GROUP BY cm.conversationId;
+-- 未读消息数
+SELECT COUNT(*) FROM messages m
+WHERE m."converseId" = :converseId
+  AND m."createdAt" > (
+    SELECT m2."createdAt" FROM messages m2 WHERE m2.id = :lastSeenMessageId
+  )
+  AND m."authorId" != :userId;
 ```
 
-### 3.4 消息撤回
+### 4.3 消息撤回
 
-使用 soft delete 模式：`isRecalled = true`。客户端显示"该消息已被撤回"占位，保留消息记录用于审计。
+使用 `deletedAt` 软删除，不再使用 `isRecalled` 布尔值。客户端判断 `deletedAt IS NOT NULL` 显示"已撤回"占位。
 
-### 3.5 消息搜索
+### 4.4 Group vs Converse 的关系
 
-MVP 阶段使用 PostgreSQL 全文搜索：
-
-```sql
--- 在 messages 表上创建 GIN 索引
-CREATE INDEX idx_messages_content_search ON messages USING GIN(to_tsvector('simple', content));
-
--- 搜索
-SELECT * FROM messages
-WHERE conversationId = :convId
-  AND to_tsvector('simple', content) @@ plainto_tsquery('simple', :query)
-ORDER BY createdAt DESC
-LIMIT 20;
+```
+Group
+  ├── Channel (TEXT, type=TEXT)  ──── converseId → Converse(type=GROUP)
+  ├── Channel (分类, type=SECTION)
+  │     ├── Channel (子频道, TEXT)  ── converseId → Converse(type=GROUP)
+  │     └── Channel (插件, PLUGIN)
+  └── GroupMember[]
 ```
 
-> 中文搜索需要安装 `pg_jieba` 或 `zhparser` 扩展。MVP 阶段可以先用 `simple` 配置 + `LIKE` 模糊搜索。
-
-### 3.6 通知/未读追踪
-
-参考 Valkyrie 的 `lastSeen` 模式：
-- **会话级**: `conversation_members.lastReadAt` vs `conversations.lastActivityAt` → 计算红点
-- **消息发送时**: 更新 `conversations.lastActivityAt`
-- **用户阅读时**: 更新 `conversation_members.lastReadAt`，通过 WebSocket 广播 `message:read` 事件
+Channel 是群组内的"面板"，TEXT 类型的 Channel 关联一个 Converse 来承载消息。
 
 ---
 
-## 四、Migration 执行顺序
+## 五、Migration 执行顺序
 
 ```
-001_create_extensions.ts        -- uuid-ossp extension
-002_create_users_table.ts       -- users (扩展已有)
-003_create_devices_table.ts     -- devices
-004_create_friends_tables.ts    -- friends + friend_requests
-005_create_conversations.ts     -- conversations + conversation_members
-006_create_messages.ts          -- messages + attachments
-007_create_command_logs.ts      -- command_logs
-008_create_indexes.ts           -- 复合索引
---- Sprint 2+ ---
-009_create_ai_suggestions.ts    -- ai_suggestions (Whisper + Predictive Actions)
-010_create_draft_states.ts      -- draft_states (Draft & Verify 状态机)
+prisma/migrations/
+  001_init/                    -- User, FriendRequest, Friendship, UserBlock
+  002_groups/                  -- Group, Channel, GroupMember, GroupRole, GroupBan
+  003_converses/               -- Converse, ConverseMember
+  004_messages/                -- Message, Attachment
+  005_devices/                 -- Device, Command
+  006_auth/                    -- RefreshToken
+  --- Sprint 2+ ---
+  007_ai/                      -- AiDraft, AiSuggestion
+```
+
+```bash
+# 开发环境
+npx prisma migrate dev --name init
+
+# 生产环境
+npx prisma migrate deploy
 ```

@@ -1,7 +1,7 @@
-# Neural Link 技术调研报告
+# LinkingChat 技术调研报告
 
 > 调研日期：2026-02-11
-> 目的：为 Neural Link 项目的技术选型和架构设计提供参考
+> 目的：为 LinkingChat 项目的技术选型和架构设计提供参考
 
 ---
 
@@ -12,7 +12,7 @@
 | 项目 | Stars | 技术栈 | 特点 | 参考价值 |
 |------|-------|--------|------|---------|
 | [Rocket.Chat](https://github.com/RocketChat/Rocket.Chat) | 42k+ | **Node.js + TypeScript + Meteor + MongoDB** | 企业级 IM，支持频道/DM/文件/视频，有 React 前端和 React Native 移动端 | **后端架构参考首选** — 同为 Node.js/TS 技术栈，插件系统和 SDK 设计值得学习 |
-| [Element / Matrix](https://github.com/element-hq/element-web) | 11k+ | **React + TypeScript + Matrix 协议** | 去中心化 IM，支持桥接 Slack/Discord/Telegram | Matrix 协议设计很优秀，但去中心化对 Neural Link 不必要 |
+| [Element / Matrix](https://github.com/element-hq/element-web) | 11k+ | **React + TypeScript + Matrix 协议** | 去中心化 IM，支持桥接 Slack/Discord/Telegram | Matrix 协议设计很优秀，但去中心化对 LinkingChat 不必要 |
 | [Mattermost](https://github.com/mattermost/mattermost) | 31k+ | **Go + React + PostgreSQL** | 企业 Slack 替代品，完整的频道/搜索/文件/推送 | **PostgreSQL 消息存储设计** 值得参考（我们也用 PG） |
 
 ### 1.2 Discord 克隆 / 替代品
@@ -52,9 +52,9 @@
     └── CDN (Cloudflare) ──── 图片、文件、头像等静态资源
 ```
 
-### 2.2 关键设计决策（对 Neural Link 的启示）
+### 2.2 关键设计决策（对 LinkingChat 的启示）
 
-| Discord 的做法 | 对 Neural Link 的建议 |
+| Discord 的做法 | 对 LinkingChat 的建议 |
 |---------------|---------------------|
 | **WebSocket Gateway 分片** — 每 shard 约 5000 用户 | MVP 阶段不需要分片，但协议设计要预留 shard_id 字段 |
 | **Pub/Sub 消息分发** — 用 Kafka/RabbitMQ 解耦发送和投递 | MVP 可简化：直接在内存中维护 userId → WebSocket 映射，后期加 Redis Pub/Sub |
@@ -76,7 +76,7 @@ interface GatewayPayload {
   t?: string;       // event name (如 "MESSAGE_CREATE")
 }
 
-// Neural Link 建议采用类似结构
+// LinkingChat 建议采用类似结构
 interface NLGatewayMessage {
   op: number;       // 0=Event, 1=Heartbeat, 2=Auth, 3=HeartbeatACK
   d: any;           // payload data
@@ -95,7 +95,7 @@ interface NLGatewayMessage {
 - **认证**：JWT token 机制
 - **权限系统**：Discord 的位运算权限模型
 
-> **建议**：深入阅读 Spacebar 的 `src/gateway/` 和 `src/api/` 目录，作为 Neural Link 后端的参考蓝本。
+> **建议**：深入阅读 Spacebar 的 `src/gateway/` 和 `src/api/` 目录，作为 LinkingChat 后端的参考蓝本。
 
 ---
 
@@ -115,12 +115,12 @@ interface NLGatewayMessage {
 
 ### 3.2 OpenClaw 核心能力
 
-| 能力 | 描述 | 对 Neural Link 的价值 |
+| 能力 | 描述 | 对 LinkingChat 的价值 |
 |------|------|---------------------|
 | **Shell 执行** | 读写文件、运行 Shell 命令、执行脚本 | **直接可用** — 桌面端远程执行的核心能力 |
 | **浏览器控制** | 管理 Chromium 实例，CDP 协议控制 | P1 功能，MVP 可先不集成 |
-| **消息桥接** | WhatsApp/Telegram/Discord/Slack/iMessage/Teams/Signal | 有趣但不是 Neural Link 的核心需求 |
-| **AI Agent** | 模型无关，支持多 provider，本地/云端 LLM | **高度契合** — 与 Neural Link 的 LLM Router 目标一致 |
+| **消息桥接** | WhatsApp/Telegram/Discord/Slack/iMessage/Teams/Signal | 有趣但不是 LinkingChat 的核心需求 |
+| **AI Agent** | 模型无关，支持多 provider，本地/云端 LLM | **高度契合** — 与 LinkingChat 的 LLM Router 目标一致 |
 | **工具/技能系统** | 100+ 预配置 AgentSkills | 可选择性使用其中的 Shell/File 相关 skills |
 | **安全模式** | `exec.ask: "on"` 需用户确认 | **必须启用** — 与 Draft & Verify 模式一致 |
 | **Tailscale 远程** | 通过 Tailscale 暴露 Gateway，支持远程访问 | 备选方案，但我们用自己的 WSS 通道 |
@@ -142,7 +142,7 @@ interface NLGatewayMessage {
 
 ### 3.4 类似项目对比
 
-| 项目 | Stars | 定位 | 与 Neural Link 的关系 |
+| 项目 | Stars | 定位 | 与 LinkingChat 的关系 |
 |------|-------|------|---------------------|
 | [OpenClaw](https://github.com/openclaw/openclaw) | 68k | AI 个人助手 + 本地执行 | 可参考工具/技能系统设计 |
 | [Open Interpreter](https://github.com/openinterpreter/open-interpreter) | 62k | 自然语言 → 代码执行 | 可参考安全执行模型（沙箱、确认机制） |

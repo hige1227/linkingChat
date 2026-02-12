@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-LinkingChat (codename: Ghost Mate / Neural Link) is in **pre-development / design phase**. No implementation code exists yet — only architectural documentation under `docs/`. The team's technical decisions are captured in `docs/decisions/decision-checklist.md` and `docs/decisions/tech-decisions-v2.md`.
+LinkingChat (codename: Ghost Mate) is in **pre-development / design phase**. No implementation code exists yet — only architectural documentation under `docs/`. The team's technical decisions are captured in `docs/decisions/decision-checklist.md` and `docs/decisions/tech-decisions-v2.md`.
 
 ## What This Project IS
 
@@ -27,7 +27,7 @@ LinkingChat is a **new AI-native social app** (similar in form to Discord/Telegr
 Three-tier distributed system: "Cloud Brain + Local Hands"
 
 ```
-Flutter Mobile App  <--WSS-->  Cloud Brain (Node.js/TS)  <--WSS-->  Electron Desktop Client
+Flutter Mobile App  <--WSS-->  Cloud Brain (NestJS)  <--WSS-->  Electron Desktop Client
   (Controller)                   ├── WebSocket Gateway                 ├── Social UI (chat)
   ├── Social UI                  ├── Intent Planner                    ├── OpenClaw Worker
   ├── Send commands              ├── LLM Router                        ├── Shell Exec
@@ -36,7 +36,7 @@ Flutter Mobile App  <--WSS-->  Cloud Brain (Node.js/TS)  <--WSS-->  Electron Des
 ```
 
 - **Mobile App (Flutter)**: Social interface + remote command issuer. iOS & Android from one codebase.
-- **Cloud Brain (Node.js/TypeScript)**: WebSocket gateway, intent planning, LLM inference with multi-provider routing (cheap models like DeepSeek for simple tasks, powerful models like Kimi 2.5 for complex tasks). Hosts all Agent logic.
+- **Cloud Brain (NestJS / TypeScript)**: WebSocket gateway, intent planning, LLM inference with multi-provider routing (cheap models like DeepSeek for simple tasks, powerful models like Kimi 2.5 for complex tasks). Hosts all Agent logic.
 - **Desktop Client (Electron + Node.js/TypeScript)**: Full GUI social client (like Discord desktop) + local OpenClaw worker that receives and executes remote commands.
 
 ## Confirmed Tech Decisions
@@ -45,7 +45,7 @@ Flutter Mobile App  <--WSS-->  Cloud Brain (Node.js/TS)  <--WSS-->  Electron Des
 |---|---|
 | Implementation strategy | Full-chain minimal PoC (all 3 components simultaneously) |
 | Language | TypeScript everywhere |
-| Cloud framework | Node.js / TypeScript |
+| Cloud framework | NestJS (Node.js / TypeScript) |
 | Mobile framework | Flutter |
 | Desktop framework | Electron |
 | Database | PostgreSQL |

@@ -151,7 +151,7 @@ Conduit (原始) → conduwuit (硬分叉, 2025-04 归档) → Tuwunel (当前�
 | 问题 | 影响 |
 |------|------|
 | **延迟**：HTTP sync 模型 500-1500ms | 🚨 无法满足 <800ms AI Whisper 约束 |
-| **联邦开销**：Neural Link 不需要联邦 | ⚠️ 背负不需要的协议复杂度 |
+| **联邦开销**：LinkingChat 不需要联邦 | ⚠️ 背负不需要的协议复杂度 |
 | **无服务端消息拦截**：AS API 不能阻止/修改传输中事件 | 🚨 Draft & Verify 无法原生实现 |
 | **独立 homeserver**：Go/Rust/Python 进程，无法嵌入 NestJS | ⚠️ 运维复杂度增加 |
 | **Dendrite AGPL**：唯一支持 PG 的 homeserver 已变 AGPL | 🚨 许可证风险 |
