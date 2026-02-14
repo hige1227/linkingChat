@@ -7,6 +7,11 @@ import { RedisIoAdapter } from './gateway/adapters/redis-io.adapter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.enableCors({
+    origin: process.env.CORS_ORIGINS?.split(',') || true,
+    credentials: true,
+  });
+
   app.setGlobalPrefix('api/v1');
 
   app.useGlobalPipes(

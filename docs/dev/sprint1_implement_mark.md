@@ -2,9 +2,11 @@
 
 > **目标**：手机发一条文字指令 → 云端转发 → 桌面端执行 Shell 命令 → 结果 <3秒 返回手机显示
 >
-> **本次完成**：Phase 0 + Phase 1（Server 核心）+ Phase 2（Desktop 客户端）
+> **本次完成**：Phase 0 + Phase 1（Server 核心）+ Phase 2（Desktop 客户端）+ Phase 3（Flutter Mobile）
 >
 > **完成日期**：2026-02-14
+>
+> **测试登录邮箱**： test@linkingchat.com / Test1234x
 
 ---
 
@@ -14,9 +16,9 @@
 |-------|------|------|--------|
 | Phase 0 | 共享类型（ws-protocol + shared） | ✅ 完成 | — |
 | Phase 1 | Server 核心（Auth + Devices + WS Gateway） | ✅ 完成 | M1 ✅ M2 ✅ |
-| Phase 2 | Electron Desktop（登录 + WS + Shell 执行） | ✅ 完成 | M3 待集成验证 |
-| Phase 3 | Flutter Mobile（登录 + 设备列表 + 命令发送） | ⏳ 待开始 | M4 |
-| Phase 4 | 全链路集成测试 | ⏳ 待开始 | M5 |
+| Phase 2 | Electron Desktop（登录 + WS + Shell 执行） | ✅ 完成 | M3 ✅ |
+| Phase 3 | Flutter Mobile（登录 + 设备列表 + 命令发送） | ✅ 完成 | M4 ✅ |
+| Phase 4 | 全链路集成测试 | ✅ 手动验证通过 | M5 ✅ |
 
 ---
 
@@ -296,10 +298,14 @@ Tests:       12 passed, 12 total (3.4s)
 
 ## 下一步
 
-| Phase | 内容 | 前置条件 |
-|-------|------|----------|
-| **Phase 3** | Flutter Mobile：登录页 → 设备列表 → 命令输入 → 结果展示 | Phase 1 ✅ + Flutter SDK |
-| **Phase 4** | 全链路集成测试：手机 → 云 → 桌面 → 手机 < 3 秒 | Phase 2 ✅ + Phase 3 |
+Sprint 1 全部 Phase 已完成。全链路手动验证通过：手机发命令 → 云端转发 → 桌面执行 → 结果 64ms 返回手机。
+
+| 优先级 | 内容 | 说明 |
+|--------|------|------|
+| P0 | Sprint 2 开始 | 社交消息基础（1v1 聊天、消息持久化、离线推送） |
+| P1 | Token 自动刷新 | Mobile 端 AuthInterceptor 已有 refresh 逻辑，Desktop 端还需补齐 |
+| P2 | 原生平台测试 | 当前 Mobile 仅在 Flutter Web 验证，需 iOS/Android 真机测试 |
+| P2 | Desktop 打包 | electron-builder 配置已有，需验证 Windows/macOS 打包 |
 
 ---
 
@@ -401,3 +407,269 @@ pnpm --filter desktop dev
 # 4. M3 里程碑完整验证需要 Phase 3（手机端）发送命令
 #    届时桌面端应能接收命令 → 执行 → 返回结果
 ```
+
+---
+
+## Phase 3：Flutter Mobile 客户端
+
+> **完成日期**：2026-02-14
+
+### 一句话总结
+
+搭建了完整的 Flutter 移动端应用：登录页 → JWT 存储 → 设备列表（REST + WS 状态同步）→ 命令发送（WebSocket）→ 结果实时展示。与 Phase 1 Server + Phase 2 Desktop 联调验证，全链路命令执行 **64ms** 返回。
+
+### 环境准备
+
+- Flutter 3.41.1 / Dart 3.11.0（安装到 `D:\flutter`）
+- `flutter doctor` 验证：Windows ✓、Chrome ✓
+- 当前阶段使用 **Flutter Web** 测试（`flutter run -d web-server --web-port 8080`）
+- Server 添加 `app.enableCors()` 以支持 Flutter Web 跨域请求
+
+### 新增文件清单
+
+总计 **17 个新文件 + 2 个更新文件**：
+
+```
+apps/mobile/lib/
+├── main.dart                                      # [更新] 简化入口，ProviderScope 包裹
+├── app.dart                                       # MaterialApp.router + GoRouter
+├── router.dart                                    # GoRouter 路由定义 + Auth 重定向守卫
+│
+├── core/
+│   ├── constants/
+│   │   ├── api_endpoints.dart                     # API 基础 URL 常量
+│   │   └── ws_events.dart                         # WS 事件名常量（镜像 ws-protocol）
+│   └── network/
+│       ├── auth_repository.dart                   # JWT 存储（Web 用内存，原生用 secure_storage）
+│       ├── auth_interceptor.dart                  # Dio QueuedInterceptor：自动 Bearer + 401 刷新
+│       ├── api_client.dart                        # Dio 实例 + AuthInterceptor 组装
+│       └── ws_service.dart                        # Socket.IO 客户端：连接/事件监听/命令发送
+│
+├── features/
+│   ├── auth/
+│   │   ├── models/
+│   │   │   └── auth_response.dart                 # AuthResponse + UserInfo 数据模型
+│   │   ├── providers/
+│   │   │   └── auth_provider.dart                 # AuthNotifier：login/logout/checkSavedAuth
+│   │   └── pages/
+│   │       └── login_page.dart                    # 登录表单 + 自动登录检测
+│   │
+│   └── device/
+│       ├── models/
+│       │   ├── device.dart                        # Device 模型 + platformIcon/platformLabel
+│       │   └── command_result.dart                # CommandResult 模型
+│       ├── providers/
+│       │   ├── device_provider.dart               # 设备列表 Notifier（REST + WS 状态监听）
+│       │   └── command_provider.dart              # 命令发送 Notifier（发送/ACK/结果/超时）
+│       ├── pages/
+│       │   ├── device_list_page.dart              # 设备列表页（刷新/登出/点击进命令页）
+│       │   └── command_page.dart                  # 命令输入页 + 实时结果展示
+│       └── widgets/
+│           └── command_result_card.dart           # 结果卡片（成功/失败、输出、耗时、退出码）
+
+apps/mobile/test/
+└── widget_test.dart                               # [更新] 适配新应用结构
+
+apps/server/src/
+└── main.ts                                        # [更新] 添加 CORS 支持
+```
+
+### 关键设计决策
+
+**状态管理：Riverpod StateNotifier**
+- `AuthNotifier`：管理认证状态（unauthenticated → authenticating → authenticated）
+- `DeviceListNotifier`：REST 拉取设备列表 + WS 监听 `device:status:changed` 实时更新
+- `CommandNotifier`：管理命令生命周期（idle → sending → waiting → completed/error）
+- Provider 之间通过 `Ref` 互相访问，`authProvider` 驱动 GoRouter 重定向
+
+**路由守卫：GoRouter + ChangeNotifier Bridge**
+- `refreshListenable` 桥接 Riverpod 的 `authProvider` 到 GoRouter
+- `_AuthRefreshNotifier` 监听 auth 状态变化，触发 GoRouter `redirect` 重新评估
+- 未认证时任何页面自动跳转 `/login`
+
+**平台自适应存储**
+- `kIsWeb` 判断运行平台
+- Web：`Map<String, String>` 内存存储（页面刷新会清空，通过路由守卫处理）
+- 原生：`flutter_secure_storage`（iOS Keychain / Android EncryptedSharedPreferences）
+
+**WebSocket 客户端（Socket.IO）**
+- Web 平台使用默认传输（polling + websocket upgrade）
+- 原生平台强制 websocket-only 传输
+- 自定义事件分发系统：`_listeners` Map + `on()/off()` 注册回调
+- `emitWithAck` 发送命令获取服务端 ACK 回调
+
+**命令 ID 双轨跟踪**
+- `_currentCommandId`：客户端生成的临时 ID（`cmd_{timestamp}`），用于发送请求
+- `_serverCommandId`：服务端返回的 Prisma cuid，用于匹配 ACK 和结果
+- ACK 事件触发 `_serverCommandId` 赋值，后续 `resultDelivered` 按此匹配
+
+### 核心依赖
+
+| 包 | 版本 | 用途 |
+|----|------|------|
+| flutter_riverpod | ^2.6.1 | 状态管理 |
+| go_router | ^14.8.1 | 声明式路由 + 重定向守卫 |
+| dio | ^5.7.0 | HTTP 客户端 + 拦截器 |
+| socket_io_client | ^3.0.2 | Socket.IO WebSocket 客户端 |
+| flutter_secure_storage | ^9.2.4 | 原生平台安全存储 |
+| json_annotation | ^4.9.0 | JSON 序列化注解 |
+
+### 遇到的 Bug 与修复
+
+#### Bug 1：flutter_secure_storage Web 端 OperationError
+
+**现象**：Flutter Web 启动后，`flutter_secure_storage` 初始化时抛出 `SubtleCrypto OperationError`，页面白屏。
+
+**原因**：`flutter_secure_storage` 的 Web 实现依赖 Web Crypto API (`SubtleCrypto`)。在某些情况下（非 HTTPS、特定浏览器策略），初始化阶段生成/导入加密密钥会失败。
+
+**修复**：`kIsWeb` 判断平台，Web 端绕过 `flutter_secure_storage`，使用内存 `Map<String, String>` 存储。接受页面刷新后 token 丢失（通过路由守卫重定向到登录页）。
+
+```dart
+// auth_repository.dart
+class AuthRepository {
+  static final Map<String, String> _memStore = {};
+  final FlutterSecureStorage? _storage;
+
+  AuthRepository() : _storage = kIsWeb ? null : const FlutterSecureStorage();
+
+  Future<void> _write(String key, String value) async {
+    if (kIsWeb) { _memStore[key] = value; }
+    else { await _storage!.write(key: key, value: value); }
+  }
+}
+```
+
+#### Bug 2：页面刷新后 401 → 无限请求循环
+
+**现象**：浏览器刷新后，内存 token 丢失，但 URL hash 仍是 `#/devices`，GoRouter 直接渲染设备列表页，Dio 请求返回 401。
+
+**修复**：
+1. GoRouter 添加 `redirect` 守卫，未认证时强制跳转 `/login`
+2. `AuthInterceptor` 添加 `onAuthExpired` 回调，refresh 失败时触发 `authProvider.logout()`
+3. `_AuthRefreshNotifier`（ChangeNotifier）桥接 Riverpod auth state 到 GoRouter 的 `refreshListenable`
+
+```dart
+// router.dart
+redirect: (context, state) {
+  final isAuth = authState.status == AuthStatus.authenticated;
+  final isLoginRoute = state.matchedLocation == '/login';
+  if (!isAuth && !isLoginRoute) return '/login';
+  return null;
+},
+```
+
+#### Bug 3：socket_io_client Web 端收不到事件
+
+**现象**：Flutter Web 中 Socket.IO 连接成功（`onConnect` 触发），但后续服务端推送的事件（`commandAck`、`resultDelivered`）从未被接收。
+
+**原因**：`setTransports(['websocket'])` 强制使用纯 WebSocket 传输，但 Socket.IO 的 WebSocket 传输在 Dart Web 平台有兼容性问题，导致事件无法正常接收。
+
+**修复**：Web 平台使用默认传输（先 polling 建立连接，再升级到 websocket），仅原生平台使用 websocket-only。
+
+```dart
+// ws_service.dart
+if (!kIsWeb) {
+  builder.setTransports(['websocket']);
+}
+```
+
+#### Bug 4：commandId 不匹配 — 命令永远卡在 "Sending"（核心问题）
+
+**现象**：命令发送后显示 "Sending command..."，30 秒后超时。服务端日志显示命令已成功转发给桌面端，桌面端也执行并返回了结果。
+
+**调试过程**：
+1. 在 WsService 添加 `onAny` 全事件监听 + `debugPrint` 日志
+2. 浏览器 Console 显示事件确实被接收：
+   ```
+   [WS] <<< EVENT: device:command:ack | data: {commandId: cmlm3ambu...}
+   [WS] <<< EVENT: device:result:delivered | data: {commandId: cmlm3ambu..., output: hello}
+   ```
+3. 但 `CommandNotifier` 中的匹配条件 `payload['commandId'] == _currentCommandId` 始终为 `false`
+
+**根因**：
+- Mobile 生成 `_currentCommandId = 'cmd_1771059829378'`（客户端时间戳）
+- Server `CommandsService.create()` 使用 Prisma 自动生成 cuid：`cmlm3ambu0009gd28nbh734r2`
+- ACK 和结果事件中 `commandId` 是 Prisma 的 cuid，不是客户端的 requestId
+- 匹配永远失败
+
+**修复**：引入双 ID 跟踪机制——ACK 时保存服务端 commandId，后续用服务端 ID 匹配结果。
+
+```dart
+// command_provider.dart
+String? _currentCommandId;    // 客户端生成的临时 ID
+String? _serverCommandId;     // 服务端 Prisma cuid
+
+// ACK 回调：保存服务端 ID
+wsService.on(WsEvents.commandAck, (data) {
+  final payload = data as Map<String, dynamic>;
+  if (state.state == CommandState.sending) {
+    _serverCommandId = payload['commandId'] as String;
+    state = state.copyWith(state: CommandState.waiting);
+  }
+});
+
+// 结果回调：按服务端 ID 匹配
+wsService.on(WsEvents.resultDelivered, (data) {
+  final result = CommandResult.fromJson(data as Map<String, dynamic>);
+  if (result.commandId == _serverCommandId) {
+    state = CommandStatus(state: CommandState.completed, result: result);
+  }
+});
+```
+
+### 调试技巧总结
+
+| 技巧 | 说明 |
+|------|------|
+| `onAny` 全事件监听 | Socket.IO 客户端添加 `_socket!.onAny((event, data) => debugPrint(...))` 可看到所有收到的事件 |
+| `emitWithAck` | 替代普通 `emit`，在 ACK 回调中确认服务端是否收到消息 |
+| 浏览器 Console | Flutter Web 的 `debugPrint` 输出到浏览器 Console，可实时看 WS 事件流 |
+| 硬刷新 | Flutter Web dev server 不会热更新所有改动，需 `Ctrl+Shift+R` 强制重载 |
+| Flutter dev server 重启 | 代码结构性变更后需停止并重启 `flutter run`，否则旧代码仍在运行 |
+
+### Phase 3 + Phase 4 验证方法
+
+Phase 4（全链路集成测试）已通过手动验证。以下是完整的验证流程：
+
+```bash
+# 0. 前提：Docker 已启动（PostgreSQL + Redis）
+docker compose -f docker/docker-compose.yaml up -d
+
+# 1. 启动服务端
+pnpm --filter server dev
+
+# 2. 启动桌面端
+pnpm --filter desktop dev
+
+# 3. 启动移动端（Flutter Web）
+D:\flutter\bin\flutter.bat run -d web-server --web-port 8080
+# 浏览器打开 http://localhost:8080
+
+# 4. 桌面端登录：test@linkingchat.com / Test1234x
+# 5. 移动端登录：test@linkingchat.com / Test1234x
+```
+
+### 全链路验收检查清单
+
+| # | 验收项 | 操作 | 预期结果 | 状态 |
+|---|--------|------|----------|------|
+| 1 | 移动端登录 | 输入测试账号 → 点登录 | 跳转到设备列表页 | ✅ |
+| 2 | 设备列表加载 | 登录后自动加载 | 显示已注册设备，状态标签正确 | ✅ |
+| 3 | 设备在线状态同步 | 桌面端登录后 | 移动端设备列表自动更新为 Online | ✅ |
+| 4 | 进入命令页 | 点击在线设备 | 跳转到命令输入页 | ✅ |
+| 5 | 发送简单命令 | 输入 `echo hello` → 发送 | 显示 Success，输出 "hello"，耗时 <3s | ✅ (64ms) |
+| 6 | 命令结果展示 | 同上 | 显示退出码、耗时、完整输出 | ✅ |
+| 7 | 登出 | 点击 Logout | 跳转回登录页 | ✅ |
+| 8 | 未登录重定向 | 刷新浏览器 | 自动跳转登录页（非 401 白屏） | ✅ |
+
+### 建议追加测试（手动）
+
+| # | 测试项 | 命令/操作 | 验证重点 |
+|---|--------|----------|----------|
+| 1 | 系统信息命令 | `whoami` | 返回桌面端用户名 |
+| 2 | 目录列表 | `dir`（Win）/ `ls`（Mac） | 返回桌面端当前目录内容 |
+| 3 | 多行输出 | `ipconfig`（Win）/ `ifconfig`（Mac） | 大段文本正确显示 |
+| 4 | 错误命令 | `this_command_does_not_exist` | 显示 Error + 错误信息 |
+| 5 | 危险命令拦截 | `rm -rf /` | 服务端拦截，返回 COMMAND_DANGEROUS |
+| 6 | 桌面离线 | 关闭桌面端 → 发命令 | 超时或错误提示 |
+| 7 | 连续命令 | 快速发送多条命令 | 每条独立返回结果 |

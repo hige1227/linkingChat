@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:linkingchat_mobile/main.dart';
+import 'package:linkingchat_mobile/app.dart';
 
 void main() {
-  testWidgets('App renders skeleton screen', (WidgetTester tester) async {
+  testWidgets('App renders login page', (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: LinkingChatApp()));
+    await tester.pumpAndSettle();
 
-    expect(find.text('LinkingChat Mobile'), findsOneWidget);
-    expect(find.text('Sprint 0 — Flutter skeleton ready'), findsOneWidget);
+    expect(find.text('LinkingChat'), findsOneWidget);
   });
 }
