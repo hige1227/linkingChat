@@ -1,3 +1,4 @@
+> **状态：✅ 已完成** | 完成日期：2026-02-14
 # Sprint 1 — Phase 0：共享类型定义
 
 > **负责人**：后端开发者
@@ -201,6 +202,6 @@ pnpm build
 
 ## 完成标准
 
-- [ ] `pnpm build` 全部通过
-- [ ] Server 项目可以 `import { DEVICE_EVENTS } from '@linkingchat/ws-protocol'`
-- [ ] TypedSocket 类型在 IDE 中有完整的事件名和 payload 补全
+- [x] `pnpm build` 全部通过
+- [x] Server 项目可以 `import { DEVICE_EVENTS } from '@linkingchat/ws-protocol'`
+- [x] TypedSocket 类型在 IDE 中有完整的事件名和 payload 补全

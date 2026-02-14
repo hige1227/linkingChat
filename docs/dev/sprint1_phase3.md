@@ -1,3 +1,5 @@
+> **状态：✅ 已完成** | 完成日期：2026-02-14 | 实施与原 spec 有差异，见 [sprint1_implement_mark.md](./sprint1_implement_mark.md) Phase 3 部分
+
 # Sprint 1 — Phase 3：Mobile（Flutter 最小骨架）
 
 > **负责人**：移动端开发者
@@ -1682,8 +1684,8 @@ Flutter（Dart）无法直接消费 `packages/ws-protocol` 和 `packages/shared`
 
 ## 完成标准
 
-- [ ] 登录页面可用，JWT 安全存储于 `flutter_secure_storage`
-- [ ] 设备列表页显示在线设备，监听 `device:status:changed` 实时更新状态
-- [ ] 命令输入页包含设备信息栏 + 命令输入框 + 执行按钮
-- [ ] 执行命令后结果在 3 秒内显示（满足性能目标 `Remote action < 3s`）
-- [ ] 错误状态正确处理：设备离线时不可点击、命令超时提示、网络错误重试
+- [x] 登录页面可用，JWT 安全存储于 `flutter_secure_storage`
+- [x] 设备列表页显示在线设备，监听 `device:status:changed` 实时更新状态
+- [x] 命令输入页包含设备信息栏 + 命令输入框 + 执行按钮
+- [x] 执行命令后结果在 3 秒内显示（满足性能目标 `Remote action < 3s`）
+- [x] 错误状态正确处理：设备离线时不可点击、命令超时提示、网络错误重试

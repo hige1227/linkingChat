@@ -1,3 +1,5 @@
+> **状态：✅ 已完成** | 完成日期：2026-02-14
+
 # Sprint 1 — Phase 2：Desktop（Electron 最小骨架）
 
 > **负责人**：桌面端开发者
@@ -1241,14 +1243,14 @@ interface Window {
 
 ## 完成标准
 
-- [ ] Electron 窗口正常启动，显示登录表单
-- [ ] 输入邮箱/密码，调用 `POST /api/v1/auth/login`，登录成功
-- [ ] JWT token 通过 `electron-store` + `safeStorage` 安全存储
-- [ ] 登录后自动连接 WebSocket `/device` 命名空间
-- [ ] 连接成功后自动 emit `device:register`，携带 deviceId / name / platform
-- [ ] 收到 `device:command:execute` 事件后，使用 `child_process.exec()` 执行 shell 命令
-- [ ] 执行完成后 emit `device:result:complete`，携带 output / exitCode / executionTimeMs
-- [ ] UI 实时显示连接状态（已连接 / 连接中 / 未连接）
-- [ ] UI 显示设备信息（主机名、平台）
-- [ ] UI 显示命令日志（可滚动列表，包含命令内容、状态、输出、耗时）
-- [ ] 窗口关闭时正确断开 WebSocket 连接
+- [x] Electron 窗口正常启动，显示登录表单
+- [x] 输入邮箱/密码，调用 `POST /api/v1/auth/login`，登录成功
+- [x] JWT token 通过 `electron-store` + `safeStorage` 安全存储
+- [x] 登录后自动连接 WebSocket `/device` 命名空间
+- [x] 连接成功后自动 emit `device:register`，携带 deviceId / name / platform
+- [x] 收到 `device:command:execute` 事件后，使用 `child_process.exec()` 执行 shell 命令
+- [x] 执行完成后 emit `device:result:complete`，携带 output / exitCode / executionTimeMs
+- [x] UI 实时显示连接状态（已连接 / 连接中 / 未连接）
+- [x] UI 显示设备信息（主机名、平台）
+- [x] UI 显示命令日志（可滚动列表，包含命令内容、状态、输出、耗时）
+- [x] 窗口关闭时正确断开 WebSocket 连接

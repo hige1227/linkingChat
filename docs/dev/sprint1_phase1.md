@@ -1,3 +1,5 @@
+> **状态：✅ 已完成** | 完成日期：2026-02-14
+
 # Sprint 1 — Phase 1：Server（认证 + 设备管理 + WebSocket Gateway）
 
 > **负责人**：后端开发者
@@ -1561,14 +1563,14 @@ describe('Device Gateway (e2e)', () => {
 
 ## 完成标准
 
-- [ ] `POST /api/v1/auth/register` → 201，返回 user + JWT pair
-- [ ] `POST /api/v1/auth/login` → 200，返回 JWT pair（RS256 签名）
-- [ ] `POST /api/v1/auth/refresh` → 200，Token Rotation 生效
-- [ ] WS 连接 `/device` 命名空间（携带 JWT）→ 连接成功
-- [ ] WS 未携带 / 过期 JWT → 连接拒绝（`AUTH_MISSING` / `AUTH_EXPIRED`）
-- [ ] `device:register` → 设备记录出现在 DB，状态 ONLINE
-- [ ] `device:command:send` → 目标设备收到 `device:command:execute`
-- [ ] `device:result:complete` → 命令发起者收到 `device:result:delivered`
-- [ ] 危险命令（`rm -rf /`、`shutdown` 等）→ 被黑名单拦截，返回 `COMMAND_DANGEROUS`
-- [ ] 设备断开连接 → DB 状态更新为 OFFLINE，广播 `device:status:changed`
-- [ ] E2E 测试全部通过
+- [x] `POST /api/v1/auth/register` → 201，返回 user + JWT pair
+- [x] `POST /api/v1/auth/login` → 200，返回 JWT pair（RS256 签名）
+- [x] `POST /api/v1/auth/refresh` → 200，Token Rotation 生效
+- [x] WS 连接 `/device` 命名空间（携带 JWT）→ 连接成功
+- [x] WS 未携带 / 过期 JWT → 连接拒绝（`AUTH_MISSING` / `AUTH_EXPIRED`）
+- [x] `device:register` → 设备记录出现在 DB，状态 ONLINE
+- [x] `device:command:send` → 目标设备收到 `device:command:execute`
+- [x] `device:result:complete` → 命令发起者收到 `device:result:delivered`
+- [x] 危险命令（`rm -rf /`、`shutdown` 等）→ 被黑名单拦截，返回 `COMMAND_DANGEROUS`
+- [x] 设备断开连接 → DB 状态更新为 OFFLINE，广播 `device:status:changed`
+- [x] E2E 测试全部通过
