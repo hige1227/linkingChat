@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  username    String   @unique
+  password    String
+  displayName String
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  devices Device[]
+  tokens  RefreshToken[]
+
+  @@map("users")
+}
+
+model Device {
+  id         String       @id @default(cuid())
+  name       String
+  platform   String
+  status     DeviceStatus @default(OFFLINE)
+  lastSeenAt DateTime?
+  userId     String
+  createdAt  DateTime     @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  commands Command[]
+
+  @@index([userId])
+  @@map("devices")
+}
+
+model Command {
+  id          String        @id @default(cuid())
+  type        String
+  payload     Json
+  result      Json?
+  status      CommandStatus @default(PENDING)
+  deviceId    String
+  issuerId    String
+  createdAt   DateTime      @default(now())
+  completedAt DateTime?
+
+  device Device @relation(fields: [deviceId], references: [id])
+
+  @@index([deviceId, createdAt])
+  @@map("commands")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+}
+
+enum CommandStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}

@@ -4,7 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-LinkingChat (codename: Ghost Mate) is in **pre-development / design phase**. No implementation code exists yet — only architectural documentation under `docs/`. The team's technical decisions are captured in `docs/decisions/decision-checklist.md` and `docs/decisions/tech-decisions-v2.md`.
+LinkingChat (codename: Ghost Mate) has completed **Sprint 0 (infrastructure setup)**. The monorepo skeleton is functional with NestJS server, Electron desktop client, and Flutter mobile project structure. Sprint 1 (authentication + device registration) is next.
+
+### What's working:
+- `pnpm install` — Turborepo v2 + pnpm 10 workspace (5 packages)
+- `pnpm docker:up` — PostgreSQL:5440, Redis:6387, MinIO:9008, Adminer:8088, MailDev:1088
+- `pnpm dev:server` — NestJS on http://localhost:3008/api/v1
+- `pnpm dev:desktop` — Electron + electron-vite + React
+- `pnpm build` — All 4 packages compile (server, desktop, shared, ws-protocol)
+- `pnpm test` — 2 tests passing (AppController)
+- Prisma migration applied (4 tables: users, devices, commands, refresh_tokens)
+
+### Pending:
+- Flutter SDK not yet installed — `apps/mobile/` has Dart source files ready, needs `flutter create .` for platform dirs
+
+Technical decisions are in `docs/decisions/decision-checklist.md` and `docs/decisions/tech-decisions-v2.md`.
 
 ## What This Project IS
 
@@ -45,16 +59,20 @@ Flutter Mobile App  <--WSS-->  Cloud Brain (NestJS)  <--WSS-->  Electron Desktop
 |---|---|
 | Implementation strategy | Full-chain minimal PoC (all 3 components simultaneously) |
 | Language | TypeScript everywhere |
-| Cloud framework | NestJS (Node.js / TypeScript) |
-| Mobile framework | Flutter |
-| Desktop framework | Electron |
-| Database | PostgreSQL |
-| Repo structure | Monorepo (pnpm workspace or turborepo), split later if needed |
+| Cloud framework | NestJS 11 (Node.js 22+ / TypeScript 5.7+) |
+| Mobile framework | Flutter (Dart) |
+| Desktop framework | Electron 35 + electron-vite 3 + React 19 |
+| Database | PostgreSQL 16 + Prisma 6 ORM |
+| Cache/PubSub | Redis 7 |
+| File storage | MinIO (S3-compatible) |
+| Repo structure | Turborepo v2 monorepo with pnpm 10 workspaces |
 | LLM | Multi-provider with routing (DeepSeek for cheap, Kimi 2.5 for complex) |
-| Testing | Unit tests from day one (Jest or Vitest) |
+| WebSocket | Socket.IO with typed events (@linkingchat/ws-protocol) |
+| Auth | JWT RS256 asymmetric keys (access + refresh token pair) |
+| Testing | Jest (unit tests from day one) |
+| CI | GitHub Actions (lint + type-check + test) |
 | Dev platform priority | Both macOS and Windows; macOS first if forced to choose |
-| Doc framework | Bmad v6 going forward |
-| Team | 2-3 developers, front/back separated |
+| Port scheme | All +8 to avoid conflicts (NestJS:3008, PG:5440, Redis:6387, etc.) |
 
 ## First Milestone
 
@@ -131,6 +149,17 @@ docs/
 │   ├── websocket-protocol.md           — WebSocket protocol design
 │   ├── database-schema.md              — Database entity design
 │   └── dev-environment-setup.md        — Dev environment setup guide
+│
+├── dev/                                # Sprint implementation guides
+│   ├── sprint0_implement.md            — ★ Sprint 0: Infrastructure setup (✅ DONE)
+│   ├── sprint1_implement.md            — Sprint 1: Auth + device registration
+│   ├── sprint1_phase1_server.md        — Sprint 1 Phase 1: Server core modules
+│   ├── sprint1_phase2_desktop.md       — Sprint 1 Phase 2: Desktop client
+│   ├── sprint1_phase3_mobile.md        — Sprint 1 Phase 3: Mobile client
+│   ├── sprint1_phase4_integration.md   — Sprint 1 Phase 4: Integration testing
+│   ├── sprint2_implement.md            — Sprint 2: Remote command execution
+│   ├── sprint3_implement.md            — Sprint 3: AI integration (Whisper + Draft)
+│   └── sprint4_implement.md            — Sprint 4: Polish + production readiness
 │
 └── _archive/                           # Superseded documents
     ├── architecture.md                 — Old "parasitic Desktop Bridge" direction

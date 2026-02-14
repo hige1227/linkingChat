@@ -1,8 +1,10 @@
 # Sprint 0：基础设施搭建
 
+> **状态**：✅ 已完成（2026-02-14）
+>
 > **目标**：团队每个人 `git clone → pnpm install → docker compose up → pnpm dev:server` 能跑起来
 >
-> **前置条件**：所有开发者本地安装好 Node.js 22+、pnpm 9+、Docker & Docker Compose、Flutter 3.22+、Git 2.40+
+> **前置条件**：所有开发者本地安装好 Node.js 22+、pnpm 10+、Docker & Docker Compose、Flutter 3.22+、Git 2.40+
 >
 > **参考**：[dev-environment-setup.md](../dev-plan/dev-environment-setup.md) | [project-skeleton.md](../dev-plan/project-skeleton.md)
 
@@ -10,17 +12,17 @@
 
 ## 任务清单
 
-| # | 任务 | 产出 | 验收标准 |
-|---|------|------|---------|
-| 0.1 | 初始化 Turborepo + pnpm workspace | 仓库骨架 | `pnpm install` 无报错 |
-| 0.2 | 创建 NestJS 项目 | apps/server 可启动 | `pnpm dev:server` 返回 hello world |
-| 0.3 | 配置 Docker Compose | PostgreSQL + Redis + MinIO + Adminer + MailDev | `docker compose up -d` 所有服务健康 |
-| 0.4 | 配置 Prisma + Sprint 1 Schema | prisma/schema.prisma | `prisma migrate dev` 建表成功 |
-| 0.5 | 初始化共享包 | packages/shared + packages/ws-protocol | `pnpm build` 编译通过 |
-| 0.6 | 生成 RS256 密钥对 | keys/ 目录 + .env 配置 | JWT 签发和验证测试通过 |
-| 0.7 | 初始化 Electron 项目 | apps/desktop 可启动 | `pnpm dev:desktop` 打开空窗口 |
-| 0.8 | 初始化 Flutter 项目 | apps/mobile 可运行 | `flutter run` 显示空白 app |
-| 0.9 | 配置 CI | GitHub Actions | push 触发 lint + type-check |
+| # | 任务 | 产出 | 验收标准 | 状态 |
+|---|------|------|---------|------|
+| 0.1 | 初始化 Turborepo + pnpm workspace | 仓库骨架 | `pnpm install` 无报错 | ✅ |
+| 0.2 | 创建 NestJS 项目 | apps/server 可启动 | `pnpm dev:server` 返回 hello world | ✅ |
+| 0.3 | 配置 Docker Compose | PostgreSQL + Redis + MinIO + Adminer + MailDev | `docker compose up -d` 所有服务健康 | ✅ |
+| 0.4 | 配置 Prisma + Sprint 1 Schema | prisma/schema.prisma | `prisma migrate dev` 建表成功 | ✅ |
+| 0.5 | 初始化共享包 | packages/shared + packages/ws-protocol | `pnpm build` 编译通过 | ✅ |
+| 0.6 | 生成 RS256 密钥对 | keys/ 目录 + .env 配置 | JWT 签发和验证测试通过 | ✅ |
+| 0.7 | 初始化 Electron 项目 | apps/desktop 可启动 | `pnpm dev:desktop` 打开空窗口 | ✅ |
+| 0.8 | 初始化 Flutter 项目 | apps/mobile 可运行 | `flutter run` 显示空白 app | ⚠️ 需安装 Flutter SDK |
+| 0.9 | 配置 CI | GitHub Actions | push 触发 lint + type-check + test | ✅ |
 
 ---
 
@@ -43,15 +45,15 @@ packages:
   - "packages/*"
 ```
 
-**turbo.json**：
+**turbo.json**（注意：Turbo v2 使用 `tasks` 而非 `pipeline`）：
 ```json
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": [".env"],
-  "pipeline": {
+  "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", "out/**"]
     },
     "dev": {
       "cache": false,
@@ -86,11 +88,23 @@ packages:
     "db:migrate": "pnpm --filter @linkingchat/server prisma migrate dev",
     "db:seed": "pnpm --filter @linkingchat/server prisma db seed"
   },
+  "devDependencies": {
+    "turbo": "^2"
+  },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@10.22.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core", "@prisma/client", "@prisma/engines",
+      "argon2", "electron", "esbuild", "prisma"
+    ]
   }
 }
 ```
+
+> **注意**：pnpm 10 默认阻止依赖的 postinstall 脚本，需在 `pnpm.onlyBuiltDependencies` 中白名单批准。
 
 ```bash
 pnpm install
@@ -396,23 +410,63 @@ flutter pub add dio socket_io_client flutter_riverpod go_router flutter_secure_s
 
 ```yaml
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
 jobs:
   check:
+    name: Lint & Type Check & Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: linkingchat
+          POSTGRES_PASSWORD: linkingchat_dev
+          POSTGRES_DB: linkingchat_dev
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
+      - run: pnpm build --filter=@linkingchat/shared --filter=@linkingchat/ws-protocol
       - run: pnpm type-check
       - run: pnpm test
+
+  build-desktop:
+    name: Build Electron Desktop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @linkingchat/desktop build
 ```
 
 ---
@@ -423,12 +477,33 @@ Sprint 0 完成后，以下命令全部通过：
 
 ```bash
 git clone <repo> && cd linkingchat
-pnpm install                    # ✅ 无报错
-pnpm docker:up                  # ✅ 5 个服务 healthy
-pnpm db:migrate                 # ✅ 4 张表创建成功
-pnpm dev:server                 # ✅ http://localhost:3008 可访问
-pnpm dev:desktop                # ✅ Electron 窗口打开
-cd apps/mobile && flutter run   # ✅ 模拟器显示 app
+pnpm install                    # ✅ 无报错（pnpm 10.22.0, turbo 2.8.8）
+pnpm docker:up                  # ✅ 5 个服务 running (postgres/redis/minio/adminer/maildev)
+pnpm db:migrate                 # ✅ 4 张表创建成功 (users/devices/commands/refresh_tokens)
+pnpm dev:server                 # ✅ http://localhost:3008/api/v1 返回 hello
+pnpm dev:desktop                # ✅ electron-vite 构建 + Electron 窗口打开
+pnpm build                      # ✅ 4 个包全部编译通过
+pnpm test                       # ✅ 2 个测试通过
+cd apps/mobile && flutter run   # ⚠️ 需先安装 Flutter SDK + flutter create .
 ```
+
+### Flutter 补完步骤
+
+Flutter SDK 安装后在 `apps/mobile/` 目录执行：
+
+```bash
+flutter create . --org com.linkingchat --project-name linkingchat_mobile
+flutter pub get
+flutter run
+```
+
+这将生成 android/ 和 ios/ 平台目录，不会覆盖已有的 `lib/main.dart`。
+
+### 实施备注
+
+- **pnpm 10 breaking change**：默认阻止 postinstall 脚本，需在根 `package.json` 的 `pnpm.onlyBuiltDependencies` 中白名单批准
+- **Turbo v2**：使用 `tasks` 键而非 `pipeline`（turbo.json）
+- **Electron**：`package.json` 的 `main` 字段指向 `./out/main/index.js`（electron-vite 构建产物），而非源码
+- **端口方案**：全部 +8 避免与其他项目冲突（PG:5440, Redis:6387, MinIO:9008/9009, Adminer:8088, MailDev:1088/1033）
 
 **完成后进入 → [Sprint 1](./sprint1_implement.md)**

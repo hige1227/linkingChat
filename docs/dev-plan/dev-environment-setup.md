@@ -11,7 +11,7 @@
 | 工具 | 版本 | 说明 |
 |------|------|------|
 | **Node.js** | >= 22.0.0 | 服务端 + 桌面端运行时 |
-| **pnpm** | >= 9.0.0 | Monorepo 包管理器 |
+| **pnpm** | >= 10.0.0 | Monorepo 包管理器（v10 有 breaking changes，见下方注意事项） |
 | **Docker & Docker Compose** | 最新稳定版 | 数据库 + Redis + MinIO |
 | **Git** | >= 2.40 | 版本控制 |
 | **VS Code** 或 **WebStorm** | 最新 | 推荐 IDE |
@@ -163,19 +163,15 @@ pnpm add -D typescript vite @vitejs/plugin-react electron-vite
 
 ### Step 8: 初始化移动端
 
-**Flutter 方案:**
-```bash
-cd apps
-flutter create --org com.linkingchat --project-name linkingchat_mobile mobile
-cd mobile
-flutter pub add dio socket_io_client flutter_riverpod go_router flutter_secure_storage intl
-```
-
-**React Native (Expo) 方案:**
+**Flutter（已确认）:**
 ```bash
 cd apps/mobile
-npx create-expo-app@latest . --template blank-typescript
-pnpm add socket.io-client zustand expo-secure-store expo-router
+
+# 若从零创建（已有 pubspec.yaml 和 lib/main.dart 则跳过 flutter create）
+flutter create . --org com.linkingchat --project-name linkingchat_mobile
+
+flutter pub get
+flutter pub add dio socket_io_client flutter_riverpod go_router flutter_secure_storage intl
 ```
 
 ---

@@ -1,8 +1,6 @@
 # Dependencies
 node_modules/
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
+.pnpm-store/
 
 # Build outputs
 dist/
@@ -14,7 +12,9 @@ out/
 .env
 .env.local
 .env.*.local
-*.pem
+
+# Keys (sensitive)
+keys/*.pem
 
 # IDE
 .vscode/
@@ -22,14 +22,12 @@ out/
 *.swp
 *.swo
 *~
-.DS_Store
 
 # Logs
 logs/
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+pnpm-debug.log*
 
 # OS
 .DS_Store
@@ -38,6 +36,22 @@ Thumbs.db
 # Testing
 coverage/
 .nyc_output/
+
+# Turbo
+.turbo/
+
+# Prisma migration lock
+apps/server/prisma/migrations/**/migration_lock.toml
+
+# Electron
+apps/desktop/release/
+
+# Flutter
+apps/mobile/.dart_tool/
+apps/mobile/.packages
+apps/mobile/build/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
 
 # Temporary files
 tmp/

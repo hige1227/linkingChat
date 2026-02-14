@@ -1,0 +1,35 @@
+{
+  "name": "linkingchat",
+  "private": true,
+  "scripts": {
+    "dev:server": "turbo run dev --filter=@linkingchat/server",
+    "dev:desktop": "turbo run dev --filter=@linkingchat/desktop",
+    "dev:all": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "docker:up": "docker compose -f docker/docker-compose.yaml up -d",
+    "docker:down": "docker compose -f docker/docker-compose.yaml down",
+    "db:migrate": "pnpm --filter @linkingchat/server prisma migrate dev",
+    "db:seed": "pnpm --filter @linkingchat/server prisma db seed"
+  },
+  "devDependencies": {
+    "turbo": "^2"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@10.22.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "argon2",
+      "electron",
+      "esbuild",
+      "prisma"
+    ]
+  }
+}
