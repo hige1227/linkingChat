@@ -163,7 +163,8 @@ interface WsError {
 | `ai:draft:edit` | `{ draftId, editedContent }` | `WsResponse` | 编辑后批准 |
 | `ai:predictive:execute` | `{ suggestionId, actionIndex }` | `WsResponse` | 执行预测动作 |
 | `ai:predictive:dismiss` | `{ suggestionId }` | - | 忽略预测 |
-| `ai:whisper:select` | `{ suggestionId, selectedIndex }` | - | 选择耳语建议 |
+| `ai:whisper:request` | `{ converseId }` | `WsResponse` | 请求 AI 回复建议（@ai 触发） |
+| `ai:whisper:accept` | `{ suggestionId, selectedIndex? }` | - | 采纳建议（0=主推荐, 1-2=备选） |
 | `user:ping` | `{}` | - | 保活心跳 |
 
 > **注意**: `message:send`, `message:recall` 等变更操作通过 REST API 完成。REST handler 内部调用 BroadcastService 推送事件。
@@ -199,10 +200,12 @@ interface WsError {
 | **通知** | | | |
 | `notification:new` | `NotificationPayload` | `u-{userId}` | 不在会话房间的成员 |
 | **AI (Sprint 2+)** | | | |
-| `ai:whisper:suggestions` | `WhisperPayload` | `u-{userId}` | 收到消息后 <800ms |
+| `ai:whisper:suggestions` | `WhisperPayload` | `u-{userId}` | 用户 @ai 触发后，LLM 生成回复建议 |
 | `ai:draft:created` | `DraftPayload` | `u-{userId}` | AI 生成草稿 |
 | `ai:draft:expired` | `{ draftId }` | `u-{userId}` | 草稿超时 (5min) |
 | `ai:predictive:action` | `PredictivePayload` | `u-{userId}` | AI 推送动作卡片 |
+| **Bot 协作** | | | |
+| `bot:notification` | `BotNotificationPayload` | `u-{userId}` | Bot 间协作通知（Supervisor 汇总 + 跨 bot 触发） |
 
 ---
 
@@ -266,16 +269,19 @@ interface DeviceStatusPayload {
 ## 七、AI 事件 Payload (Sprint 2+)
 
 ```typescript
-// Whisper 耳语建议
+// Whisper 耳语建议（@ai 触发，非自动推送）
 interface WhisperPayload {
   suggestionId: string;
   converseId: string;
-  triggerMessageId: string;
-  suggestions: Array<{
+  triggerMessageId: string;         // 用户 @ai 的消息 ID
+  primary: {                        // 主推荐（预填入输入框）
     text: string;
-    confidence: number;           // 0-1
+    confidence: number;             // 0-1
+  };
+  alternatives: Array<{             // 备选（`···` 展开）
+    text: string;
+    confidence: number;
   }>;
-  latencyMs: number;              // >1000ms 客户端应忽略
   provider: string;
 }
 
@@ -304,22 +310,27 @@ interface PredictivePayload {
 }
 ```
 
-### Whisper 建议流程
+### Whisper 建议流程（@ai 主动触发）
 
 ```
-User B 发消息给 User A
+User A 在输入框输入 @ai 并发送
        │
-Cloud Brain 收到 message:new 事件
+Cloud Brain 收到 REST: POST /messages (type=TEXT, content="@ai")
        │
-       ├── 并行：广播 message:new → {converseId} 房间
+       ├── 识别 @ai 触发词
        │
        └── 异步：调用 LLM (DeepSeek, 低延迟)
              │
-             ├── <800ms → WS: ai:whisper:suggestions → u-{userId}
-             │            客户端展示建议气泡
+             ├── 读取聊天上下文 + 用户偏好
              │
-             └── >1000ms → 放弃，不推送
+             └── 生成 1 个主推荐 + 2 个备选
+                   │
+                   └── WS: ai:whisper:suggestions → u-{userId}
+                         客户端预填主推荐到输入框 + `···` 展开备选
 ```
+
+> **设计变更 (2026-02-13)**：已否决"收到消息自动推送 3 个建议气泡 <800ms"方案。
+> 改为用户 `@ai` 主动触发，生成 1 个最优回复 + 可展开备选。延迟目标 <2 秒（用户有主动等待预期）。
 
 ---
 
@@ -455,7 +466,8 @@ interface ClientToServerEvents {
   'ai:draft:edit':          (data: { draftId: string; editedContent: string }, ack: (res: WsResponse) => void) => void;
   'ai:predictive:execute':  (data: { suggestionId: string; actionIndex: number }, ack: (res: WsResponse) => void) => void;
   'ai:predictive:dismiss':  (data: { suggestionId: string }) => void;
-  'ai:whisper:select':      (data: { suggestionId: string; selectedIndex: number }) => void;
+  'ai:whisper:request':       (data: { converseId: string }, ack: (res: WsResponse) => void) => void;
+  'ai:whisper:accept':        (data: { suggestionId: string; selectedIndex?: number }) => void;
 
   // Device
   'device:register':        (data: DeviceRegisterPayload, ack: (res: WsResponse) => void) => void;
@@ -504,6 +516,9 @@ interface ServerToClientEvents {
   'ai:draft:created':       (data: DraftPayload) => void;
   'ai:draft:expired':       (data: { draftId: string }) => void;
   'ai:predictive:action':   (data: PredictivePayload) => void;
+
+  // Bot collaboration
+  'bot:notification':        (data: BotNotificationPayload) => void;
 
   // Device
   'device:command:execute':  (data: DeviceCommandPayload) => void;

@@ -16,11 +16,11 @@
 | **Git** | >= 2.40 | 版本控制 |
 | **VS Code** 或 **WebStorm** | 最新 | 推荐 IDE |
 
-### 移动端 (根据选择)
+### 移动端
 
 | 工具 | 用途 |
 |------|------|
-| **Flutter** >= 3.22 | 若选 Flutter 方案 |
+| **Flutter** >= 3.22 | 移动端框架 (**已确认**) |
 | **Xcode** (macOS) | iOS 模拟器 |
 | **Android Studio** | Android 模拟器 |
 
@@ -196,7 +196,7 @@ services:
       POSTGRES_PASSWORD: linkingchat_dev
       POSTGRES_DB: linkingchat
     ports:
-      - "5432:5432"
+      - "5440:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -209,7 +209,7 @@ services:
     image: redis:7-alpine
     container_name: linkingchat-redis
     ports:
-      - "6379:6379"
+      - "6387:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -226,8 +226,8 @@ services:
       MINIO_ROOT_USER: linkingchat
       MINIO_ROOT_PASSWORD: linkingchat_dev
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9008:9000"
+      - "9009:9001"
     volumes:
       - minio_data:/data
 
@@ -235,14 +235,14 @@ services:
     image: adminer:latest
     container_name: linkingchat-adminer
     ports:
-      - "8080:8080"
+      - "8088:8080"
 
   maildev:
     image: maildev/maildev
     container_name: linkingchat-maildev
     ports:
-      - "1080:1080"
-      - "1025:1025"
+      - "1088:1080"
+      - "1033:1025"
 
 volumes:
   postgres_data:
@@ -260,9 +260,9 @@ docker compose -f docker/docker-compose.yaml up -d
 docker compose -f docker/docker-compose.yaml ps
 
 # 管理界面
-# PostgreSQL Adminer:  http://localhost:8080
-# MinIO Console:       http://localhost:9001
-# MailDev:             http://localhost:1080
+# PostgreSQL Adminer:  http://localhost:8088
+# MinIO Console:       http://localhost:9009
+# MailDev:             http://localhost:1088
 ```
 
 ---
@@ -272,17 +272,17 @@ docker compose -f docker/docker-compose.yaml ps
 ```bash
 # App
 NODE_ENV=development
-APP_PORT=3000
+APP_PORT=3008
 APP_NAME="LinkingChat"
 API_PREFIX=api
-FRONTEND_DOMAIN=http://localhost:5173
-BACKEND_DOMAIN=http://localhost:3000
+FRONTEND_DOMAIN=http://localhost:5181
+BACKEND_DOMAIN=http://localhost:3008
 
 # Database (PostgreSQL + Prisma)
-DATABASE_URL="postgresql://linkingchat:linkingchat_dev@localhost:5432/linkingchat?schema=public"
+DATABASE_URL="postgresql://linkingchat:linkingchat_dev@localhost:5440/linkingchat?schema=public"
 
 # Redis (Socket.IO adapter + 缓存)
-REDIS_URL=redis://localhost:6379
+REDIS_URL=redis://localhost:6387
 
 # Auth (JWT RS256 — 非对称密钥对)
 AUTH_JWT_PRIVATE_KEY=<base64 encoded private key>
@@ -298,11 +298,11 @@ ACCESS_KEY_ID=linkingchat
 SECRET_ACCESS_KEY=linkingchat_dev
 AWS_S3_REGION=us-east-1
 AWS_DEFAULT_S3_BUCKET=linkingchat-files
-AWS_S3_ENDPOINT=http://localhost:9000
+AWS_S3_ENDPOINT=http://localhost:9008
 
 # Mail (MailDev for development)
 MAIL_HOST=localhost
-MAIL_PORT=1025
+MAIL_PORT=1033
 MAIL_USER=
 MAIL_PASSWORD=
 MAIL_IGNORE_TLS=true
@@ -428,14 +428,14 @@ pnpm run docker:down
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
-| **NestJS Server** | 3000 | REST API + WebSocket |
-| **PostgreSQL** | 5432 | 数据库 |
-| **Redis** | 6379 | Socket.IO adapter + 缓存 |
-| **MinIO S3** | 9000 | 文件存储 API |
-| **MinIO Console** | 9001 | 文件存储管理界面 |
-| **Adminer** | 8080 | 数据库管理界面 |
-| **MailDev Web** | 1080 | 邮件测试界面 |
-| **MailDev SMTP** | 1025 | 邮件测试 SMTP |
-| **Electron Dev** | 5173 | 桌面端渲染进程 (Vite) |
-| **Web Dev** | 5174 | Web 客户端 (Vite) |
+| **NestJS Server** | 3008 | REST API + WebSocket |
+| **PostgreSQL** | 5440 | 数据库 |
+| **Redis** | 6387 | Socket.IO adapter + 缓存 |
+| **MinIO S3** | 9008 | 文件存储 API |
+| **MinIO Console** | 9009 | 文件存储管理界面 |
+| **Adminer** | 8088 | 数据库管理界面 |
+| **MailDev Web** | 1088 | 邮件测试界面 |
+| **MailDev SMTP** | 1033 | 邮件测试 SMTP |
+| **Electron Dev** | 5181 | 桌面端渲染进程 (Vite) |
+| **Web Dev** | 5182 | Web 客户端 (Vite) |
 | **Expo Dev** | 8081 | React Native (若选 Expo) |

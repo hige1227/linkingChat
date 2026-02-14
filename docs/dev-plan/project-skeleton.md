@@ -220,6 +220,11 @@ apps/server/
 │   │   ├── commands.service.ts
 │   │   └── devices.module.ts
 │   │
+│   ├── bots/                              # 多 Bot 管理 (2026-02-13 新增)
+│   │   ├── bots.controller.ts             # CRUD /bots
+│   │   ├── bots.service.ts                # Bot ↔ OpenClaw agent config 映射
+│   │   └── bots.module.ts
+│   │
 │   ├── gateway/                           # WebSocket 网关
 │   │   ├── adapters/
 │   │   │   └── redis-io.adapter.ts        # Redis + Socket.IO 适配器
@@ -233,7 +238,7 @@ apps/server/
 │   ├── ai/                                # AI 模块 (Sprint 2+)
 │   │   ├── services/
 │   │   │   ├── llm-router.service.ts      # 多 LLM 路由 (DeepSeek / Kimi 2.5)
-│   │   │   ├── whisper.service.ts         # <800ms 建议
+│   │   │   ├── whisper.service.ts         # @ai 触发回复建议（1主推荐 + 2备选）
 │   │   │   ├── draft.service.ts           # Draft & Verify 状态机
 │   │   │   └── predictive.service.ts      # Predictive Actions
 │   │   ├── listeners/
@@ -328,9 +333,9 @@ apps/desktop/
 
 ## 五、apps/mobile/ — 移动端
 
-> 移动框架尚未最终确定：Flutter 或 React Native (Expo)。
-> 若选 Flutter，则无法直接使用 TypeScript 共享包，需手动镜像类型到 Dart。
-> 若选 RN Expo，可直接引用 `@linkingchat/shared` 和 `@linkingchat/ws-protocol`。
+> **已确认使用 Flutter (2026-02-13)**。设计方向：微信/WhatsApp 风格，less is more。
+> Bot 作为固定置顶的系统级联系人。支持多 Bot 框架（MVP 仅远程执行能力）。
+> Flutter 无法直接使用 TypeScript 共享包，需手动镜像类型到 Dart。
 
 ### Flutter 方案
 
@@ -355,7 +360,9 @@ apps/mobile/
 └── test/
 ```
 
-### React Native (Expo) 方案
+### React Native (Expo) 方案（备选，未采用）
+
+> 以下保留作为参考。团队已确认使用 Flutter。
 
 ```
 apps/mobile/
@@ -392,5 +399,5 @@ apps/mobile/
     ├── @linkingchat/web
     └── @linkingchat/desktop
 
-@linkingchat/mobile (Flutter: 独立依赖 / RN: 可引用 shared + ws-protocol)
+@linkingchat/mobile (Flutter: 独立依赖，手动镜像 TypeScript 类型到 Dart)
 ```

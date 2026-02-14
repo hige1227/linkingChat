@@ -65,14 +65,43 @@ Mobile sends a work command → Desktop executes → Desktop reports completion 
 ## Three Core Interaction Patterns
 
 1. **Draft & Verify (代理草稿)** [P0]: User sends intent → bot generates draft → user confirms before execution. Bot **never** acts autonomously.
-2. **The Whisper (耳语建议)** [P1]: On incoming message, cloud generates 3 reply suggestions in <800ms. If >1000ms, client abandons display.
+2. **The Whisper (耳语建议)** [P1]: User triggers via `@ai` → cloud generates 1 best reply (pre-filled in input) + `···` to expand 2 alternatives. Auto-push chips **rejected** (too generic). Ghost text completion planned for v2+ (local small model).
 3. **Predictive Actions (预测执行)** [P0]: Bot analyzes context (e.g., shell errors) → generates action card → dangerous commands blocked or flagged.
 
 ## Performance Targets
 
 - Message mirror latency: <2 seconds
 - Remote action execution: <3 seconds
-- AI suggestion chips: <800ms
+- @ai reply generation: <2 seconds (user-triggered, has wait expectation)
+
+## Mobile UI Direction
+
+- WeChat/WhatsApp style, less is more
+- Bot = fixed pinned system contact (like WeChat "File Transfer Assistant")
+- Multi-bot framework from MVP, but only remote execution capability initially
+- Each bot maps to an OpenClaw agent config
+
+## Multi-Bot Architecture
+
+- MVP: bot CRUD + routing framework, only remote execution capability
+- Auto-create on registration: Supervisor Bot (pinned, undeletable) + Coding Bot (pinned, configurable)
+- v1.x: add bot types per demand (social media, data analysis, etc.)
+- v2.0: open custom bot creation
+- Supervisor Bot = notification aggregator + smart concierge (not the only entry point)
+- Supervisor chat UI: normal chat flow + BOT_NOTIFICATION cards (no tabs)
+
+## Bot Communication Rules
+
+- All bots can communicate with each other (OpenClaw multi-agent orchestration)
+- Each bot notifies user in its own chat window
+- Cross-bot triggered messages MUST indicate trigger source (e.g., "[From Coding Bot]")
+- Supervisor aggregates all bot events as notification cards
+- Draft & Verify still applies: bots cannot auto-execute actions
+- In group chats: bots can be added as members (Telegram model), @specificBot for direct call, @ai = Supervisor fallback
+
+## Backend: NestJS Confirmed, Rust Rejected (2026-02-13)
+
+Scalability through architecture (horizontal scaling + Redis + Nginx LB), not language. Rust reconsidered only if data shows specific hot-path bottlenecks post-product-validation.
 
 ## Documentation Map
 

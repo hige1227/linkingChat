@@ -283,8 +283,9 @@ enum MessageType {
   VOICE
   SYSTEM
   AI_DRAFT       // Draft & Verify 草稿
-  AI_WHISPER     // Whisper 建议
+  AI_WHISPER     // Whisper 建议（@ai 触发）
   AI_PREDICTIVE  // Predictive Action 卡片
+  BOT_NOTIFICATION // Bot 间协作通知卡片（Supervisor 汇总 + 跨 bot 触发）
 }
 
 model Attachment {
@@ -390,6 +391,33 @@ enum SuggestionType {
   PREDICTIVE
 }
 
+// ─── Bot 管理（2026-02-13 新增，多 Bot 框架）───
+
+model Bot {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  avatarUrl   String?
+  type        BotType  @default(REMOTE_EXEC)
+  agentConfig Json     // OpenClaw agent config: system prompt, LLM routing, tools
+  ownerId     String
+  isPinned    Boolean  @default(true)
+  userId      String   @unique   // Bot 即 User（学 Tailchat）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([ownerId])
+  @@map("bots")
+}
+
+enum BotType {
+  REMOTE_EXEC   // 远程执行（MVP）
+  SOCIAL_MEDIA  // 社媒运营（v1.x）
+  CUSTOM        // 自定义（v2.0）
+}
+
 // ─── 认证（学 nestjs-chat refresh token 模式）────
 
 model RefreshToken {
@@ -423,7 +451,8 @@ model RefreshToken {
 | `attachments` | Valkyrie | 从 1:1 改为 1:N（支持多附件） |
 | `refresh_tokens` | nestjs-chat | 直接复用其设计 |
 | `devices` + `commands` | 全新设计 | 无参考，为 OpenClaw 远控设计 |
-| `ai_drafts` + `ai_suggestions` | 全新设计 | 无参考，为 AI 三模式设计 |
+| `ai_drafts` + `ai_suggestions` | 全新设计 | 无参考，为 AI 三模式设计（Whisper 改为 @ai 触发） |
+| `bots` | Tailchat Bot 思路 | Bot 即 User + OpenClaw agent config 映射，多 Bot 框架 |
 
 ---
 
@@ -1170,9 +1199,10 @@ export class WelcomePlugin {
 | `channel.notification` | Room(g-groupId) | 频道新消息通知 |
 | `device.result` | User(issuerId) | 远程命令结果 |
 | `device.status` | User(ownerId) | 设备上下线 |
-| `ai.whisper` | User(targetId) | Whisper 建议（<800ms） |
+| `ai.whisper` | User(targetId) | Whisper 建议（@ai 触发，<2s） |
 | `ai.draft.new` | User(targetId) | 新的 Draft & Verify 草稿 |
 | `ai.predict.new` | User(targetId) | 新的 Predictive Action 卡片 |
+| `bot.notification` | User(targetId) | Bot 间协作通知（含触发来源标注） |
 | `error.auth` | Client(socket) | 认证失败 |
 
 ---
@@ -1260,7 +1290,7 @@ interface StdResponse<T> {
 | 功能 | 架构适配 |
 |------|---------|
 | Draft & Verify | `MessageType.AI_DRAFT` + `ai_drafts` 表 + `ai.draft.new` / `ai.draft.respond` 事件 |
-| Whisper | `ai_suggestions` 表 + `ai.whisper` 事件 + BullMQ 异步任务（LLM 调用） |
+| Whisper | `ai_suggestions` 表 + `ai.whisper` 事件 + 用户 @ai 主动触发（非自动推送）|
 | Predictive Actions | `ai_suggestions` 表 + `ai.predict.new` 事件 + 命令安全分级 |
 | OpenClaw 远控 | `devices` + `commands` 表 + `device.command` / `device.result` 事件 |
-| Bot 集成 | 学 Tailchat：Bot 是特殊 User，用同一套认证和消息管道 |
+| Bot 集成 | Bot 是特殊 User（学 Tailchat）+ `bots` 表存 agent config + 固定置顶入口 + 多 bot 框架（MVP 仅远程执行能力） |

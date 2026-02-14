@@ -54,12 +54,15 @@
 - C. Go — 高并发 WebSocket 性能好，但 LLM 生态弱
 - D. 其他（请说明）
 
-**回答：待定 — 需要根据项目特点评估：
-- Node.js/TypeScript: 全栈统一TS，和桌面端共享类型定义和协议，WebSocket 生态成熟
-- Python + FastAPI: LLM 生态更成熟，与 Groq/vLLM SDK 集成自然
-- Go: 高并发 WebSocket 性能最优，但 LLM 生态较弱
+**回答：A. Node.js / TypeScript (NestJS)** ✅ 已确认
 
-**推荐：Node.js/TypeScript** — 因为桌面端已是 Node.js，全栈统一可减少技术复杂度，且 WebSocket 协议可与桌面端共享类型定义**
+**Rust 曾被讨论但已否决（2026-02-13）**，理由：
+- 团队已确认 TypeScript everywhere，前后端共享类型/协议定义是核心效率优势
+- 2-3 人团队，Rust 学习曲线会拖垮 MVP 进度
+- 性能瓶颈在 LLM API 调用延迟（几百ms~几秒），不在后端框架（NestJS 处理 WebSocket 转发是微秒级）
+- NestJS 单实例可扛 5000-10000 WebSocket 并发；加上水平扩展（多实例 + Redis），10万级连接无压力
+- 扩展性靠架构（Nginx 负载均衡 + Redis pub/sub + PostgreSQL 分表），不靠语言
+- 正确路径：NestJS 快速验证 → 产品成功 → 用数据找真正瓶颈 → 针对性优化（可能是 Rust 重写某个微服务）
 
 ### Q6. 移动端技术栈
 

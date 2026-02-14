@@ -55,7 +55,10 @@
 ├─────────────────────────────────────────────────────────────────────┤
 │                           AI 领域                                    │
 │  AiDraft (Draft & Verify 草稿)                                     │
-│  AiSuggestion (Whisper 建议 + Predictive Actions)                  │
+│  AiSuggestion (Whisper 建议 [@ai 触发] + Predictive Actions)  │
+├─────────────────────────────────────────────────────────────────┤
+│                           Bot 领域                               │
+│  Bot (多 Bot 框架，映射 OpenClaw agent config)                   │
 ├─────────────────────────────────────────────────────────────────────┤
 │                           认证领域                                   │
 │  RefreshToken (JWT RS256 刷新令牌)                                  │
@@ -197,7 +200,7 @@
 |------|------|------|
 | `id` | `String @id @default(cuid())` | |
 | `content` | `String?` | 可为空 (纯文件消息) |
-| `type` | `MessageType @default(TEXT)` | TEXT / IMAGE / FILE / VOICE / SYSTEM / AI_DRAFT / AI_WHISPER / AI_PREDICTIVE |
+| `type` | `MessageType @default(TEXT)` | TEXT / IMAGE / FILE / VOICE / SYSTEM / BOT_NOTIFICATION / AI_DRAFT / AI_WHISPER / AI_PREDICTIVE |
 | `converseId` | `String` | FK → Converse |
 | `authorId` | `String` | FK → User |
 | `metadata` | `Json?` | AI 扩展字段 |
@@ -242,7 +245,30 @@
 
 **索引**: `@@index([deviceId, createdAt])`
 
-### 3.5 AI 领域
+### 3.5 Bot 领域 (2026-02-13 新增)
+
+> 多 Bot 框架：每个 bot 映射到一个 OpenClaw agent config。MVP 仅远程执行能力，后续按需加 bot 类型。
+> Bot 作为特殊 User（学 Tailchat），固定置顶在聊天列表中。
+
+#### Bot
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `String @id @default(cuid())` | |
+| `name` | `String` | Bot 显示名 |
+| `description` | `String?` | Bot 用途描述 |
+| `avatarUrl` | `String?` | Bot 头像 |
+| `type` | `BotType @default(REMOTE_EXEC)` | REMOTE_EXEC / SOCIAL_MEDIA / CUSTOM (v2+) |
+| `agentConfig` | `Json` | OpenClaw agent 配置（system prompt, LLM 路由, 工具集） |
+| `ownerId` | `String` | 创建者 |
+| `isPinned` | `Boolean @default(true)` | 是否固定置顶 |
+| `userId` | `String @unique` | 关联的 User 记录（Bot 即 User） |
+
+**索引**: `@@index([ownerId])`
+
+> **Bot 间通信**：OpenClaw 底层支持 multi-agent orchestration，但 MVP 阶段 bot 各自独立，不互通。v2.0 再暴露编排能力。
+
+### 3.6 AI 领域
 
 #### AiDraft (Draft & Verify)
 
@@ -268,7 +294,7 @@
 | `converseId` | `String` | |
 | `triggerMessageId` | `String?` | |
 
-### 3.6 认证领域
+### 3.7 认证领域
 
 #### RefreshToken (学 nestjs-chat)
 
@@ -332,8 +358,9 @@ prisma/migrations/
   004_messages/                -- Message, Attachment
   005_devices/                 -- Device, Command
   006_auth/                    -- RefreshToken
+  007_bots/                    -- Bot (多 Bot 框架)
   --- Sprint 2+ ---
-  007_ai/                      -- AiDraft, AiSuggestion
+  008_ai/                      -- AiDraft, AiSuggestion
 ```
 
 ```bash
