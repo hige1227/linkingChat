@@ -131,6 +131,7 @@ docs/
 │   ├── follow-up-questions.md          — Architect follow-up questions v1
 │   ├── follow-up-questions-v2.md       — Architect follow-up questions v2 with team answers
 │   ├── tech-decisions-v2.md            — ★ Core: OpenClaw, IM protocol, scaffold, execution path
+│   ├── zeroclaw-evaluation.md          — ZeroClaw vs OpenClaw evaluation (2026-02-16)
 │   └── user-stories.md                 — BDD acceptance criteria
 │
 ├── research/                           # Technical research & analysis

@@ -70,3 +70,5 @@ tempvalkyrie-v1/
 
 # Windows null device artifact
 nul
+.serena/
+# Flutter generated platform dirs (added as needed)
