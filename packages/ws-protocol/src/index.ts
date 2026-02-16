@@ -1,6 +1,7 @@
 export * from './envelope';
 export * from './events';
 export * from './payloads/device.payloads';
+export * from './payloads/chat.payloads';
 export type {
   SocketData,
   ClientToServerEvents,

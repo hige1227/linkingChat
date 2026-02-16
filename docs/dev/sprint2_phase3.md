@@ -267,9 +267,10 @@ import { PresenceService } from './presence.service';
 import { BroadcastService } from './broadcast.service';
 import { DevicesModule } from '../devices/devices.module';
 import { FriendsModule } from '../friends/friends.module';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
-  imports: [DevicesModule, FriendsModule],
+  imports: [DevicesModule, FriendsModule, RedisModule],
   providers: [
     DeviceGateway,
     ChatGateway,
@@ -280,6 +281,8 @@ import { FriendsModule } from '../friends/friends.module';
 })
 export class GatewayModule {}
 ```
+
+> **注意**：`RedisModule` 需要注册并 export `'REDIS_CLIENT'` provider（即 ioredis 实例），供 PresenceService 通过 `@Inject('REDIS_CLIENT')` 注入。如果项目使用全局 Redis 模块（`@Global()`），则无需在此显式 import。
 
 **要点**：
 - 所有 Redis 操作尽量使用 `pipeline`，减少网络往返

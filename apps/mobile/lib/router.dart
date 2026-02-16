@@ -6,24 +6,37 @@ import 'features/auth/pages/login_page.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/device/pages/device_list_page.dart';
 import 'features/device/pages/command_page.dart';
+import 'features/chat/pages/converses_list_page.dart';
+import 'features/chat/pages/chat_thread_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/chat',
     refreshListenable: _AuthRefreshNotifier(ref),
     redirect: (context, state) {
       final isAuth = authState.status == AuthStatus.authenticated;
       final isLoginRoute = state.matchedLocation == '/login';
 
       if (!isAuth && !isLoginRoute) return '/login';
+      if (isAuth && isLoginRoute) return '/chat';
       return null;
     },
     routes: [
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/chat',
+        builder: (context, state) => const ConversesListPage(),
+      ),
+      GoRoute(
+        path: '/chat/:converseId',
+        builder: (context, state) => ChatThreadPage(
+          converseId: state.pathParameters['converseId']!,
+        ),
       ),
       GoRoute(
         path: '/devices',

@@ -747,8 +747,10 @@ async create(userId: string, dto: CreateMessageDto) {
   // 3. 广播到会话房间（已有逻辑）
   this.broadcastService.emitToRoom(dto.converseId, 'message:new', message);
 
-  // 4. [新增] 检测收件人是否为 Bot
-  await this.detectBotRecipient(userId, dto.converseId, message);
+  // 4. [新增] 检测收件人是否为 Bot（fire-and-forget，不阻塞消息返回）
+  this.detectBotRecipient(userId, dto.converseId, message).catch((err) =>
+    this.logger.error(`detectBotRecipient failed: ${err.message}`, err.stack),
+  );
 
   return message;
 }
@@ -1068,11 +1070,13 @@ interface ConverseListItemProps {
 }
 
 function ConverseListItem({ converse, isActive, onClick }: ConverseListItemProps) {
+  // 过滤掉自己，取对方成员的显示名
+  const otherMember = converse.members.find((m) => m.userId !== currentUserId);
   const displayName = converse.botInfo?.name
-    || converse.members[0]?.user.displayName
+    || otherMember?.user.displayName
     || '未知';
 
-  const avatarUrl = converse.members[0]?.user.avatarUrl;
+  const avatarUrl = otherMember?.user.avatarUrl;
 
   // 构建最后一条消息的预览文本
   const lastMessagePreview = (() => {

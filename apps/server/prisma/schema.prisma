@@ -7,18 +7,95 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ========== Sprint 1 枚举 ==========
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+}
+
+enum CommandStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ========== Sprint 2 新增枚举 ==========
+
+enum UserStatus {
+  ONLINE
+  IDLE
+  DND
+  OFFLINE
+}
+
+enum FriendRequestStatus {
+  PENDING
+  REJECTED
+}
+
+enum ConverseType {
+  DM
+  MULTI
+  GROUP
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  VOICE
+  SYSTEM
+  BOT_NOTIFICATION
+}
+
+enum BotType {
+  REMOTE_EXEC
+  SOCIAL_MEDIA
+  CUSTOM
+}
+
+// ========== Models ==========
+
 model User {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  username    String   @unique
+  id          String     @id @default(cuid())
+  email       String     @unique
+  username    String     @unique
   password    String
   displayName String
   avatarUrl   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
+  // Sprint 2 新增字段
+  status      UserStatus @default(OFFLINE)
+  lastSeenAt  DateTime?
+  deletedAt   DateTime?
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Sprint 1 原有关系
   devices Device[]
   tokens  RefreshToken[]
+
+  // Sprint 2 新增关系 — 好友
+  sentFriendRequests     FriendRequest[] @relation("FriendRequestSender")
+  receivedFriendRequests FriendRequest[] @relation("FriendRequestReceiver")
+  friendshipsA           Friendship[]    @relation("FriendshipUserA")
+  friendshipsB           Friendship[]    @relation("FriendshipUserB")
+
+  // Sprint 2 新增关系 — 拉黑
+  blockedUsers   UserBlock[] @relation("Blocker")
+  blockedByUsers UserBlock[] @relation("Blocked")
+
+  // Sprint 2 新增关系 — 会话 & 消息
+  converseMembers ConverseMember[]
+  messages        Message[]
+
+  // Sprint 2 新增关系 — Bot
+  ownedBots Bot[] @relation("BotOwner")
+  botUser   Bot?  @relation("BotUser")
 
   @@map("users")
 }
@@ -69,15 +146,148 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-enum DeviceStatus {
-  ONLINE
-  OFFLINE
+// ========== Sprint 2 新增 Models ==========
+
+model FriendRequest {
+  id         String              @id @default(cuid())
+  senderId   String
+  receiverId String
+  status     FriendRequestStatus @default(PENDING)
+  message    String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  sender   User @relation("FriendRequestSender", fields: [senderId], references: [id])
+  receiver User @relation("FriendRequestReceiver", fields: [receiverId], references: [id])
+
+  @@unique([senderId, receiverId])
+  @@index([status])
+  @@map("friend_requests")
 }
 
-enum CommandStatus {
-  PENDING
-  RUNNING
-  COMPLETED
-  FAILED
-  CANCELLED
+model Friendship {
+  id        String   @id @default(cuid())
+  userAId   String
+  userBId   String
+  createdAt DateTime @default(now())
+
+  userA User @relation("FriendshipUserA", fields: [userAId], references: [id])
+  userB User @relation("FriendshipUserB", fields: [userBId], references: [id])
+
+  @@unique([userAId, userBId])
+  @@map("friendships")
+}
+
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id])
+  blocked User @relation("Blocked", fields: [blockedId], references: [id])
+
+  @@unique([blockerId, blockedId])
+  @@map("user_blocks")
+}
+
+model Converse {
+  id          String       @id @default(cuid())
+  type        ConverseType
+  name        String?
+  description String?
+  avatarUrl   String?
+  creatorId   String?
+  maxMembers  Int          @default(200)
+  deletedAt   DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  members  ConverseMember[]
+  messages Message[]
+
+  @@map("converses")
+}
+
+enum GroupRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model ConverseMember {
+  converseId        String
+  userId            String
+  isOpen            Boolean   @default(true)
+  lastSeenMessageId String?
+  lastMessageId     String?
+  role              GroupRole?
+  nickname          String?
+  joinedAt          DateTime  @default(now())
+
+  converse Converse @relation(fields: [converseId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@id([converseId, userId])
+  @@map("converse_members")
+}
+
+model Message {
+  id          String      @id @default(cuid())
+  content     String?
+  type        MessageType @default(TEXT)
+  converseId  String
+  authorId    String
+  metadata    Json?
+  replyToId   String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  converse    Converse    @relation(fields: [converseId], references: [id])
+  author      User        @relation(fields: [authorId], references: [id])
+  replyTo     Message?    @relation("MessageReply", fields: [replyToId], references: [id])
+  replies     Message[]   @relation("MessageReply")
+  attachments Attachment[]
+
+  @@index([converseId, createdAt])
+  @@map("messages")
+}
+
+model Attachment {
+  id           String  @id @default(cuid())
+  messageId    String
+  url          String
+  filename     String
+  mimeType     String
+  size         Int?
+  width        Int?
+  height       Int?
+  duration     Int?
+  thumbnailUrl String?
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+}
+
+model Bot {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  avatarUrl   String?
+  type        BotType  @default(REMOTE_EXEC)
+  agentConfig Json
+  ownerId     String
+  isPinned    Boolean  @default(true)
+  isDeletable Boolean  @default(true)
+  userId      String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner User @relation("BotOwner", fields: [ownerId], references: [id])
+  user  User @relation("BotUser", fields: [userId], references: [id])
+
+  @@index([ownerId])
+  @@map("bots")
 }

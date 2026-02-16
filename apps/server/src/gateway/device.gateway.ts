@@ -11,6 +11,7 @@ import {
 import { Logger } from '@nestjs/common';
 import { Namespace, Socket } from 'socket.io';
 import { createWsAuthMiddleware } from './middleware/ws-auth.middleware';
+import { BroadcastService } from './broadcast.service';
 import { DevicesService } from '../devices/devices.service';
 import { CommandsService } from '../devices/commands.service';
 import type {
@@ -54,10 +55,12 @@ export class DeviceGateway
   constructor(
     private readonly devicesService: DevicesService,
     private readonly commandsService: CommandsService,
+    private readonly broadcastService: BroadcastService,
   ) {}
 
   afterInit(namespace: Namespace) {
     namespace.use(createWsAuthMiddleware());
+    this.broadcastService.setNamespace('device', namespace);
     this.logger.log('Device Gateway initialized with RS256 auth middleware');
   }
 

@@ -34,6 +34,9 @@ interface ElectronAPI {
   onCommandReceived: (callback: (entry: unknown) => void) => void;
 }
 
+declare module 'zustand';
+declare module 'react-router-dom';
+
 interface Window {
   electronAPI: ElectronAPI;
 }

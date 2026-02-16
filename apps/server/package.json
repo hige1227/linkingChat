@@ -17,6 +17,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@linkingchat/shared": "workspace:*",
     "@linkingchat/ws-protocol": "workspace:*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
@@ -68,6 +69,9 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.0"
   },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "jest": {
     "moduleFileExtensions": [
       "js",
@@ -78,6 +82,9 @@
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^@linkingchat/shared$": "<rootDir>/../../../packages/shared/src/index.ts"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

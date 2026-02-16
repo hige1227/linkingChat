@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/ws_service.dart';
+import '../../../core/network/chat_socket_service.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../models/auth_response.dart';
 
@@ -51,6 +52,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final wsService = _ref.read(wsServiceProvider);
     await wsService.connect();
 
+    // Connect chat socket after login
+    final chatSocket = _ref.read(chatSocketServiceProvider);
+    await chatSocket.connect();
+
     state = AuthState(
       status: AuthStatus.authenticated,
       user: authResponse.user,
@@ -64,6 +69,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (loggedIn) {
       final wsService = _ref.read(wsServiceProvider);
       await wsService.connect();
+      final chatSocket = _ref.read(chatSocketServiceProvider);
+      await chatSocket.connect();
       state = const AuthState(status: AuthStatus.authenticated);
       return true;
     }
@@ -74,7 +81,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     final authRepo = _ref.read(authRepositoryProvider);
     final wsService = _ref.read(wsServiceProvider);
+    final chatSocket = _ref.read(chatSocketServiceProvider);
     wsService.disconnect();
+    chatSocket.disconnect();
     await authRepo.clearAll();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }

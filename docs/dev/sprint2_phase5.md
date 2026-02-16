@@ -19,7 +19,7 @@ Bot 在系统中作为特殊 User 存在（参考 Tailchat 的设计模式）。
 - 与真实用户共用统一的头像、昵称显示逻辑
 - 被好友系统、会话系统无缝识别
 
-Bot User 使用不可登录的邮箱（`bot_*@linkingchat.bot`）和随机密码，确保不会被用作真实登录凭证。
+Bot User 使用不可登录的邮箱（`bot-*@bot.linkingchat.internal`）和 argon2 哈希的随机密码，确保不会被用作真实登录凭证。
 
 ---
 
@@ -289,7 +289,7 @@ export class CreateBotDto {
   avatarUrl?: string;
 
   @IsOptional()
-  @IsEnum(['REMOTE_EXEC', 'SOCIAL_MEDIA', 'CUSTOM'])
+  @IsIn(['REMOTE_EXEC', 'SOCIAL_MEDIA', 'CUSTOM'])
   type?: 'REMOTE_EXEC' | 'SOCIAL_MEDIA' | 'CUSTOM';
 
   @IsObject()
@@ -377,6 +377,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateBotDto } from './dto/create-bot.dto';
 import { UpdateBotDto } from './dto/update-bot.dto';
 import { randomBytes } from 'crypto';
+import * as argon2 from 'argon2';
 import { agentConfigSchema } from '@linkingchat/shared/schemas/bot.schema';
 
 @Injectable()
@@ -407,9 +408,9 @@ export class BotsService {
       // 2. 创建 Bot User 记录
       const botUser = await tx.user.create({
         data: {
-          email: `bot_${Date.now()}@linkingchat.bot`,
+          email: `bot-${randomBytes(8).toString('hex')}@bot.linkingchat.internal`,
           username: `bot_${dto.name.toLowerCase().replace(/\s/g, '_')}_${Date.now()}`,
-          password: randomBytes(32).toString('hex'),
+          password: await argon2.hash(randomBytes(32).toString('hex')),
           displayName: dto.name,
           avatarUrl: dto.avatarUrl,
         },
@@ -566,13 +567,15 @@ export class BotsService {
   }
 
   /**
-   * 内部方法：创建系统 Bot（由 Phase 6 AuthService 调用）
+   * 内部方法：在已有事务中创建 Bot（由 Phase 6 AuthService 调用）
    *
    * 与 create() 的区别：
+   * - 接收 Prisma 事务客户端 tx，不自行开启事务
    * - isDeletable 由调用方指定（系统 Bot 为 false）
    * - 不对外暴露为 REST API
    */
-  async createSystemBot(
+  async createWithTx(
+    tx: Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
     ownerId: string,
     config: {
       name: string;
@@ -583,31 +586,29 @@ export class BotsService {
       isDeletable: boolean;
     },
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      const botUser = await tx.user.create({
-        data: {
-          email: `bot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}@linkingchat.bot`,
-          username: `bot_${config.name.toLowerCase().replace(/\s/g, '_')}_${Date.now()}`,
-          password: randomBytes(32).toString('hex'),
-          displayName: config.name,
-        },
-      });
-
-      const bot = await tx.bot.create({
-        data: {
-          name: config.name,
-          description: config.description,
-          type: config.type,
-          agentConfig: config.agentConfig,
-          ownerId,
-          userId: botUser.id,
-          isPinned: config.isPinned,
-          isDeletable: config.isDeletable,
-        },
-      });
-
-      return { bot, botUser };
+    const botUser = await tx.user.create({
+      data: {
+        email: `bot-${randomBytes(8).toString('hex')}@bot.linkingchat.internal`,
+        username: `bot_${config.name.toLowerCase().replace(/\s/g, '_')}_${Date.now()}`,
+        password: await argon2.hash(randomBytes(32).toString('hex')),
+        displayName: config.name,
+      },
     });
+
+    const bot = await tx.bot.create({
+      data: {
+        name: config.name,
+        description: config.description,
+        type: config.type,
+        agentConfig: config.agentConfig,
+        ownerId,
+        userId: botUser.id,
+        isPinned: config.isPinned,
+        isDeletable: config.isDeletable,
+      },
+    });
+
+    return { bot, botUser };
   }
 }
 ```
@@ -616,9 +617,9 @@ export class BotsService {
 
 | 属性 | Bot User 值 | 说明 |
 |------|------------|------|
-| `email` | `bot_{timestamp}@linkingchat.bot` | `.bot` 域名不可登录 |
+| `email` | `bot-{random}@bot.linkingchat.internal` | `.internal` 域名不可登录 |
 | `username` | `bot_{name}_{timestamp}` | 带 `bot_` 前缀，全局唯一 |
-| `password` | `randomBytes(32).toString('hex')` | 64 字符随机哈希，不可猜测 |
+| `password` | `await argon2.hash(randomBytes(32)...)` | argon2 哈希，与 Sprint 1 用户注册一致 |
 | `displayName` | Bot 的 name | 在聊天中显示为 Bot 名称 |
 | `avatarUrl` | Bot 的 avatarUrl | 与 Bot 保持同步 |
 | `deletedAt` | null（正常）/ Date（删除时） | 软删除后保留历史消息引用 |
@@ -867,7 +868,7 @@ describe('BotsService', () => {
 
       await service.create(mockOwnerId, mockCreateDto);
 
-      expect(capturedUserData.email).toMatch(/@linkingchat\.bot$/);
+      expect(capturedUserData.email).toMatch(/@bot\.linkingchat\.internal$/);
     });
 
     it('Bot User username 应以 bot_ 前缀开头', async () => {
@@ -891,7 +892,7 @@ describe('BotsService', () => {
       expect(capturedUserData.username).toMatch(/^bot_/);
     });
 
-    it('Bot User 密码应为 64 字符随机哈希', async () => {
+    it('Bot User 密码应为 argon2 哈希', async () => {
       let capturedUserData: any;
 
       prisma.$transaction.mockImplementation(async (cb) => {
@@ -909,8 +910,7 @@ describe('BotsService', () => {
 
       await service.create(mockOwnerId, mockCreateDto);
 
-      expect(capturedUserData.password).toHaveLength(64);
-      expect(capturedUserData.password).toMatch(/^[0-9a-f]{64}$/);
+      expect(capturedUserData.password).toMatch(/^\$argon2/);
     });
 
     it('agentConfig 缺少 systemPrompt 时应返回 400', async () => {
@@ -1174,6 +1174,6 @@ apps/server/prisma/schema.prisma  # Bot model + BotType enum（Phase 0 已添加
 
 | 后续 Phase | 依赖本 Phase | 说明 |
 |-----------|-------------|------|
-| **Phase 6: 注册自动创建 Bot** | `BotsService.createSystemBot()` | 注册流程中调用创建 Supervisor + Coding Bot |
+| **Phase 6: 注册自动创建 Bot** | `BotsService.createWithTx()` | 注册流程中调用创建 Supervisor + Coding Bot |
 | **Phase 7: Bot 聊天 UI** | Bot-User 关联 | Bot 作为 ConverseMember 出现在聊天列表 |
 | **Phase 9: Supervisor 通知** | Bot 数据模型 | 通过 Bot.type 和 agentConfig 路由通知 |

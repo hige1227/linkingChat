@@ -600,8 +600,12 @@ socket.on('message:read', (data: {
 
 ```dart
 // apps/mobile/lib/features/chat/pages/chat_page.dart
+// 注意：使用 didChangeAppLifecycleState 需要混入 WidgetsBindingObserver，
+// 并在 initState/dispose 中注册/注销：
+//   WidgetsBinding.instance.addObserver(this);
+//   WidgetsBinding.instance.removeObserver(this);
 
-class _ChatPageState extends ConsumerState<ChatPage> {
+class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();

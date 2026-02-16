@@ -6,6 +6,24 @@ import type {
   DeviceResultPayload,
   DeviceStatusPayload,
 } from './payloads/device.payloads';
+import type {
+  FriendRequestPayload,
+  FriendAcceptedPayload,
+  FriendRemovedPayload,
+  MessageResponse,
+  ConverseNewPayload,
+  ConverseResponse,
+  TypingPayload,
+  MessageReadPayload,
+  PresenceUpdatePayload,
+  PresencePayload,
+  GroupCreatedPayload,
+  GroupUpdatedPayload,
+  GroupDeletedPayload,
+  GroupMemberAddedPayload,
+  GroupMemberRemovedPayload,
+  GroupMemberRoleUpdatedPayload,
+} from './payloads/chat.payloads';
 
 export interface SocketData {
   userId: string;
@@ -15,6 +33,7 @@ export interface SocketData {
 }
 
 export interface ClientToServerEvents {
+  // Device events (Sprint 1)
   'device:register': (
     data: DeviceRegisterPayload,
     ack: (res: WsResponse) => void,
@@ -34,9 +53,23 @@ export interface ClientToServerEvents {
     progress: number;
     output?: string;
   }) => void;
+
+  // Chat events (Sprint 2)
+  'converse:join': (
+    data: { converseId: string },
+    ack: (res: WsResponse) => void,
+  ) => void;
+  'converse:leave': (data: { converseId: string }) => void;
+  'message:typing': (data: TypingPayload) => void;
+  'message:read': (
+    data: MessageReadPayload,
+    ack: (res: WsResponse) => void,
+  ) => void;
+  'presence:update': (data: PresenceUpdatePayload) => void;
 }
 
 export interface ServerToClientEvents {
+  // Device events (Sprint 1)
   'device:command:execute': (data: DeviceCommandPayload) => void;
   'device:command:ack': (data: {
     commandId: string;
@@ -50,6 +83,27 @@ export interface ServerToClientEvents {
   }) => void;
   'device:status:changed': (data: DeviceStatusPayload) => void;
   'system:error': (data: { code: string; message: string }) => void;
+
+  // Chat events (Sprint 2)
+  'message:new': (data: MessageResponse) => void;
+  'message:updated': (data: MessageResponse) => void;
+  'message:deleted': (data: { messageId: string; converseId: string }) => void;
+  'friend:request': (data: FriendRequestPayload) => void;
+  'friend:accepted': (data: FriendAcceptedPayload) => void;
+  'friend:removed': (data: FriendRemovedPayload) => void;
+  'converse:new': (data: ConverseNewPayload) => void;
+  'converse:updated': (data: ConverseResponse) => void;
+  'presence:changed': (data: PresencePayload) => void;
+  'notification:new': (data: Record<string, unknown>) => void;
+  'bot:notification': (data: Record<string, unknown>) => void;
+
+  // Group events (Sprint 2 Phase 8)
+  'group:created': (data: GroupCreatedPayload) => void;
+  'group:updated': (data: GroupUpdatedPayload) => void;
+  'group:deleted': (data: GroupDeletedPayload) => void;
+  'group:member:added': (data: GroupMemberAddedPayload) => void;
+  'group:member:removed': (data: GroupMemberRemovedPayload) => void;
+  'group:member:role:updated': (data: GroupMemberRoleUpdatedPayload) => void;
 }
 
 // These types require socket.io as a peer dependency.

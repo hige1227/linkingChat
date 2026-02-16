@@ -14,3 +14,33 @@ export const DEVICE_EVENTS = {
   RESULT_PROGRESS_FWD: 'device:result:progress', // same event name, Socket.IO distinguishes by direction
   STATUS_CHANGED: 'device:status:changed',
 } as const;
+
+export const CHAT_EVENTS = {
+  // Client → Server
+  CONVERSE_JOIN:   'converse:join',
+  CONVERSE_LEAVE:  'converse:leave',
+  MESSAGE_TYPING:  'message:typing',
+  MESSAGE_READ:    'message:read',
+  PRESENCE_UPDATE: 'presence:update',
+
+  // Server → Client
+  MESSAGE_NEW:       'message:new',
+  MESSAGE_UPDATED:   'message:updated',
+  MESSAGE_DELETED:   'message:deleted',
+  FRIEND_REQUEST:    'friend:request',
+  FRIEND_ACCEPTED:   'friend:accepted',
+  FRIEND_REMOVED:    'friend:removed',
+  CONVERSE_NEW:      'converse:new',
+  CONVERSE_UPDATED:  'converse:updated',
+  PRESENCE_CHANGED:  'presence:changed',
+  NOTIFICATION_NEW:  'notification:new',
+  BOT_NOTIFICATION:  'bot:notification',
+
+  // Group events (Server → Client)
+  GROUP_CREATED:              'group:created',
+  GROUP_UPDATED:              'group:updated',
+  GROUP_DELETED:              'group:deleted',
+  GROUP_MEMBER_ADDED:         'group:member:added',
+  GROUP_MEMBER_REMOVED:       'group:member:removed',
+  GROUP_MEMBER_ROLE_UPDATED:  'group:member:role:updated',
+} as const;

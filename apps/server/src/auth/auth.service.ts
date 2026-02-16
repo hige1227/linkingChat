@@ -2,9 +2,11 @@ import {
   Injectable,
   ConflictException,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { BotInitService } from '../bots/bot-init.service';
 import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
 import { RegisterDto } from './dto/register.dto';
@@ -13,6 +15,7 @@ import { RefreshDto } from './dto/refresh.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly jwtPrivateKey: string;
   private readonly jwtPublicKey: string;
   private readonly refreshPrivateKey: string;
@@ -21,6 +24,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly botInitService: BotInitService,
   ) {
     this.jwtPrivateKey = Buffer.from(
       process.env.AUTH_JWT_PRIVATE_KEY!,
@@ -68,6 +72,15 @@ export class AuthService {
 
     const tokens = await this.generateTokenPair(user.id, user.username);
     await this.storeRefreshToken(user.id, tokens.refreshToken);
+
+    // Auto-create default bots for new user (non-blocking)
+    try {
+      await this.botInitService.createDefaultBots(user.id);
+    } catch (error) {
+      this.logger.error(
+        `Failed to create default bots for user ${user.id}: ${error}`,
+      );
+    }
 
     return {
       user: {
