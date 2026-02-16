@@ -62,4 +62,7 @@ export const AI_EVENTS = {
   PREDICTIVE_ACTION:  'ai:predictive:action',
   PREDICTIVE_EXECUTE: 'ai:predictive:execute',
   PREDICTIVE_DISMISS: 'ai:predictive:dismiss',
+
+  // Bot Inter-communication — Bot 间通信 (Sprint 3 Phase 4)
+  BOT_CROSS_NOTIFY: 'bot:cross:notify',
 } as const;

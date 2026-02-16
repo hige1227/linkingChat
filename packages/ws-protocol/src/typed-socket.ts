@@ -36,6 +36,7 @@ import type {
   PredictiveActionPayload,
   PredictiveExecutePayload,
   PredictiveDismissPayload,
+  BotNotificationPayload,
 } from './payloads/ai.payloads';
 
 export interface SocketData {
@@ -153,6 +154,9 @@ export interface ServerToClientEvents {
   'ai:draft:created': (data: DraftCreatedPayload) => void;
   'ai:draft:expired': (data: DraftExpiredPayload) => void;
   'ai:predictive:action': (data: PredictiveActionPayload) => void;
+
+  // Bot Inter-communication (Sprint 3 Phase 4)
+  'bot:cross:notify': (data: BotNotificationPayload) => void;
 }
 
 // These types require socket.io as a peer dependency.

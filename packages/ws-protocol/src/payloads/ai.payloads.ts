@@ -97,3 +97,33 @@ export interface PredictiveExecutePayload {
 export interface PredictiveDismissPayload {
   suggestionId: string;
 }
+
+// ========== Bot Inter-communication ==========
+
+/** 触发来源标签 — 附加到 Message.metadata */
+export interface TriggerSource {
+  botId: string;
+  botName: string;
+  reason: string;
+}
+
+/** bot:notification 事件的 payload (S→C) */
+export interface BotNotificationPayload {
+  messageId: string;
+  converseId: string;
+  fromBotId: string;
+  fromBotName: string;
+  toBotId: string;
+  toBotName: string;
+  content: string;
+  triggerSource: TriggerSource;
+  createdAt: string; // ISO 8601
+}
+
+/** Supervisor 意图路由结果 */
+export interface SupervisorRouteResult {
+  recommendedBotId: string;
+  recommendedBotName: string;
+  confidence: number;
+  reason: string;
+}
