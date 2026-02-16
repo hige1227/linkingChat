@@ -25,6 +25,8 @@ export class UsersService {
       where: {
         AND: [
           { id: { not: currentUserId } },
+          // Exclude bot user accounts
+          { botUser: null },
           {
             OR: [
               { username: { contains: query, mode: 'insensitive' } },

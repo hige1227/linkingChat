@@ -4,19 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-LinkingChat (codename: Ghost Mate) has completed **Sprint 0 (infrastructure setup)**. The monorepo skeleton is functional with NestJS server, Electron desktop client, and Flutter mobile project structure. Sprint 1 (authentication + device registration) is next.
+LinkingChat (codename: Ghost Mate) has completed **Sprint 0–2**. The platform has a working NestJS server with auth, device control, friends, 1-on-1 & group chat, bots framework, plus full Flutter mobile UI and Electron desktop UI. **Sprint 3 (AI module + OpenClaw integration)** is next.
 
 ### What's working:
 - `pnpm install` — Turborepo v2 + pnpm 10 workspace (5 packages)
 - `pnpm docker:up` — PostgreSQL:5440, Redis:6387, MinIO:9008, Adminer:8088, MailDev:1088
 - `pnpm dev:server` — NestJS on http://localhost:3008/api/v1
-- `pnpm dev:desktop` — Electron + electron-vite + React
+- `pnpm dev:desktop` — Electron + electron-vite + React (full chat UI with group info panel)
+- `pnpm dev:mobile` — Flutter mobile app (full chat UI, friends, groups, device control)
 - `pnpm build` — All 4 packages compile (server, desktop, shared, ws-protocol)
-- `pnpm test` — 2 tests passing (AppController)
-- Prisma migration applied (4 tables: users, devices, commands, refresh_tokens)
+- `pnpm test` — 7 suites, 102 tests passing (auth, friends, messages, presence, converses, bots, bot-init)
+- Prisma schema: 12 models (User, Device, Command, RefreshToken, FriendRequest, Friendship, UserBlock, Converse, ConverseMember, Message, Attachment, Bot)
 
-### Pending:
-- Flutter SDK not yet installed — `apps/mobile/` has Dart source files ready, needs `flutter create .` for platform dirs
+### Sprint completion:
+- **Sprint 0** ✅ — Infrastructure setup (monorepo, Docker, Prisma, CI)
+- **Sprint 1** ✅ — Auth (JWT RS256) + device registration + WS gateway + shell exec + full chain PoC
+- **Sprint 2** ✅ — Friends, 1-on-1 chat, presence, read receipts, Bot framework (Bot-as-User), group chat CRUD + permissions, Flutter + Desktop full chat UI (~90 new files, ~8,500+ lines)
+- **Sprint 3** 🔧 — AI module (LLM Router, Whisper, Draft & Verify, Predictive Actions) + OpenClaw Node + Supervisor notifications
+
+### Sprint 2 deferred to Sprint 3:
+- OpenClaw Node integration (Sprint 3 Phase 5)
+- Supervisor notification aggregation (Sprint 3 Phase 6)
 
 Technical decisions are in `docs/decisions/decision-checklist.md` and `docs/decisions/tech-decisions-v2.md`.
 
@@ -53,12 +61,34 @@ Flutter Mobile App  <--WSS-->  Cloud Brain (NestJS)  <--WSS-->  Electron Desktop
 - **Cloud Brain (NestJS / TypeScript)**: WebSocket gateway, intent planning, LLM inference with multi-provider routing (cheap models like DeepSeek for simple tasks, powerful models like Kimi 2.5 for complex tasks). Hosts all Agent logic.
 - **Desktop Client (Electron + Node.js/TypeScript)**: Full GUI social client (like Discord desktop) + local OpenClaw worker that receives and executes remote commands.
 
+## Key Data Architecture (Sprint 2+)
+
+### Converse model (unified conversation container)
+- `type` enum: `DIRECT` (1-on-1), `GROUP`, `BOT` (user-bot conversation)
+- Groups use `ConverseMember` with `GroupRole` enum: `OWNER`, `ADMIN`, `MEMBER`
+- Permission checks are role-based (not string permission lists)
+
+### REST endpoint patterns
+- Auth: `/api/v1/auth/*`
+- Users: `/api/v1/users/*`
+- Devices: `/api/v1/devices/*`
+- Friends: `/api/v1/friends/*`
+- Converses: `/api/v1/converses/*`
+- Groups: `/api/v1/converses/groups/*` (groups are a sub-resource of converses)
+- Messages: `/api/v1/messages/*`
+- Bots: `/api/v1/bots/*`
+- Commands: `/api/v1/commands/*`
+
+### WebSocket namespaces
+- `/device` — device control (register, heartbeat, command send/execute/result)
+- `/chat` — messaging (message send/receive, typing, read receipts, presence)
+
 ## Confirmed Tech Decisions
 
 | Decision | Choice |
 |---|---|
 | Implementation strategy | Full-chain minimal PoC (all 3 components simultaneously) |
-| Language | TypeScript everywhere |
+| Language | TypeScript everywhere (Dart for mobile) |
 | Cloud framework | NestJS 11 (Node.js 22+ / TypeScript 5.7+) |
 | Mobile framework | Flutter (Dart) |
 | Desktop framework | Electron 35 + electron-vite 3 + React 19 |
@@ -74,11 +104,11 @@ Flutter Mobile App  <--WSS-->  Cloud Brain (NestJS)  <--WSS-->  Electron Desktop
 | Dev platform priority | Both macOS and Windows; macOS first if forced to choose |
 | Port scheme | All +8 to avoid conflicts (NestJS:3008, PG:5440, Redis:6387, etc.) |
 
-## First Milestone
+## First Milestone ✅
 
 > "手机 App 发送一个干活的指令给电脑端，电脑直接干活并且将任务交付，发回给手机端回复已经做完任务"
 
-Mobile sends a work command → Desktop executes → Desktop reports completion back to mobile.
+Mobile sends a work command → Desktop executes → Desktop reports completion back to mobile. **Achieved in Sprint 1.**
 
 ## Three Core Interaction Patterns
 
@@ -152,14 +182,13 @@ docs/
 │   └── dev-environment-setup.md        — Dev environment setup guide
 │
 ├── dev/                                # Sprint implementation guides
-│   ├── sprint0_implement.md            — ★ Sprint 0: Infrastructure setup (✅ DONE)
-│   ├── sprint1_implement.md            — Sprint 1: Auth + device registration
-│   ├── sprint1_phase1_server.md        — Sprint 1 Phase 1: Server core modules
-│   ├── sprint1_phase2_desktop.md       — Sprint 1 Phase 2: Desktop client
-│   ├── sprint1_phase3_mobile.md        — Sprint 1 Phase 3: Mobile client
-│   ├── sprint1_phase4_integration.md   — Sprint 1 Phase 4: Integration testing
-│   ├── sprint2_implement.md            — Sprint 2: Remote command execution
-│   ├── sprint3_implement.md            — Sprint 3: AI integration (Whisper + Draft)
+│   ├── sprint0_implement.md            — Sprint 0: Infrastructure setup (✅ DONE)
+│   ├── sprint0_implement_mark.md       — Sprint 0 implementation record
+│   ├── sprint1_implement.md            — Sprint 1: Auth + device + WS + shell exec (✅ DONE)
+│   ├── sprint1_implement_mark.md       — Sprint 1 implementation record
+│   ├── sprint2_implement.md            — Sprint 2: Friends, chat, bots, groups, UI (✅ DONE)
+│   ├── sprint2_implement_mark.md       — Sprint 2 implementation record
+│   ├── sprint3_implement.md            — Sprint 3: AI module + OpenClaw + enhancements (🔧 NEXT)
 │   └── sprint4_implement.md            — Sprint 4: Polish + production readiness
 │
 └── _archive/                           # Superseded documents
@@ -168,12 +197,12 @@ docs/
     └── gemini-research.md              — Original Gemini report (errors corrected in research/)
 ```
 
-## Open Questions (Blocking)
+## Open Questions
 
-Most blocking questions from v1 have been resolved in `docs/decisions/tech-decisions-v2.md`. Remaining:
+Most blocking questions have been resolved in `docs/decisions/tech-decisions-v2.md`.
 
 - ~~**F1**: Scope of Desktop Bridge~~ → Resolved: OpenClaw Node as independent process
 - ~~**F2**: What is OpenClaw?~~ → Resolved: Open-source AI Agent Gateway (TypeScript, MIT), see tech-decisions-v2.md §2
 - ~~**F3**: "Control own desktop" vs "control friend's desktop"~~ → MVP: control own desktop
 - ~~**F4**: MVP social feature boundary~~ → Resolved: All features except voice/video calls, see tech-decisions-v2.md §1.2
-- **F7**: Electron desktop app positioning → **Social client + OpenClaw executor** (implied by architecture, needs explicit confirmation)
+- ~~**F7**: Electron desktop app positioning~~ → Resolved: Social client + OpenClaw executor (confirmed by Sprint 1-2 implementation)

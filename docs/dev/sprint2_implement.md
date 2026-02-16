@@ -1,12 +1,14 @@
-# Sprint 2：社交基础 + Bot 框架
+# Sprint 2：社交基础 + Bot 框架 + 群聊 + 客户端 UI
 
-> **目标**：从"设备遥控器"进化为"能聊天的遥控器" — 完成好友系统、1 对 1 聊天、在线状态、已读回执，以及多 Bot 框架（Phase 0-7）
+> **状态**：✅ **已完成**（2026-02-16）
+>
+> **目标**：从"设备遥控器"进化为"能聊天的遥控器" — 完成好友系统、1 对 1 聊天、在线状态、已读回执、多 Bot 框架、群组聊天、Flutter + Desktop 完整聊天 UI
 >
 > **前置条件**：[Sprint 1](./sprint1_implement.md) 已完成（全链路 PoC：手机 → 云 → 桌面 → 手机）
 >
-> **不包含**：群聊、AI 三模式、文件/图片/语音消息、推送通知、消息搜索、生产部署
+> **实施记录**：[sprint2_implement_mark.md](./sprint2_implement_mark.md) — 详细的每 Phase 实施记录、文件变更、测试清单
 >
-> **延迟到后续 Sprint**：OpenClaw Node 集成（原 Phase 8）、Supervisor 通知汇总（原 Phase 9）— Sprint 1 的 child_process.exec() 继续工作
+> **延迟到 Sprint 3**：OpenClaw Node 集成（原 Phase 8）、Supervisor 通知汇总（原 Phase 9）、AI 三模式 — Sprint 1 的 child_process.exec() 继续工作
 >
 > **参考**：[database-schema.md](../dev-plan/database-schema.md) | [websocket-protocol.md](../dev-plan/websocket-protocol.md) | [reference-architecture-guide.md](../dev-plan/reference-architecture-guide.md)
 
@@ -14,20 +16,24 @@
 
 ## 范围调整说明
 
-原计划 10 个 Phase（0-9），实际执行 **Phase 0-7**，延迟 Phase 8-9：
+原计划 10 个 Phase（0-9），Phase 0-7 按原计划执行。原 Phase 8（OpenClaw）和原 Phase 9（Supervisor 通知）延迟到 Sprint 3，但新增了 **Phase 8（群组聊天 Server）** 和 **Phase 9（客户端 UI 集成）** 替代：
 
-| Phase | 状态 | 原因 |
+| Phase | 状态 | 说明 |
 |-------|------|------|
-| Phase 0-4（社交基础） | ✅ 执行 | 核心价值，Sprint 3 AI 功能的前置依赖 |
-| Phase 5-7（Bot 框架） | ✅ 执行 | Bot CRUD + 自动创建 + UI，轻量且给用户"开箱即用"体验 |
-| Phase 8（OpenClaw 集成） | ⏭ 延迟 | Sprint 1 的 child_process.exec() 已可用，替换为独立任务 |
-| Phase 9（Supervisor 通知） | ⏭ 延迟 | 依赖完整 Bot 执行管线，需 AI 模块配合 |
+| Phase 0-4（社交基础） | ✅ 完成 | Schema 扩展、好友系统、DM 消息、在线状态、已读回执 |
+| Phase 5-7（Bot 框架） | ✅ 完成 | Bot CRUD + 自动创建 + Bot Chat UI |
+| Phase 8（群组聊天 Server） | ✅ 完成 | **新增**：GROUP 类型会话 CRUD + 成员管理 + 权限矩阵 + 8 个 REST 端点 + 6 个 WS 事件 |
+| Phase 9A（Socket.IO + 状态管理） | ✅ 完成 | **新增**：Flutter/Desktop 数据模型 + Socket.IO 连接 + 状态管理 |
+| Phase 9B（核心聊天 UI） | ✅ 完成 | **新增**：Flutter 会话列表+消息线程+底部导航；Desktop 三栏布局+HashRouter |
+| Phase 9C（群组 UI + 好友 UI） | ✅ 完成 | **新增**：Flutter 群详情+好友列表+添加好友；Desktop 创建群组+群面板 |
+| 原 Phase 8（OpenClaw 集成） | ⏭ 延迟到 Sprint 3 | Sprint 1 的 child_process.exec() 已可用 |
+| 原 Phase 9（Supervisor 通知） | ⏭ 延迟到 Sprint 3 | 依赖完整 Bot 执行管线，需 AI 模块配合 |
 
 ---
 
 ## 实施策略
 
-逐 Phase 推进，每个 Phase 实现 Server + Flutter + Desktop 全端：
+逐 Phase 推进，Phase 0-7 按顺序执行 Server + 共享类型，Phase 8-9 并行推进后端群组 + 前端全端 UI：
 
 ```
 Phase 0: Schema 扩展（单次 migration 创建所有社交 + Bot 表）
@@ -45,20 +51,30 @@ Phase 5: Bot Model + CRUD（REST API + Zod 验证）
 Phase 6: 注册自动创建 Bot（Supervisor + Coding Bot + 欢迎消息）
   ↓
 Phase 7: Bot 聊天 UI（置顶 + 通知卡片渲染）
+  ↓
+Phase 8: 群组聊天（Server — Schema 扩展 + 群组 CRUD + 成员管理 + 权限矩阵）
+  ↓ (Phase 8 与 9A/9B 可并行)
+Phase 9A: Socket.IO + 状态管理基础（Flutter + Desktop 数据模型 + 连接层 + Store）
+  ↓
+Phase 9B: 核心聊天 UI（Flutter 会话列表+消息线程+底部导航 + Desktop 三栏布局+HashRouter）
+  ↓ (需 Phase 8 + 9B 完成)
+Phase 9C: 群组 UI + 好友 UI（Flutter 群详情+好友系统 + Desktop 创建群组+群面板）
 ```
 
 ### 详细实施文档
 
-| Phase | 文档 | 任务数 |
-|-------|------|--------|
-| Phase 0 | [sprint2_phase0.md](./sprint2_phase0.md) | 11 |
-| Phase 1 | [sprint2_phase1.md](./sprint2_phase1.md) | 10 |
-| Phase 2 | [sprint2_phase2.md](./sprint2_phase2.md) | 12 |
-| Phase 3 | [sprint2_phase3.md](./sprint2_phase3.md) | 7 |
-| Phase 4 | [sprint2_phase4.md](./sprint2_phase4.md) | 5 |
-| Phase 5 | [sprint2_phase5.md](./sprint2_phase5.md) | 6 |
-| Phase 6 | [sprint2_phase6.md](./sprint2_phase6.md) | 5 |
-| Phase 7 | [sprint2_phase7.md](./sprint2_phase7.md) | 7 |
+| Phase | 文档 | 任务数 | 状态 |
+|-------|------|--------|------|
+| Phase 0 | [sprint2_phase0.md](./sprint2_phase0.md) | 11 | ✅ |
+| Phase 1 | [sprint2_phase1.md](./sprint2_phase1.md) | 10 | ✅ |
+| Phase 2 | [sprint2_phase2.md](./sprint2_phase2.md) | 12 | ✅ |
+| Phase 3 | [sprint2_phase3.md](./sprint2_phase3.md) | 7 | ✅ |
+| Phase 4 | [sprint2_phase4.md](./sprint2_phase4.md) | 5 | ✅ |
+| Phase 5 | [sprint2_phase5.md](./sprint2_phase5.md) | 6 | ✅ |
+| Phase 6 | [sprint2_phase6.md](./sprint2_phase6.md) | 5 | ✅ |
+| Phase 7 | [sprint2_phase7.md](./sprint2_phase7.md) | 7 | ✅ |
+| Phase 8 | [sprint2_phase8.md](./sprint2_phase8.md) | 8 | ✅ |
+| Phase 9 | [sprint2_phase9.md](./sprint2_phase9.md) | 9A+9B+9C | ✅ |
 
 ---
 
@@ -618,8 +634,10 @@ Coding Bot 执行完命令:
 | Bot 框架 | Bot CRUD + Bot-User 关联 | Phase 5 |
 | 开箱即用 Bot | 注册自动创建 Supervisor + Coding Bot | Phase 6 |
 | Bot 聊天 UI | 置顶 + 通知卡片渲染 | Phase 7 |
-| OpenClaw 集成 | 替换 child_process.exec | Phase 8 |
-| Supervisor 通知 | 全 Bot 事件汇总 | Phase 9 |
+| 群组聊天 | GROUP CRUD + 成员管理 + 权限矩阵 + 8 REST + 6 WS 事件 | Phase 8 |
+| Socket.IO + 状态管理 | Flutter 数据模型 + ChatSocketService + Riverpod; Desktop Zustand + useChatSocket | Phase 9A |
+| 核心聊天 UI | Flutter 会话列表+消息线程+底部导航; Desktop 三栏布局+HashRouter | Phase 9B |
+| 群组 UI + 好友 UI | Flutter 群详情+好友列表+添加好友; Desktop 创建群组+群面板 | Phase 9C |
 
 ## 新增 REST API 端点
 
@@ -633,6 +651,14 @@ Coding Bot 执行完命令:
 | DELETE | `/api/v1/friends/:userId` | 删除好友 |
 | POST | `/api/v1/friends/block/:userId` | 拉黑用户 |
 | GET | `/api/v1/converses` | 会话列表 + 未读 |
+| POST | `/api/v1/converses/groups` | 创建群组 |
+| GET | `/api/v1/converses/groups/:id` | 群组详情 |
+| PATCH | `/api/v1/converses/groups/:id` | 修改群组 |
+| DELETE | `/api/v1/converses/groups/:id` | 解散群组 |
+| POST | `/api/v1/converses/groups/:id/members` | 添加群成员 |
+| DELETE | `/api/v1/converses/groups/:id/members/:memberId` | 移除群成员 |
+| PATCH | `/api/v1/converses/groups/:id/members/:memberId/role` | 修改成员角色 |
+| POST | `/api/v1/converses/groups/:id/leave` | 退出群组 |
 | POST | `/api/v1/messages` | 发送消息 |
 | GET | `/api/v1/messages?converseId=&cursor=` | 消息历史（游标分页） |
 | PATCH | `/api/v1/messages/:id` | 编辑消息 |
@@ -643,6 +669,7 @@ Coding Bot 执行完命令:
 | PATCH | `/api/v1/bots/:id` | 更新 Bot 配置 |
 | DELETE | `/api/v1/bots/:id` | 删除 Bot |
 | GET | `/api/v1/users/online` | 批量查询在线状态 |
+| GET | `/api/v1/users/search?q=&limit=` | 用户搜索（排除 Bot） |
 
 ## 新增 WS 事件（/chat 命名空间）
 
@@ -662,26 +689,33 @@ Coding Bot 执行完命令:
 | `presence:update` | C→S | 状态切换 |
 | `presence:changed` | S→C | 状态变更广播 |
 | `bot:notification` | S→C | Bot 事件通知 |
+| `group:created` | S→C | 新群组创建通知 |
+| `group:updated` | S→C | 群组信息变更 |
+| `group:deleted` | S→C | 群组被解散 |
+| `group:memberAdded` | S→C | 新成员加入 |
+| `group:memberRemoved` | S→C | 成员被移除/退出 |
+| `group:memberUpdated` | S→C | 成员角色变更 |
 
 ## 里程碑检查点
 
-| 检查点 | 验收内容 | 对应 Phase |
-|--------|---------|-----------|
-| **M1** | Schema 扩展完成：所有社交 + Bot 表建立，seed 数据可插入 | Phase 0 |
-| **M2** | 好友系统可用：请求 → 接受 → 列表 → WS 通知全通 | Phase 1 |
-| **M3** | 聊天可用：DM 收发 + 分页 + 实时推送 + 输入状态 | Phase 2 |
-| **M4** | 状态 + 已读：好友上下线实时显示 + 消息双勾 | Phase 3-4 |
-| **M5** | Bot 可用：注册后自动创建 Bot + Bot 聊天框 + 欢迎消息 | Phase 5-7 |
+| 检查点 | 验收内容 | 对应 Phase | 状态 |
+|--------|---------|-----------|------|
+| **M1** | Schema 扩展完成：所有社交 + Bot 表建立，seed 数据可插入 | Phase 0 | ✅ |
+| **M2** | 好友系统可用：请求 → 接受 → 列表 → WS 通知全通 | Phase 1 | ✅ |
+| **M3** | 聊天可用：DM 收发 + 分页 + 实时推送 + 输入状态 | Phase 2 | ✅ |
+| **M4** | 状态 + 已读：好友上下线实时显示 + 消息双勾 | Phase 3-4 | ✅ |
+| **M5** | Bot 可用：注册后自动创建 Bot + Bot 聊天框 + 欢迎消息 | Phase 5-7 | ✅ |
+| **M6** | 群聊可用：创建群组 + 成员管理 + 权限矩阵 + 消息收发 | Phase 8 | ✅ |
+| **M7** | 客户端 UI 完整：Flutter 底部导航+全部页面; Desktop 三栏布局+路由 | Phase 9 | ✅ |
 
 ---
 
-## Sprint 2 不做的事
+## Sprint 2 不做的事（延迟到后续 Sprint）
 
 | 功能 | 原因 | 何时做 |
 |------|------|--------|
-| OpenClaw Node 集成 | Sprint 1 的 child_process.exec() 已可用 | 独立任务或 Sprint 3 |
+| OpenClaw Node 集成 | Sprint 1 的 child_process.exec() 已可用 | Sprint 3 |
 | Supervisor 通知汇总 | 需要 AI 模块 + 完整 Bot 执行管线 | Sprint 3 |
-| 群聊 / 频道 | 社交基础先稳固 1 对 1 | Sprint 3 |
 | AI 三模式 (Draft / Whisper / Predictive) | 需要先有稳定的消息系统 | Sprint 3 |
 | LLM Router | AI 模块前置依赖 | Sprint 3 |
 | 文件 / 图片 / 语音消息 | Sprint 2 只做纯文本消息 | Sprint 4 |
@@ -690,5 +724,18 @@ Coding Bot 执行完命令:
 | i18n | Sprint 2 硬编码中文 | Sprint 4 |
 | 生产部署 | 仍然跑 localhost | Sprint 4 |
 | Bot 间通信 | MVP Bot 各自独立 | Sprint 3（Predictive Actions + 多 Agent） |
+| Profile 页面 | 底部导航已有 tab 占位 | Sprint 3/4 |
+
+---
+
+## 最终验证数据
+
+```
+pnpm build       → 4/4 packages 编译通过 (FULL TURBO)
+pnpm test        → 7 suites, 102 tests passed
+flutter analyze  → No issues found!
+Flutter Web 运行  → Chrome 验证通过
+Desktop 构建      → Electron + React 编译通过
+```
 
 **完成后进入 → [Sprint 3](./sprint3_implement.md)**

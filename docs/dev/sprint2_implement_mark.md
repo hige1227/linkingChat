@@ -2,11 +2,11 @@
 
 > **目标**：搭建完整的社交消息基础设施 — 好友系统、1对1聊天（DM）、在线状态、已读回执、Bot 系统、群组聊天、客户端 UI
 >
-> **本次完成**：Phase 0（Schema 扩展）+ Phase 1（好友系统 Server）+ Phase 2（DM 消息系统 Server）+ Phase 3（在线状态 Server）+ Phase 4（已读回执 Server）+ Phase 5（Bot 系统 Server）+ Phase 6（注册自动创建 Bot）+ Phase 7（Bot Chat UI）
+> **全部完成**：Phase 0-9（全部 10 个 Phase），Sprint 2 完结
 >
-> **完成日期**：2026-02-15
+> **完成日期**：2026-02-16
 >
-> **代码统计**：新增 49 个文件，修改 16 个文件，约 4,200 行代码 + 1,800 行测试
+> **代码统计**：新增 ~90 个文件，修改 ~30 个文件，约 8,500+ 行代码 + 1,800 行测试
  ┌───────────────────────┬───────────┬────────┐
   │         邮箱          │   密码    │ 显示名 │
   ├───────────────────────┼───────────┼────────┤
@@ -28,20 +28,23 @@
 | Phase 5 | Bot 系统 | ✅ 完成 | Bot CRUD + Bot-as-User + agentConfig Zod 验证 + 19 个单测 |
 | Phase 6 | 注册自动创建 Bot | ✅ 完成 | BotInitService + bot-templates + AuthService 集成 + 6 个单测 |
 | Phase 7 | Bot Chat UI | ✅ 完成 | Bot 识别+置顶 + BOT_NOTIFICATION 卡片 + Bot 消息路由检测 + Flutter/Desktop 组件 + 3 个单测 |
-| Phase 8 | 群组聊天 | ⬜ 待开发 | |
-| Phase 9 | Flutter + Desktop UI | ⬜ 待开发 | |
+| Phase 8 | 群组聊天（Server） | ✅ 完成 | Schema 扩展(GroupRole) + 群组 CRUD + 成员管理 + 权限矩阵 + 8 个 REST 端点 + WS 群事件 + 8 个单测 |
+| Phase 9A | Socket.IO + 状态管理 | ✅ 完成 | Flutter: Dart models + ChatSocketService + Riverpod Provider; Desktop: Zustand chatStore + useChatSocket hook |
+| Phase 9B | 核心聊天 UI | ✅ 完成 | Flutter: ConversesListPage + ChatThreadPage + 底部导航; Desktop: 三栏布局 ChatPage + ConversationList + ChatThread + MessageInput + HashRouter |
+| Phase 9C | 群组 UI + 好友 UI | ✅ 完成 | Flutter: GroupDetailPage + FriendsListPage + AddFriendPage; Desktop: GroupPanel + CreateGroupDialog; Server: 用户搜索 API（排除 Bot） |
 
 ### 构建验证
 
 ```
-pnpm build  → 4/4 packages 编译通过
-pnpm test   → 7 suites, 94 tests passed
+pnpm build    → 4/4 packages 编译通过
+pnpm test     → 7 suites, 102 tests passed
+flutter analyze → No issues found!
 
   PASS src/app.controller.spec.ts               (2 tests)
   PASS src/friends/friends.service.spec.ts       (24 tests)
   PASS src/messages/messages.service.spec.ts     (16 tests)
   PASS src/gateway/presence.service.spec.ts      (14 tests)
-  PASS src/converses/converses.service.spec.ts   (13 tests)
+  PASS src/converses/converses.service.spec.ts   (21 tests)
   PASS src/bots/bots.service.spec.ts             (19 tests)
   PASS src/bots/bot-init.service.spec.ts         (6 tests)
 ```
@@ -1143,9 +1146,237 @@ apps/desktop/src/renderer/components/
 
 ---
 
-## 下一步
+## Phase 8：群组聊天（Server）
 
-| 优先级 | Phase | 内容 | 依赖 |
-|--------|-------|------|------|
-| P1 | Phase 8 | 群组聊天 | Phase 2 Converses + Phase 5 BotsService |
-| P2 | Phase 9 | Flutter + Desktop 客户端 UI 集成 | Phase 1-8 全部 |
+> **目标**：GROUP 类型会话的完整生命周期 — 创建/编辑/删除群组、成员管理、权限矩阵、WS 实时群事件
+
+### 一句话总结
+
+扩展 Schema（GroupRole 枚举 + Converse/ConverseMember 群组字段），实现群组 CRUD + 成员管理 7 个 REST 端点 + 6 个 WS 群事件 + 完整权限矩阵。
+
+### Schema 变更
+
+| 变更 | 说明 |
+|------|------|
+| 新增 `GroupRole` 枚举 | OWNER / ADMIN / MEMBER |
+| `Converse` 新增字段 | description, avatarUrl, creatorId, maxMembers(@default 500), deletedAt |
+| `ConverseMember` 新增字段 | role(GroupRole?, DM 为 null), nickname, joinedAt |
+| `User` 新增关系 | createdConverses @relation("ConverseCreator") |
+
+### 新增 REST 端点（8 个）
+
+| Method | Path | 说明 |
+|--------|------|------|
+| POST | `/api/v1/converses/groups` | 创建群组 |
+| GET | `/api/v1/converses/groups/:id` | 群组详情（含完整成员列表） |
+| PATCH | `/api/v1/converses/groups/:id` | 修改群组信息 |
+| DELETE | `/api/v1/converses/groups/:id` | 解散群组（软删除） |
+| POST | `/api/v1/converses/groups/:id/members` | 添加成员 |
+| DELETE | `/api/v1/converses/groups/:id/members/:memberId` | 移除成员 |
+| PATCH | `/api/v1/converses/groups/:id/members/:memberId/role` | 修改成员角色 |
+| POST | `/api/v1/converses/groups/:id/leave` | 退出群组 |
+
+### 新增 WS 事件（6 个，/chat 命名空间）
+
+| 事件 | 说明 |
+|------|------|
+| `group:created` | 新群组创建通知 |
+| `group:updated` | 群组信息变更 |
+| `group:deleted` | 群组被解散 |
+| `group:memberAdded` | 新成员加入 |
+| `group:memberRemoved` | 成员被移除/退出 |
+| `group:memberUpdated` | 成员角色变更 |
+
+### 权限矩阵
+
+| 操作 | OWNER | ADMIN | MEMBER |
+|------|-------|-------|--------|
+| 修改群信息 | ✅ | ✅ | ❌ |
+| 添加成员 | ✅ | ✅ | ❌ |
+| 移除成员 | ✅（任何人） | ✅（仅 MEMBER） | ❌ |
+| 修改角色 | ✅ | ❌ | ❌ |
+| 解散群组 | ✅ | ❌ | ❌ |
+| 退出群组 | ✅（自动转让群主） | ✅ | ✅ |
+
+### 关键设计
+
+- **OWNER 退群自动转让**：转给最早加入的 ADMIN，无 ADMIN 则转给最早加入的 MEMBER
+- **最后一人退出**：群组标记 deletedAt + 所有 isOpen=false
+- **消息系统零改动**：现有 MessagesService.create() 通过 converseId 路由，完全兼容 GROUP
+- **findUserConverses 适配**：GROUP 类型返回 name、memberCount、description，DM 返回对方用户信息
+
+### 新增文件
+
+```
+apps/server/src/converses/dto/
+├── create-group.dto.ts
+├── update-group.dto.ts
+├── add-members.dto.ts
+└── update-member-role.dto.ts
+```
+
+### 单元测试（新增 8 个，共 21 个 converses.service.spec.ts）
+
+```
+ConversesService (Group)
+  createGroup
+    ✓ should create group with creator as OWNER and members as MEMBER
+    ✓ should broadcast group:created to all members
+  updateGroup
+    ✓ should allow OWNER/ADMIN to update
+    ✓ should throw ForbiddenException for MEMBER
+  deleteGroup
+    ✓ should set deletedAt and broadcast group:deleted
+  addMembers
+    ✓ should add new members with MEMBER role
+  removeMember
+    ✓ should enforce permission matrix
+  leaveGroup
+    ✓ should auto-transfer ownership when OWNER leaves
+```
+
+---
+
+## Phase 9A：Socket.IO + 状态管理基础
+
+> **目标**：Flutter 和 Desktop 的 /chat Socket.IO 连接 + 数据模型 + 状态管理 Store
+
+### Flutter 新增文件
+
+| 文件 | 说明 |
+|------|------|
+| `lib/core/models/converse.dart` | Converse 数据模型（plain class + fromJson + copyWith） |
+| `lib/core/models/message.dart` | Message 数据模型 |
+| `lib/core/models/converse_member.dart` | ConverseMember 数据模型 |
+| `lib/core/network/chat_socket_service.dart` | /chat 命名空间 Socket.IO 服务（JWT 认证、自动重连、事件监听） |
+| `lib/features/chat/providers/chat_provider.dart` | ConversesNotifier（会话列表+消息管理）+ MessagesNotifier |
+
+### Desktop 新增文件
+
+| 文件 | 说明 |
+|------|------|
+| `src/renderer/stores/chatStore.ts` | Zustand 聊天状态（converses, messages, unreadCounts, typingUsers） |
+| `src/renderer/hooks/useChatSocket.ts` | /chat Socket.IO 连接 Hook（自动重连、事件→store 分发） |
+
+### 关键设计
+
+- **Plain Dart classes**（非 freezed）— 匹配现有 Device model 风格
+- **REST 发消息、WS 推通知** — 持久化走 REST，实时推送走 Socket.IO
+- **Zustand** 管理 Desktop 聊天状态 — 最小样板代码
+- **消息去重** — 以 message.id 为唯一键，防重连后重复
+
+---
+
+## Phase 9B：核心聊天 UI
+
+> **目标**：Flutter 和 Desktop 的会话列表、消息线程、路由、底部导航
+
+### Flutter 新增/修改文件
+
+| 文件 | 说明 |
+|------|------|
+| `lib/features/chat/pages/converses_list_page.dart` | 会话列表页（Bot 置顶、未读计数、下拉刷新） |
+| `lib/features/chat/pages/chat_thread_page.dart` | 消息线程页（消息列表+输入框+游标分页+乐观发送） |
+| `lib/features/shared/widgets/bottom_nav.dart` | 底部导航栏（Chat/Contacts/Devices/Profile + 未读 Badge） |
+| `lib/router.dart` | GoRouter 配置 + ShellRoute 包裹底部导航 tab 页 |
+
+### Desktop 新增/修改文件
+
+| 文件 | 说明 |
+|------|------|
+| `src/renderer/pages/ChatPage.tsx` | 三栏布局（侧边栏260px + 消息区flex + 可收起详情面板） |
+| `src/renderer/pages/MainLayout.tsx` | 侧边导航（Chat/Devices/Settings） |
+| `src/renderer/components/chat/ConversationList.tsx` | 会话列表（搜索、排序、未读 Badge、点击切换） |
+| `src/renderer/components/chat/ChatThread.tsx` | 消息线程（消息列表+日期分隔+向上加载更多） |
+| `src/renderer/components/chat/MessageInput.tsx` | 消息输入（Enter发送、Shift+Enter换行、打字指示） |
+| `src/renderer/styles/chat.css` | 聊天样式（三栏布局、消息气泡、滚动条等） |
+| `src/renderer/App.tsx` | HashRouter 路由配置（Electron file:// 兼容） |
+
+---
+
+## Phase 9C：群组 UI + 好友 UI
+
+> **目标**：群组详情页（成员管理+角色操作）+ 好友系统 UI（列表+添加+搜索）+ Desktop 创建群组对话框
+
+### Flutter 新增文件
+
+| 文件 | 说明 |
+|------|------|
+| `lib/features/chat/pages/group_detail_page.dart` | 群组详情页（群信息、成员列表+角色标签、promote/demote/remove、编辑群、退出/解散确认） |
+| `lib/features/friends/providers/friends_provider.dart` | FriendsNotifier + userSearchProvider（好友 CRUD + 用户搜索） |
+| `lib/features/friends/pages/friends_list_page.dart` | 好友列表（在线状态、待处理请求、tap→DM） |
+| `lib/features/friends/pages/add_friend_page.dart` | 添加好友（搜索用户+400ms防抖+发送请求） |
+
+### Desktop 新增文件
+
+| 文件 | 说明 |
+|------|------|
+| `src/renderer/components/chat/CreateGroupDialog.tsx` | 创建群组对话框（群名+描述+好友多选） |
+| `src/renderer/components/chat/GroupPanel.tsx` | 群组详情面板（成员管理+角色操作+退出/解散） |
+
+### Server 新增
+
+| 文件 | 说明 |
+|------|------|
+| `src/users/users.service.ts` | 用户搜索服务（模糊匹配 username/displayName，排除 Bot 用户） |
+| `src/users/users.controller.ts` 更新 | 新增 `GET /api/v1/users/search?q=keyword&limit=20` |
+
+### 路由更新
+
+| 路由 | 页面 |
+|------|------|
+| `/chat/:converseId/group` | GroupDetailPage（Flutter） |
+| `/contacts` | FriendsListPage（Flutter 底部 tab） |
+| `/contacts/add` | AddFriendPage（Flutter） |
+
+### Bug 修复
+
+| 问题 | 修复 |
+|------|------|
+| Flutter 消息加载 URL 错误 | `/api/v1/messages/$converseId` → `/api/v1/messages?converseId=xxx`（query param） |
+| 用户搜索显示 Bot 账号 | `users.service.ts` 添加 `{ botUser: null }` 过滤条件 |
+| 底部导航栏不显示 | 路由改用 `ShellRoute` 包裹 tab 页面 |
+| `BottomNavScaffold` 嵌套 Scaffold | 改用 `Column` 替代外层 `Scaffold` |
+| `withOpacity` 弃用警告 | 改用 `withValues(alpha: 0.15)` |
+| CSS 样式定义冲突 | 删除重复的 `.chat-thread-header`、`.conversation-list-header` 定义 |
+| Desktop CreateGroupDialog 导入路径错误 | `../stores/chatStore` → `../../stores/chatStore` |
+
+---
+
+## Sprint 2 完结总结
+
+### 整体成果
+
+Sprint 2 从"设备遥控器"进化为"能聊天的遥控器"，实现了完整的社交消息基础设施：
+
+| 能力 | 说明 |
+|------|------|
+| **好友系统** | 请求/接受/拒绝/删除/拉黑 + WS 实时通知 |
+| **1对1聊天** | DM 消息 CRUD + 游标分页 + 实时推送 + 输入状态 |
+| **群组聊天** | 创建/编辑/解散 + 成员邀请/移除/角色管理 + 权限矩阵 |
+| **在线状态** | Redis presence + 好友状态实时同步 + 多设备管理 |
+| **已读回执** | 消息级别已读追踪 + 未读计数 |
+| **Bot 框架** | Bot CRUD + Bot-as-User + 注册自动创建 Supervisor/Coding Bot |
+| **Bot UI** | 置顶 + 角标 + BOT_NOTIFICATION 卡片渲染 |
+| **Flutter 客户端** | 完整聊天 UI（会话列表+消息线程+群详情+好友+底部导航） |
+| **Desktop 客户端** | 三栏布局聊天 UI（会话列表+消息线程+群面板+创建群组） |
+
+### 最终验证数据
+
+```
+pnpm build       → 4/4 packages 编译通过 (FULL TURBO)
+pnpm test        → 7 suites, 102 tests passed
+flutter analyze  → No issues found!
+Flutter Web 运行  → Chrome 验证通过（登录、聊天列表、消息收发、好友、群组详情、底部导航）
+Desktop 构建      → Electron + React 编译通过
+```
+
+### 下一步 → Sprint 3
+
+| 优先级 | 内容 | 说明 |
+|--------|------|------|
+| P0 | AI 三模式 | Draft & Verify + The Whisper + Predictive Actions |
+| P0 | LLM Router | 多 Provider 路由（DeepSeek cheap / Kimi complex） |
+| P1 | OpenClaw 集成 | 替换 child_process.exec()（原 Sprint 2 Phase 8 延迟项） |
+| P1 | Supervisor 通知汇总 | 全 Bot 事件聚合到 Supervisor 聊天流（原 Sprint 2 Phase 9 延迟项） |
+| P2 | Bot 间通信 | 多 Agent 协作 + 跨 Bot 触发标注 |

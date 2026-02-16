@@ -21,42 +21,44 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
 
     final location = GoRouterState.of(context).matchedLocation;
 
-    return Scaffold(
-      body: widget.child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _getSelectedIndex(location),
-        onDestinationSelected: (index) => _onTabSelected(context, index),
-        destinations: [
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: totalUnread > 0,
-              label: Text(totalUnread > 99 ? '99+' : '$totalUnread'),
-              child: const Icon(Icons.chat_outlined),
+    return Column(
+      children: [
+        Expanded(child: widget.child),
+        NavigationBar(
+          selectedIndex: _getSelectedIndex(location),
+          onDestinationSelected: (index) => _onTabSelected(context, index),
+          destinations: [
+            NavigationDestination(
+              icon: Badge(
+                isLabelVisible: totalUnread > 0,
+                label: Text(totalUnread > 99 ? '99+' : '$totalUnread'),
+                child: const Icon(Icons.chat_outlined),
+              ),
+              selectedIcon: Badge(
+                isLabelVisible: totalUnread > 0,
+                label: Text(totalUnread > 99 ? '99+' : '$totalUnread'),
+                child: const Icon(Icons.chat),
+              ),
+              label: 'Chat',
             ),
-            selectedIcon: Badge(
-              isLabelVisible: totalUnread > 0,
-              label: Text(totalUnread > 99 ? '99+' : '$totalUnread'),
-              child: const Icon(Icons.chat),
+            const NavigationDestination(
+              icon: Icon(Icons.people_outline),
+              selectedIcon: Icon(Icons.people),
+              label: 'Contacts',
             ),
-            label: 'Chat',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people),
-            label: 'Contacts',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.devices_outlined),
-            selectedIcon: Icon(Icons.devices),
-            label: 'Devices',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-      ),
+            const NavigationDestination(
+              icon: Icon(Icons.devices_outlined),
+              selectedIcon: Icon(Icons.devices),
+              label: 'Devices',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: 'Profile',
+            ),
+          ],
+        ),
+      ],
     );
   }
 

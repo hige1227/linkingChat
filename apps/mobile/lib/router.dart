@@ -11,6 +11,7 @@ import 'features/chat/pages/chat_thread_page.dart';
 import 'features/chat/pages/group_detail_page.dart';
 import 'features/friends/pages/friends_list_page.dart';
 import 'features/friends/pages/add_friend_page.dart';
+import 'features/shared/widgets/bottom_nav.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -31,10 +32,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (context, state) => const LoginPage(),
       ),
-      GoRoute(
-        path: '/chat',
-        builder: (context, state) => const ConversesListPage(),
+      // Tab pages wrapped with bottom navigation
+      ShellRoute(
+        builder: (context, state, child) => BottomNavScaffold(child: child),
+        routes: [
+          GoRoute(
+            path: '/chat',
+            builder: (context, state) => const ConversesListPage(),
+          ),
+          GoRoute(
+            path: '/contacts',
+            builder: (context, state) => const FriendsListPage(),
+          ),
+          GoRoute(
+            path: '/devices',
+            builder: (context, state) => const DeviceListPage(),
+          ),
+        ],
       ),
+      // Full-screen pages (no bottom nav)
       GoRoute(
         path: '/chat/:converseId',
         builder: (context, state) => ChatThreadPage(
@@ -48,16 +64,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: '/contacts',
-        builder: (context, state) => const FriendsListPage(),
-      ),
-      GoRoute(
         path: '/contacts/add',
         builder: (context, state) => const AddFriendPage(),
-      ),
-      GoRoute(
-        path: '/devices',
-        builder: (context, state) => const DeviceListPage(),
       ),
       GoRoute(
         path: '/command/:deviceId',

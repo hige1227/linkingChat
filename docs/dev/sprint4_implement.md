@@ -2,7 +2,7 @@
 
 > **目标**：从 "localhost 可用" 到 "可以给真实用户使用" — 补全富媒体消息、推送通知、消息搜索、i18n，以及生产环境部署、性能优化、安全审计
 >
-> **前置条件**：[Sprint 3](./sprint3_implement.md) 已完成（AI 三模式、群聊、Bot 间通信、权限系统）
+> **前置条件**：[Sprint 3](./sprint3_implement.md) 已完成（AI 三模式、OpenClaw 集成、Supervisor 通知、Bot 间通信、@Bot 群聊路由）
 >
 > **不包含**：语音/视频通话、Ghost Text 灰体补全、自定义 Bot 创建（v2.0）、微服务拆分
 >
@@ -24,6 +24,8 @@
 ```
 
 ### 人员分配建议
+
+> 以下分配仅为参考，实际可根据团队规模灵活调整。Sprint 2/3 均为单人+AI 完成，Sprint 4 也可延续该模式。
 
 | 开发者 | 负责 | 说明 |
 |--------|------|------|
@@ -48,7 +50,7 @@
 | 0.5 | 文件消息 | MessageType.FILE | 显示文件名 + 大小 + 下载链接 |
 | 0.6 | 语音消息 | MessageType.VOICE | 录制 + 播放 + 时长显示 |
 | 0.7 | 头像上传 | PATCH `/api/v1/users/avatar` | sharp 裁剪为 256x256 |
-| 0.8 | 群组头像上传 | PATCH `/api/v1/groups/:id/icon` | 同上 |
+| 0.8 | 群组头像上传 | PATCH `/api/v1/converses/groups/:converseId/icon` | 同上 |
 | 0.9 | 文件大小限制 | 配置 MAX_FILE_SIZE | 图片 10MB，文件 50MB，语音 5MB |
 | 0.10 | Flutter 图片/文件选择器 | image_picker + file_picker 插件 | 选择 → 上传 → 发送消息 |
 | 0.11 | Flutter 语音录制 | record 插件 | 按住录制 → 松开发送 |
@@ -128,14 +130,14 @@ model Attachment {
 | # | 任务 | 产出 | 验收标准 |
 |---|------|------|---------|
 | 1.1 | 撤回时间限制 | 普通用户 2 分钟内可撤回 | 超时返回 403 |
-| 1.2 | 管理员撤回 | 群管理员可撤回任何人的消息 | 需要 DELETE_MESSAGES 权限 |
+| 1.2 | 管理员撤回 | 群管理员（OWNER/ADMIN）可撤回任何人的消息 | 需要 OWNER 或 ADMIN 角色（GroupRole 枚举） |
 | 1.3 | 撤回 UI 反馈 | 客户端显示 "XX 撤回了一条消息" | 占位消息 + 灰色文字 |
 | 1.4 | 撤回附件清理 | 撤回消息时删除 S3 文件 | 异步清理，不阻塞撤回操作 |
 
 **验收标准**：
 - 2 分钟内撤回成功，对方看到 "[已撤回]" 占位
 - 超过 2 分钟撤回失败（403）
-- 管理员可撤回任何消息（无时间限制）
+- 管理员（OWNER/ADMIN）可撤回任何消息（无时间限制）
 - S3 上的附件文件在撤回后异步删除
 
 ---
@@ -616,7 +618,7 @@ const metrics = {
 | GET | `/api/v1/upload/presign` | 获取预签名上传 URL |
 | POST | `/api/v1/upload/confirm` | 确认上传完成 |
 | PATCH | `/api/v1/users/avatar` | 上传头像 |
-| PATCH | `/api/v1/groups/:id/icon` | 上传群头像 |
+| PATCH | `/api/v1/converses/groups/:converseId/icon` | 上传群头像 |
 | GET | `/api/v1/messages/search` | 消息搜索 |
 | POST | `/api/v1/notifications/register` | 注册推送 token |
 | DELETE | `/api/v1/notifications/unregister` | 注销推送 token |
@@ -644,9 +646,9 @@ Sprint 4 完成后，LinkingChat 达到 **MVP 可发布状态**：
 
 | 维度 | 状态 |
 |------|------|
-| 社交功能 | 好友 + 1对1聊天 + 群聊 + 富媒体 + 推送 + 搜索 + 已读 |
-| AI 功能 | @ai Whisper + Draft & Verify + Predictive Actions |
-| 远程控制 | OpenClaw 集成 + 安全模型 + Bot 框架 |
+| 社交功能 | 好友 + 1对1聊天 + 群聊 + 富媒体 + 推送 + 搜索 + 已读 + @Bot 群聊 |
+| AI 功能 | @ai Whisper + Draft & Verify + Predictive Actions + Bot 间通信 |
+| 远程控制 | OpenClaw 集成 + 安全模型 + Bot 框架 + Supervisor 通知 |
 | 基础设施 | 云端部署 + SSL + 水平扩展 + 监控 + 告警 |
 | 国际化 | 中英双语 |
 | 安全 | JWT + 限流 + 黑名单 + XSS 防护 |
