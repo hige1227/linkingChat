@@ -4,7 +4,6 @@ import '../../../core/models/converse.dart';
 import '../../../core/models/message.dart';
 import '../../../core/network/chat_socket_service.dart';
 import '../../../core/network/api_client.dart';
-import '../../../core/constants/api_endpoints.dart';
 
 // ──────────────────────────────────────
 // Converses State + Notifier
@@ -251,13 +250,16 @@ class MessagesNotifier extends StateNotifier<MessagesState> {
 
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final queryParams = <String, dynamic>{'limit': 35};
+      final queryParams = <String, dynamic>{
+        'converseId': converseId,
+        'limit': 35,
+      };
       if (loadMore && state.nextCursor != null) {
         queryParams['cursor'] = state.nextCursor;
       }
 
       final response = await _dio.get(
-        '/api/v1/messages/$converseId',
+        '/api/v1/messages',
         queryParameters: queryParams,
       );
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'bot_badge.dart';
-import 'notification_card.dart';
 
 /// 会话列表中的单个会话 tile 组件
 ///

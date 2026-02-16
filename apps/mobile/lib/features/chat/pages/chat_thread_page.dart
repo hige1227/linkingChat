@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/chat_provider.dart';
 import '../../../core/models/message.dart';
 import '../../../core/network/chat_socket_service.dart';
@@ -75,6 +76,13 @@ class _ChatThreadPageState extends ConsumerState<ChatThreadPage> {
               ),
           ],
         ),
+        actions: [
+          if (converse?.type == 'GROUP')
+            IconButton(
+              icon: const Icon(Icons.info_outline),
+              onPressed: () => context.push('/chat/${widget.converseId}/group'),
+            ),
+        ],
         elevation: 0,
       ),
       body: Column(

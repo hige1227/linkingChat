@@ -8,6 +8,9 @@ import 'features/device/pages/device_list_page.dart';
 import 'features/device/pages/command_page.dart';
 import 'features/chat/pages/converses_list_page.dart';
 import 'features/chat/pages/chat_thread_page.dart';
+import 'features/chat/pages/group_detail_page.dart';
+import 'features/friends/pages/friends_list_page.dart';
+import 'features/friends/pages/add_friend_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -37,6 +40,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => ChatThreadPage(
           converseId: state.pathParameters['converseId']!,
         ),
+      ),
+      GoRoute(
+        path: '/chat/:converseId/group',
+        builder: (context, state) => GroupDetailPage(
+          converseId: state.pathParameters['converseId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/contacts',
+        builder: (context, state) => const FriendsListPage(),
+      ),
+      GoRoute(
+        path: '/contacts/add',
+        builder: (context, state) => const AddFriendPage(),
       ),
       GoRoute(
         path: '/devices',
