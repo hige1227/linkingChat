@@ -13,13 +13,17 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { BotsService } from './bots.service';
+import { BotCommunicationService } from './bot-communication.service';
 import { CreateBotDto } from './dto/create-bot.dto';
 import { UpdateBotDto } from './dto/update-bot.dto';
 
 @Controller('bots')
 @UseGuards(JwtAuthGuard)
 export class BotsController {
-  constructor(private readonly botsService: BotsService) {}
+  constructor(
+    private readonly botsService: BotsService,
+    private readonly botCommService: BotCommunicationService,
+  ) {}
 
   /** POST /api/v1/bots — 创建 Bot（自动创建关联 User） */
   @Post()
@@ -64,5 +68,46 @@ export class BotsController {
     @Param('id') id: string,
   ) {
     return this.botsService.delete(id, userId);
+  }
+
+  // ──────────────────────────────────────
+  // Test-only endpoints (dev environment)
+  // ──────────────────────────────────────
+
+  /** POST /api/v1/bots/test/cross-notify — 测试 Bot 互通 */
+  @Post('test/cross-notify')
+  @HttpCode(HttpStatus.OK)
+  async testCrossNotify(
+    @CurrentUser('userId') userId: string,
+    @Body()
+    body: {
+      fromBotId: string;
+      toBotId: string;
+      content: string;
+      reason: string;
+    },
+  ) {
+    const result = await this.botCommService.sendBotMessage({
+      fromBotId: body.fromBotId,
+      toBotId: body.toBotId,
+      userId,
+      content: body.content,
+      reason: body.reason,
+    });
+    return result ?? { messageId: null, error: 'Blocked by validation' };
+  }
+
+  /** POST /api/v1/bots/test/supervisor-route — 测试 Supervisor 路由 */
+  @Post('test/supervisor-route')
+  @HttpCode(HttpStatus.OK)
+  async testSupervisorRoute(
+    @CurrentUser('userId') userId: string,
+    @Body() body: { userMessage: string },
+  ) {
+    const result = await this.botCommService.routeViaSupervisor({
+      userId,
+      userMessage: body.userMessage,
+    });
+    return result ?? { recommendedBotId: null, reason: 'No match' };
   }
 }
