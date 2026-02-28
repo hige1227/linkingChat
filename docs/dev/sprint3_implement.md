@@ -585,43 +585,48 @@ Desktop 启动 → 加载 JWT Token → 调用 /openclaw/gateway/connect
 **关键实现**：
 
 ```typescript
-// apps/desktop/src/main/services/openclaw.service.ts
-import { spawn, ChildProcess } from 'child_process';
+// apps/server/src/openclaw/gateway-manager.service.ts
+@Injectable()
+export class GatewayManagerService implements OnModuleDestroy {
+  private gateways: Map<string, UserGateway> = new Map();
 
-export class OpenClawService {
-  private process: ChildProcess | null = null;
+  async startUserGateway(userId: string): Promise<{ port: number; status: string; token: string }> {
+    const port = this.allocatePort();
+    const gatewayToken = this.generateGatewayToken(userId);
 
-  async start(token: string): Promise<void> {
-    this.process = spawn('openclaw', [
-      'node', 'run',
-      '--host', '127.0.0.1',
-      '--port', '18790',
-      '--display-name', 'LinkingChat Desktop',
-    ], {
-      env: { ...process.env, OPENCLAW_GATEWAY_TOKEN: token },
-    });
+    const proc = spawn('node', [
+      this.openclawPath, 'gateway',
+      '--port', String(port),
+      '--bind', 'lan',  // 云端部署关键参数
+      '--token', gatewayToken,
+    ]);
 
-    this.process.on('exit', (code) => {
-      // 异常退出时自动重启（最多 3 次）
-    });
+    // 进程管理 + 健康检查...
   }
+}
 
-  async executeCommand(command: string, timeout = 30000): Promise<CommandResult> {
-    // WebSocket JSON-RPC 调用 system.run
-    // { type: "req", id: cuid(), method: "system.run", params: { command, timeout } }
-  }
-
-  async stop(): Promise<void> {
-    this.process?.kill('SIGTERM');
+// apps/desktop/src/main/services/command-executor.service.ts
+export class CommandExecutor {
+  async execute(command: string, timeout = 30000): Promise<CommandResult> {
+    // 优先使用 OpenClaw 模式
+    if (openClawClientService.isClientConnected()) {
+      try {
+        return await this.executeViaOpenClaw(command, timeout);
+      } catch { /* 降级 */ }
+    }
+    // 降级到 child_process
+    return await this.executeWithChildProcess(command, timeout);
   }
 }
 ```
 
 **验收标准**：
-- Electron 启动时自动 spawn OpenClaw Node 子进程
-- 命令通过 OpenClaw 执行，结果正确返回
-- OpenClaw 崩溃后 3 秒内自动重启
-- OpenClaw 不可用时回退到 child_process.exec，日志记录回退原因
+- ✅ Server 端 Gateway Manager 可为每个用户启动独立 Gateway 实例
+- ✅ 动态端口分配 (18790-18889)，无端口冲突
+- ✅ JWT Token 用于认证，生成用户专属 Gateway Token
+- ✅ Desktop 启动时自动调用 `/openclaw/gateway/connect` 获取连接信息
+- ✅ OpenClaw 不可用时自动降级到 child_process.exec，日志记录降级原因
+- ✅ 单元测试覆盖 Gateway Manager 核心逻辑
 
 ---
 
