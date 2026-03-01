@@ -14,6 +14,8 @@ import { UsersModule } from './users/users.module';
 import { BotsModule } from './bots/bots.module';
 import { AiModule } from './ai/ai.module';
 import { OpenclawModule } from './openclaw/openclaw.module';
+import { AgentsModule } from './agents/agents.module';
+import { MentionsModule } from './mentions/mentions.module';
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { OpenclawModule } from './openclaw/openclaw.module';
     BotsModule,
     AiModule,
     OpenclawModule,
+    AgentsModule,
+    MentionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
