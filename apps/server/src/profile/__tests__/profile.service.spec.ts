@@ -7,7 +7,7 @@ import { UserStatus } from '@prisma/client';
 
 describe('ProfileService', () => {
   let service: ProfileService;
-  let prisma: jest.Mocked<PrismaService>;
+  let prisma: any;
 
   const mockUser = {
     id: 'user-1',
@@ -19,14 +19,14 @@ describe('ProfileService', () => {
     lastSeenAt: new Date(),
   };
 
-  beforeEach(async () => {
-    const mockPrisma = {
-      user: {
-        findUnique: jest.fn(),
-        update: jest.fn(),
-      },
-    };
+  const mockPrisma: any = {
+    user: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+  };
 
+  beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProfileService,
