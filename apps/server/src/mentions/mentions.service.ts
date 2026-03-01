@@ -15,8 +15,11 @@ import type { ParsedMention, ValidMention } from './interfaces/mention.interface
 export class MentionService {
   private readonly logger = new Logger(MentionService.name);
 
-  /** @mention 正则：支持英文、数字、下划线、中文 */
-  private readonly MENTION_REGEX = /@([a-zA-Z0-9_\u4e00-\u9fa5]{2,20})/g;
+  /**
+   * @mention 正则：支持英文、数字、下划线、中文
+   * 使用负向回顾断言 (?<![a-zA-Z0-9]) 排除 email 地址
+   */
+  private readonly MENTION_REGEX = /(?<![a-zA-Z0-9])@([a-zA-Z0-9_\u4e00-\u9fa5]{2,20})/g;
 
   constructor(
     private readonly prisma: PrismaService,
