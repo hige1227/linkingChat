@@ -242,4 +242,60 @@ export class BotsService {
 
     return { bot, botUser };
   }
+
+  /**
+   * 查找用户的 Supervisor Bot
+   *
+   * 用于 Agent 系统获取 Supervisor Bot 信息
+   * Supervisor Bot 通过 name='Supervisor' 识别
+   */
+  async findSupervisorByUserId(userId: string) {
+    return this.prisma.bot.findFirst({
+      where: {
+        ownerId: userId,
+        name: 'Supervisor',
+      },
+    });
+  }
+
+  /**
+   * 获取或创建用户与 Supervisor 的 DM 会话
+   *
+   * 用于 Agent 系统发送通知消息
+   */
+  async getOrCreateSupervisorConverse(userId: string) {
+    const supervisorBot = await this.findSupervisorByUserId(userId);
+    if (!supervisorBot) {
+      throw new NotFoundException('Supervisor bot not found for user');
+    }
+
+    // Find existing DM converse between user and supervisor bot
+    const existingConverse = await this.prisma.converse.findFirst({
+      where: {
+        type: 'DM',
+        members: {
+          every: {
+            userId: { in: [userId, supervisorBot.userId] },
+          },
+        },
+      },
+    });
+
+    if (existingConverse) {
+      return existingConverse;
+    }
+
+    // Create new DM converse
+    return this.prisma.converse.create({
+      data: {
+        type: 'DM',
+        members: {
+          create: [
+            { userId, role: 'MEMBER' },
+            { userId: supervisorBot.userId, role: 'MEMBER' },
+          ],
+        },
+      },
+    });
+  }
 }
