@@ -3,10 +3,9 @@ import { Module } from '@nestjs/common';
 import { ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
 import { PrismaModule } from '../prisma/prisma.module';
-import { UploadModule } from '../upload/upload.module';
 
 @Module({
-  imports: [PrismaModule, UploadModule],
+  imports: [PrismaModule],
   controllers: [ProfileController],
   providers: [ProfileService],
   exports: [ProfileService],
