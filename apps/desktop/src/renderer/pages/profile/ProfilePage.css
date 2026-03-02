@@ -1,0 +1,344 @@
+/* apps/desktop/src/renderer/pages/profile/ProfilePage.css */
+
+.profile-page {
+  min-height: 100vh;
+  background-color: #1a1a2e;
+  color: #e0e0e0;
+  overflow-y: auto;
+}
+
+.profile-content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* Loading & Error States */
+.loading-spinner,
+.error-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 1.2rem;
+}
+
+.error-message {
+  color: #f44336;
+}
+
+/* Profile Header - Telegram Style */
+.profile-header {
+  text-align: center;
+  padding: 40px 0;
+  margin-bottom: 24px;
+}
+
+.avatar-container {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 16px;
+}
+
+.avatar,
+.avatar-placeholder {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #2AABEE;
+}
+
+.avatar-placeholder {
+  background: linear-gradient(135deg, #2AABEE 0%, #229ED9 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  font-weight: bold;
+  color: white;
+}
+
+.status-indicator {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 3px solid #1a1a2e;
+}
+
+.avatar-edit-button {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #2AABEE;
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.avatar-edit-button:hover {
+  background-color: #229ED9;
+}
+
+.display-name {
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: white;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 16px;
+  border: 1px solid;
+  font-size: 14px;
+  color: #b0b0b0;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Profile Cards */
+.profile-card {
+  background-color: #252538;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.profile-item {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.profile-item:hover:not(.disabled) {
+  background-color: #2a2a40;
+}
+
+.profile-item.disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.item-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background-color: rgba(42, 171, 238, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2AABEE;
+  margin-right: 12px;
+}
+
+.item-content {
+  flex: 1;
+}
+
+.item-label {
+  font-size: 14px;
+  color: #b0b0b0;
+  margin-bottom: 2px;
+}
+
+.item-value {
+  font-size: 16px;
+  color: white;
+}
+
+.item-action {
+  color: #808080;
+  margin-left: 8px;
+}
+
+.profile-divider {
+  height: 1px;
+  background-color: #333;
+  margin: 0 16px;
+}
+
+/* Status Menu */
+.status-menu {
+  border-top: 1px solid #333;
+  padding: 8px 0;
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: #e0e0e0;
+}
+
+.status-option:hover {
+  background-color: #2a2a40;
+}
+
+.status-option.active {
+  color: #2AABEE;
+}
+
+.check-icon {
+  margin-left: auto;
+}
+
+/* Logout Button */
+.logout-button {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  background-color: transparent;
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.5);
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 16px;
+}
+
+.logout-button:hover {
+  background-color: rgba(244, 67, 54, 0.1);
+  border-color: #f44336;
+}
+
+/* Version Info */
+.version-info {
+  text-align: center;
+  color: #606060;
+  font-size: 12px;
+  margin-top: 24px;
+}
+
+/* Dialog Styles */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.dialog {
+  background-color: #252538;
+  border-radius: 16px;
+  min-width: 400px;
+  max-width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.dialog-header {
+  padding: 20px 24px 16px;
+  font-size: 20px;
+  font-weight: bold;
+  color: white;
+}
+
+.dialog-content {
+  padding: 0 24px 24px;
+}
+
+.dialog-content p {
+  color: #b0b0b0;
+  line-height: 1.6;
+}
+
+.text-input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background-color: #1a1a2e;
+  color: white;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.text-input:focus {
+  border-color: #2AABEE;
+}
+
+.text-input::placeholder {
+  color: #606060;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 24px 20px;
+}
+
+.dialog-button {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  background-color: transparent;
+  color: #2AABEE;
+}
+
+.dialog-button:hover {
+  background-color: rgba(42, 171, 238, 0.1);
+}
+
+.dialog-button.primary {
+  background-color: #2AABEE;
+  color: white;
+}
+
+.dialog-button.primary:hover {
+  background-color: #229ED9;
+}
+
+.dialog-button.danger {
+  color: #f44336;
+}
+
+.dialog-button.danger:hover {
+  background-color: rgba(244, 67, 54, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .profile-content {
+    padding: 16px;
+  }
+
+  .display-name {
+    font-size: 24px;
+  }
+
+  .dialog {
+    min-width: 90%;
+  }
+}

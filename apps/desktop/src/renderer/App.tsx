@@ -4,6 +4,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { MainLayout } from './layouts/MainLayout';
 import { ChatPage } from './pages/ChatPage';
+import { ProfilePage } from './pages/profile/ProfilePage';
 import './styles/global.css';
 import './styles/chat.css';
 
@@ -32,6 +33,7 @@ function App() {
           <Route path="chat" element={<ChatPage />} />
           <Route path="chat/:converseId" element={<ChatPage />} />
           <Route path="devices" element={<Dashboard onLogout={() => setIsLoggedIn(false)} />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Routes>
     </HashRouter>
