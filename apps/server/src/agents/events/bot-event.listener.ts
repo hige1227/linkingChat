@@ -2,7 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { BatchTriggerService } from './batch-trigger.service';
 import { BotsService } from '../../bots/bots.service';
+import { AgentOrchestratorService } from '../orchestrator/agent-orchestrator.service';
 import { AgentEvent } from '../interfaces';
+
+/** Well-known botId for the singleton SupervisorAgent */
+export const SUPERVISOR_AGENT_BOT_ID = 'supervisor-bot';
 
 export interface DeviceResultEvent {
   userId: string;
@@ -14,6 +18,11 @@ export interface DeviceResultEvent {
   deviceId: string;
 }
 
+export interface AgentDispatchEvent {
+  botId: string;
+  events: AgentEvent[];
+}
+
 @Injectable()
 export class BotEventListener {
   private readonly logger = new Logger(BotEventListener.name);
@@ -21,7 +30,20 @@ export class BotEventListener {
   constructor(
     private readonly batchTrigger: BatchTriggerService,
     private readonly botsService: BotsService,
+    private readonly orchestrator: AgentOrchestratorService,
   ) {}
+
+  /**
+   * Handle agent.dispatch events from MentionService (decoupled from AgentsModule)
+   */
+  @OnEvent('agent.dispatch')
+  async handleAgentDispatch(payload: AgentDispatchEvent): Promise<void> {
+    this.logger.debug(
+      `Received agent.dispatch for bot ${payload.botId}`,
+    );
+
+    await this.orchestrator.dispatchEvent(payload.botId, payload.events);
+  }
 
   @OnEvent('device.result.complete')
   async handleDeviceResultComplete(payload: DeviceResultEvent): Promise<void> {
@@ -29,7 +51,7 @@ export class BotEventListener {
       `Received device:result:complete for command ${payload.commandId}`,
     );
 
-    // Get Supervisor Bot for this user
+    // Verify user has a Supervisor Bot (existence check)
     const supervisorBot = await this.botsService.findSupervisorByUserId(
       payload.userId,
     );
@@ -56,7 +78,8 @@ export class BotEventListener {
       },
     };
 
-    // Add to batch trigger
-    this.batchTrigger.addEvent(supervisorBot.id, event);
+    // Use the well-known singleton botId — SupervisorAgent resolves
+    // the actual per-user bot inside handleEvent()
+    this.batchTrigger.addEvent(SUPERVISOR_AGENT_BOT_ID, event);
   }
 }

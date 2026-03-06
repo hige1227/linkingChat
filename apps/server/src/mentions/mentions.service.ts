@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhisperService } from '../ai/services/whisper.service';
-import { AgentOrchestratorService } from '../agents/orchestrator/agent-orchestrator.service';
 import type { ParsedMention, ValidMention } from './interfaces/mention.interface';
 
 /**
@@ -15,16 +15,10 @@ import type { ParsedMention, ValidMention } from './interfaces/mention.interface
 export class MentionService {
   private readonly logger = new Logger(MentionService.name);
 
-  /**
-   * @mention 正则：支持英文、数字、下划线、中文
-   * 使用负向回顾断言 (?<![a-zA-Z0-9]) 排除 email 地址
-   */
-  private readonly MENTION_REGEX = /(?<![a-zA-Z0-9])@([a-zA-Z0-9_\u4e00-\u9fa5]{2,20})/g;
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly whisperService: WhisperService,
-    private readonly agentOrchestrator: AgentOrchestratorService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -36,10 +30,12 @@ export class MentionService {
   parse(content: string | null): ParsedMention[] {
     if (!content) return [];
 
+    // Create regex locally per call to avoid stateful /g flag issues
+    const mentionRegex = /(?<![a-zA-Z0-9])@([a-zA-Z0-9_\u4e00-\u9fa5]{2,20})/g;
     const mentions: ParsedMention[] = [];
     let match: RegExpExecArray | null;
 
-    while ((match = this.MENTION_REGEX.exec(content)) !== null) {
+    while ((match = mentionRegex.exec(content)) !== null) {
       mentions.push({
         name: match[1],
         fullMatch: match[0],
@@ -66,12 +62,12 @@ export class MentionService {
    * 验证 @mentions 并获取对应的 Bot 信息
    *
    * @param mentions - 解析后的 mentions
-   * @param _converseId - 会话 ID（用于未来可能的权限检查）
+   * @param converseId - 会话 ID（用于验证 Bot 是否为群成员）
    * @returns 验证后的有效 mentions
    */
   async validate(
     mentions: ParsedMention[],
-    _converseId: string,
+    converseId: string,
   ): Promise<ValidMention[]> {
     if (mentions.length === 0) return [];
 
@@ -93,11 +89,22 @@ export class MentionService {
       .map((m) => m.name);
 
     if (botNames.length > 0) {
-      const bots = await this.prisma.bot.findMany({
+      let bots = await this.prisma.bot.findMany({
         where: {
           name: { in: botNames },
         },
       });
+
+      // 3. Verify bots are members of this conversation
+      if (bots.length > 0 && converseId) {
+        const botUserIds = bots.map((b) => b.userId);
+        const members = await this.prisma.converseMember.findMany({
+          where: { converseId, userId: { in: botUserIds } },
+          select: { userId: true },
+        });
+        const memberSet = new Set(members.map((m) => m.userId));
+        bots = bots.filter((b) => memberSet.has(b.userId));
+      }
 
       for (const bot of bots) {
         validMentions.push({
@@ -146,7 +153,7 @@ export class MentionService {
   }
 
   /**
-   * 路由到 Bot Agent
+   * 路由到 Bot Agent — via EventEmitter (decoupled from AgentsModule)
    */
   private async routeToBot(
     mention: ValidMention,
@@ -170,7 +177,10 @@ export class MentionService {
       },
     };
 
-    await this.agentOrchestrator.dispatchEvent(mention.botId, [event]);
+    this.eventEmitter.emit('agent.dispatch', {
+      botId: mention.botId,
+      events: [event],
+    });
 
     this.logger.log(
       `Routed @${mention.name} to bot ${mention.botId} for message ${message.id}`,

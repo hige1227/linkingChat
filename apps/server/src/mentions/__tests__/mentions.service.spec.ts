@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MentionService } from '../mentions.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WhisperService } from '../../ai/services/whisper.service';
-import { AgentOrchestratorService } from '../../agents/orchestrator/agent-orchestrator.service';
 
 describe('MentionService', () => {
   let service: MentionService;
@@ -13,7 +13,7 @@ describe('MentionService', () => {
         MentionService,
         { provide: PrismaService, useValue: {} },
         { provide: WhisperService, useValue: {} },
-        { provide: AgentOrchestratorService, useValue: {} },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
 
@@ -65,6 +65,16 @@ describe('MentionService', () => {
       const result = service.parse('Contact me at test@example.com');
       expect(result).toEqual([]);
     });
+
+    it('should parse correctly on consecutive calls (no stale /g state)', () => {
+      // Fix 8: stateful regex /g flag — calling parse() twice must not skip matches
+      const result1 = service.parse('@Bot1 hello');
+      const result2 = service.parse('@Bot1 hello');
+      expect(result1).toHaveLength(1);
+      expect(result2).toHaveLength(1);
+      expect(result1[0].name).toBe('Bot1');
+      expect(result2[0].name).toBe('Bot1');
+    });
   });
 
   describe('validate', () => {
@@ -92,7 +102,7 @@ describe('MentionService', () => {
           MentionService,
           { provide: PrismaService, useValue: mockPrisma },
           { provide: WhisperService, useValue: {} },
-          { provide: AgentOrchestratorService, useValue: {} },
+          { provide: EventEmitter2, useValue: { emit: jest.fn() } },
         ],
       }).compile();
 
@@ -103,11 +113,16 @@ describe('MentionService', () => {
       expect(result).toEqual([]);
     });
 
-    it('should validate existing bot from database', async () => {
+    it('should validate existing bot and verify group membership', async () => {
       const mockPrisma = {
         bot: {
           findMany: jest.fn().mockResolvedValue([
-            { id: 'bot-1', name: 'CodingBot', userId: 'user-1' },
+            { id: 'bot-1', name: 'CodingBot', userId: 'user-bot-1' },
+          ]),
+        },
+        converseMember: {
+          findMany: jest.fn().mockResolvedValue([
+            { userId: 'user-bot-1' },
           ]),
         },
       };
@@ -117,7 +132,7 @@ describe('MentionService', () => {
           MentionService,
           { provide: PrismaService, useValue: mockPrisma },
           { provide: WhisperService, useValue: {} },
-          { provide: AgentOrchestratorService, useValue: {} },
+          { provide: EventEmitter2, useValue: { emit: jest.fn() } },
         ],
       }).compile();
 
@@ -131,8 +146,36 @@ describe('MentionService', () => {
         name: 'CodingBot',
         fullMatch: '@CodingBot',
         botId: 'bot-1',
-        userId: 'user-1',
+        userId: 'user-bot-1',
       });
+    });
+
+    it('should filter out bots that are not group members', async () => {
+      const mockPrisma = {
+        bot: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 'bot-1', name: 'CodingBot', userId: 'user-bot-1' },
+          ]),
+        },
+        converseMember: {
+          findMany: jest.fn().mockResolvedValue([]), // bot is not a member
+        },
+      };
+
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          MentionService,
+          { provide: PrismaService, useValue: mockPrisma },
+          { provide: WhisperService, useValue: {} },
+          { provide: EventEmitter2, useValue: { emit: jest.fn() } },
+        ],
+      }).compile();
+
+      const serviceWithMock = module.get<MentionService>(MentionService);
+      const parsed = serviceWithMock.parse('@CodingBot help');
+      const result = await serviceWithMock.validate(parsed, 'converse-1');
+
+      expect(result).toEqual([]);
     });
   });
 
@@ -147,7 +190,7 @@ describe('MentionService', () => {
           MentionService,
           { provide: PrismaService, useValue: { bot: { findMany: jest.fn() } } },
           { provide: WhisperService, useValue: mockWhisper },
-          { provide: AgentOrchestratorService, useValue: { dispatchEvent: jest.fn() } },
+          { provide: EventEmitter2, useValue: { emit: jest.fn() } },
         ],
       }).compile();
 
@@ -172,9 +215,9 @@ describe('MentionService', () => {
       );
     });
 
-    it('should route @bot to AgentOrchestrator', async () => {
-      const mockOrchestrator = {
-        dispatchEvent: jest.fn().mockResolvedValue(undefined),
+    it('should route @bot via EventEmitter', async () => {
+      const mockEmitter = {
+        emit: jest.fn(),
       };
 
       const module: TestingModule = await Test.createTestingModule({
@@ -182,7 +225,7 @@ describe('MentionService', () => {
           MentionService,
           { provide: PrismaService, useValue: { bot: { findMany: jest.fn() } } },
           { provide: WhisperService, useValue: { handleWhisperTrigger: jest.fn() } },
-          { provide: AgentOrchestratorService, useValue: mockOrchestrator },
+          { provide: EventEmitter2, useValue: mockEmitter },
         ],
       }).compile();
 
@@ -202,17 +245,20 @@ describe('MentionService', () => {
         converseId: 'conv-1',
       } as any, 'user-1', 'conv-1');
 
-      expect(mockOrchestrator.dispatchEvent).toHaveBeenCalledWith(
-        'bot-1',
-        expect.arrayContaining([
-          expect.objectContaining({
-            type: 'USER_MESSAGE',
-            payload: expect.objectContaining({
-              userId: 'user-1',
-              converseId: 'conv-1',
+      expect(mockEmitter.emit).toHaveBeenCalledWith(
+        'agent.dispatch',
+        expect.objectContaining({
+          botId: 'bot-1',
+          events: expect.arrayContaining([
+            expect.objectContaining({
+              type: 'USER_MESSAGE',
+              payload: expect.objectContaining({
+                userId: 'user-1',
+                converseId: 'conv-1',
+              }),
             }),
-          }),
-        ]),
+          ]),
+        }),
       );
     });
   });

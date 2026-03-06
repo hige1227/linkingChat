@@ -147,8 +147,16 @@ export class MessagesService {
       this.logger.error(`detectBotRecipient failed: ${err.message}`, err.stack),
     );
 
-    // 9. 检测 @ai 触发词（fire-and-forget）- 保留兼容
-    if (this.whisperService.isWhisperTrigger(message.content)) {
+    // 9. 检测 @ai 触发词 — only for DIRECT/BOT convos (GROUP handled by mentionService.route)
+    const converse = await this.prisma.converse.findUnique({
+      where: { id: dto.converseId },
+      select: { type: true },
+    });
+    if (
+      converse &&
+      converse.type !== 'GROUP' &&
+      this.whisperService.isWhisperTrigger(message.content)
+    ) {
       this.whisperService
         .handleWhisperTrigger(userId, dto.converseId, message.id)
         .catch((err) =>

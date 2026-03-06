@@ -1,5 +1,4 @@
-import { Module, OnModuleInit } from '@nestjs/common';
-import { EventEmitterModule } from '@nestjs/event-emitter';
+import { Module, OnModuleInit, forwardRef } from '@nestjs/common';
 import { RedisModule } from '../redis/redis.module';
 import { AiModule } from '../ai/ai.module';
 import { BotsModule } from '../bots/bots.module';
@@ -25,9 +24,8 @@ import { SupervisorAgent } from './impl/supervisor.agent';
     RedisModule,
     AiModule,
     BotsModule,
-    MessagesModule,
+    forwardRef(() => MessagesModule),
     GatewayModule,
-    EventEmitterModule.forRoot(),
   ],
   providers: [
     // Core

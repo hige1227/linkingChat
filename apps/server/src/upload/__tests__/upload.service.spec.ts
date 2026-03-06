@@ -90,12 +90,23 @@ describe('UploadService', () => {
   });
 
   describe('generateFileName', () => {
-    it('should generate unique filename with original extension', () => {
-      const filename1 = service.generateFileName('test.jpg');
-      const filename2 = service.generateFileName('test.jpg');
+    it('should generate unique filename with extension derived from MIME type', () => {
+      const filename1 = service.generateFileName('image/jpeg');
+      const filename2 = service.generateFileName('image/jpeg');
 
       expect(filename1).toMatch(/\.jpg$/);
       expect(filename1).not.toBe(filename2);
+    });
+
+    it('should use .bin for unknown MIME types', () => {
+      const filename = service.generateFileName('application/octet-stream');
+      expect(filename).toMatch(/\.bin$/);
+    });
+
+    it('should map known image MIME types correctly', () => {
+      expect(service.generateFileName('image/png')).toMatch(/\.png$/);
+      expect(service.generateFileName('image/gif')).toMatch(/\.gif$/);
+      expect(service.generateFileName('image/webp')).toMatch(/\.webp$/);
     });
   });
 });

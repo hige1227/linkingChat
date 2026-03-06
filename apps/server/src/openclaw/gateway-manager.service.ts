@@ -24,7 +24,7 @@ interface UserGateway {
  * 管理多个用户的 OpenClaw Gateway 实例：
  * - 动态端口分配
  * - 进程生命周期管理
- * - JWT 认证集成
+ * - JWT 认证集成（RS256）
  * - 健康检查
  */
 @Injectable()
@@ -32,12 +32,13 @@ export class GatewayManagerService implements OnModuleDestroy {
   private readonly logger = new Logger(GatewayManagerService.name);
   private gateways: Map<string, UserGateway> = new Map();
   private usedPorts: Set<number> = new Set();
+  private startingLocks = new Map<string, Promise<{ port: number; status: string; token: string }>>();
   private readonly basePort: number;
   private readonly maxPorts: number;
   private readonly openclawPath: string;
   private readonly workspacesBasePath: string;
   private readonly gatewayHost: string;
-  private readonly jwtSecret: string;
+  private readonly publicKey: string;
 
   constructor(
     private readonly configService: ConfigService,
@@ -54,7 +55,10 @@ export class GatewayManagerService implements OnModuleDestroy {
       path.join(process.cwd(), 'workspaces'),
     );
     this.gatewayHost = this.configService.get<string>('GATEWAY_HOST', 'localhost');
-    this.jwtSecret = this.configService.get<string>('JWT_SECRET', 'default-secret');
+
+    // Use RS256 public key matching auth.service.ts pattern
+    const b64Key = this.configService.get<string>('AUTH_JWT_PUBLIC_KEY', '');
+    this.publicKey = b64Key ? Buffer.from(b64Key, 'base64').toString('utf-8') : '';
 
     this.logger.log(`Gateway Manager initialized (base port: ${this.basePort})`);
   }
@@ -63,13 +67,29 @@ export class GatewayManagerService implements OnModuleDestroy {
    * 为用户启动 Gateway 实例
    */
   async startUserGateway(userId: string): Promise<{ port: number; status: string; token: string }> {
-    // 检查是否已存在
+    // 检查是否已存在运行中或正在启动的实例
     const existing = this.gateways.get(userId);
-    if (existing && existing.status === 'running') {
-      this.logger.debug(`Gateway already running for user ${userId} on port ${existing.port}`);
-      return { port: existing.port, status: 'running', token: existing.gatewayToken };
+    if (existing && (existing.status === 'running' || existing.status === 'starting')) {
+      this.logger.debug(`Gateway already ${existing.status} for user ${userId} on port ${existing.port}`);
+      return { port: existing.port, status: existing.status, token: existing.gatewayToken };
     }
 
+    // Check if start is already in progress (race condition guard)
+    const inProgress = this.startingLocks.get(userId);
+    if (inProgress) {
+      return inProgress;
+    }
+
+    const startPromise = this._doStartGateway(userId);
+    this.startingLocks.set(userId, startPromise);
+    try {
+      return await startPromise;
+    } finally {
+      this.startingLocks.delete(userId);
+    }
+  }
+
+  private async _doStartGateway(userId: string): Promise<{ port: number; status: string; token: string }> {
     // 分配端口
     const port = this.allocatePort();
     if (!port) {
@@ -233,9 +253,10 @@ export class GatewayManagerService implements OnModuleDestroy {
     port: number;
   } | null> {
     try {
-      // 验证 JWT Token
+      // 验证 JWT Token — RS256 matching auth.service.ts
       const payload = await this.jwtService.verifyAsync(authToken, {
-        secret: this.jwtSecret,
+        algorithms: ['RS256'],
+        publicKey: this.publicKey,
       });
 
       const userId = payload.sub;
@@ -316,22 +337,14 @@ export class GatewayManagerService implements OnModuleDestroy {
 
   /**
    * 生成用户专属 Gateway Token
-   * 使用 HS256 对称加密（与 OpenClaw Gateway 兼容）
+   * 使用随机字符串（OpenClaw Gateway 支持 --token 参数直接匹配）
    */
   private generateGatewayToken(userId: string): string {
     const jti = crypto.randomUUID();
-    const payload = {
-      sub: userId,
-      type: 'gateway',
-      jti,
-      iat: Math.floor(Date.now() / 1000),
-    };
-
-    // 使用简单的对称加密生成 Token
-    // OpenClaw Gateway 支持 --token 参数直接使用字符串
-    const tokenData = `${payload.sub}:${payload.jti}:${payload.iat}`;
+    const iat = Math.floor(Date.now() / 1000);
+    const tokenData = `${userId}:${jti}:${iat}`;
     const signature = crypto
-      .createHmac('sha256', this.jwtSecret)
+      .createHmac('sha256', crypto.randomBytes(32))
       .update(tokenData)
       .digest('hex')
       .slice(0, 32);

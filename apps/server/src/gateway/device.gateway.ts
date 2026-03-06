@@ -9,6 +9,7 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Namespace, Socket } from 'socket.io';
 import { createWsAuthMiddleware } from './middleware/ws-auth.middleware';
 import { BroadcastService } from './broadcast.service';
@@ -56,6 +57,7 @@ export class DeviceGateway
     private readonly devicesService: DevicesService,
     private readonly commandsService: CommandsService,
     private readonly broadcastService: BroadcastService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   afterInit(namespace: Namespace) {
@@ -251,9 +253,11 @@ export class DeviceGateway
 
   @SubscribeMessage('device:result:complete')
   async handleResultComplete(
+    @ConnectedSocket() client: Socket,
     @MessageBody() envelope: WsEnvelope<DeviceResultPayload>,
   ): Promise<void> {
     const result = envelope.data;
+    const deviceId = client.data.deviceId || '';
 
     try {
       const command = await this.commandsService.complete(result.commandId, {
@@ -269,6 +273,17 @@ export class DeviceGateway
       this.namespace
         .to(`u-${command.issuerId}`)
         .emit('device:result:delivered', result);
+
+      // Emit event for Agent pipeline (Fix 5: event pipeline was disconnected)
+      this.eventEmitter.emit('device.result.complete', {
+        userId: command.issuerId,
+        commandId: result.commandId,
+        command: (command.payload as any)?.action || result.commandId,
+        status: result.status,
+        output: result.data?.output,
+        error: result.error?.message || (typeof result.error === 'string' ? result.error : undefined),
+        deviceId,
+      });
 
       this.logger.log(
         `Result delivered: command=${result.commandId} status=${result.status} → user ${command.issuerId}`,

@@ -37,6 +37,11 @@ describe('SupervisorAgent', () => {
       toRoom: jest.fn().mockResolvedValue(undefined),
     };
     mockBotsService = {
+      findSupervisorByUserId: jest.fn().mockResolvedValue({
+        id: 'bot-supervisor-1',
+        userId: 'user-supervisor-1',
+        name: 'Supervisor',
+      }),
       getOrCreateSupervisorConverse: jest.fn().mockResolvedValue({ id: 'converse-1', type: 'DM' }),
     };
 

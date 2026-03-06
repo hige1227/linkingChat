@@ -5,7 +5,9 @@ import {
   UseGuards,
   Req,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { GatewayManagerService } from './gateway-manager.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -15,7 +17,20 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @Controller('openclaw')
 @UseGuards(JwtAuthGuard)
 export class OpenclawController {
-  constructor(private readonly gatewayManager: GatewayManagerService) {}
+  private readonly adminUserIds: Set<string>;
+
+  constructor(
+    private readonly gatewayManager: GatewayManagerService,
+    private readonly configService: ConfigService,
+  ) {
+    const adminIds = this.configService.get<string>('ADMIN_USER_IDS', '');
+    this.adminUserIds = new Set(
+      adminIds
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean),
+    );
+  }
 
   /**
    * 获取 Gateway 连接信息（供 Desktop 使用）
@@ -105,10 +120,16 @@ export class OpenclawController {
 
   /**
    * 获取所有 Gateway 状态（管理员接口）
-   * TODO: 添加管理员权限检查
+   * Restricted to users listed in ADMIN_USER_IDS env var
    */
   @Get('admin/gateways')
-  async getAllGateways() {
+  async getAllGateways(@Req() req: any) {
+    const userId = req.user.userId || req.user.sub;
+
+    if (!this.adminUserIds.has(userId)) {
+      throw new ForbiddenException('Admin access required');
+    }
+
     const gateways = this.gatewayManager.getAllGateways();
     return {
       success: true,

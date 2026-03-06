@@ -3,17 +3,19 @@ import { Injectable, Inject, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client as MinioClient } from 'minio';
 import * as crypto from 'crypto';
-import * as path from 'path';
+
+/** Map validated MIME types to safe extensions */
+const MIME_TO_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+};
 
 @Injectable()
 export class UploadService {
   private readonly maxFileSize = 5 * 1024 * 1024; // 5MB
-  private readonly allowedMimeTypes = [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-  ];
+  private readonly allowedMimeTypes = Object.keys(MIME_TO_EXT);
 
   constructor(
     @Inject('MINIO_CLIENT') private readonly minioClient: MinioClient,
@@ -34,8 +36,8 @@ export class UploadService {
     // Ensure bucket exists
     await this.ensureBucket(bucket);
 
-    // Generate unique filename
-    const fileName = this.generateFileName(file.originalname);
+    // Generate unique filename — derive extension from validated MIME type, not client filename
+    const fileName = this.generateFileName(file.mimetype);
 
     // Upload to MinIO
     const metaData = {
@@ -65,8 +67,12 @@ export class UploadService {
     }
   }
 
-  generateFileName(originalName: string): string {
-    const ext = path.extname(originalName);
+  /**
+   * Generate safe filename from validated MIME type (not client filename).
+   * Extension is derived from MIME_TO_EXT map to prevent path traversal / extension injection.
+   */
+  generateFileName(mimeType: string): string {
+    const ext = MIME_TO_EXT[mimeType] || '.bin';
     const hash = crypto.randomBytes(16).toString('hex');
     const timestamp = Date.now();
     return `${timestamp}-${hash}${ext}`;

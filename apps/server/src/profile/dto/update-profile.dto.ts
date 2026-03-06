@@ -13,7 +13,5 @@ export class UpdateProfileDto {
   @IsEnum(UserStatus, { message: '状态必须是有效的用户状态' })
   status?: UserStatus;
 
-  @IsOptional()
-  @IsString()
-  avatarUrl?: string;
+  // avatarUrl REMOVED — must use POST /profile/avatar endpoint
 }

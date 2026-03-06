@@ -8,6 +8,9 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -41,7 +44,15 @@ export class ProfileController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadAvatar(
     @CurrentUser('userId') userId: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: /(image\/jpeg|image\/png|image\/gif|image\/webp)/ }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
   ) {
     const avatarUrl = await this.uploadService.uploadImage(file, 'avatars');
     await this.profileService.updateAvatar(userId, avatarUrl);

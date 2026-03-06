@@ -43,11 +43,18 @@ export class SupervisorAgent extends BaseAgent {
       return;
     }
 
+    // Resolve the real Supervisor Bot for this user from DB
+    const supervisorBot = await this.botsService.findSupervisorByUserId(userId);
+    if (!supervisorBot) {
+      this.logger.warn(`No Supervisor Bot found for user ${userId}`);
+      return;
+    }
+
     // Update working memory with command results
     for (const event of events) {
       if (event.type === 'DEVICE_RESULT') {
         const payload = event.payload as DeviceResultPayload;
-        await this.memoryService.addCommandResult(this.botId, {
+        await this.memoryService.addCommandResult(supervisorBot.id, {
           commandId: payload.commandId,
           command: payload.command,
           status: payload.status,
@@ -60,11 +67,18 @@ export class SupervisorAgent extends BaseAgent {
 
     // Generate response
     const response = await this.generateResponse({ events, userId });
-    await this.sendNotification(response, userId);
+    await this.sendNotification(response, userId, supervisorBot);
   }
 
   async generateResponse(_context: ConversationContext): Promise<AgentResponse> {
-    const working = await this.memoryService.getWorkingMemory(this.botId);
+    const userId = _context.userId;
+    if (!userId) {
+      return { content: '没有新的任务完成。' };
+    }
+
+    const supervisorBot = await this.botsService.findSupervisorByUserId(userId);
+    const memoryBotId = supervisorBot?.id || this.botId;
+    const working = await this.memoryService.getWorkingMemory(memoryBotId);
     const results = working.recentResults;
 
     if (results.length === 0) {
@@ -123,13 +137,14 @@ ${tasksSummary}
   private async sendNotification(
     response: AgentResponse,
     userId: string,
+    supervisorBot: { id: string; userId: string; name: string },
   ): Promise<void> {
     try {
       // Get or create Supervisor's DM Converse
       const converse = await this.botsService.getOrCreateSupervisorConverse(userId);
 
-      // Create message
-      const message = await this.messagesService.create(this.botId, {
+      // Create message using the bot's actual userId
+      const message = await this.messagesService.create(supervisorBot.userId, {
         converseId: converse.id,
         content: response.content,
         type: MessageType.BOT_NOTIFICATION,
@@ -139,8 +154,8 @@ ${tasksSummary}
       this.broadcastService.toRoom(`u-${userId}`, 'bot:notification', {
         messageId: message.id,
         converseId: converse.id,
-        fromBotId: this.botId,
-        fromBotName: this.name,
+        fromBotId: supervisorBot.id,
+        fromBotName: supervisorBot.name,
         content: response.content,
         actions: response.actions,
         createdAt: message.createdAt.toISOString(),
