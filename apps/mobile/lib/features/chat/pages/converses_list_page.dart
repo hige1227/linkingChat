@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/chat_provider.dart';
 import '../../../core/models/converse.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../widgets/converse_tile.dart';
+import 'search_page.dart';
 
 class ConversesListPage extends ConsumerStatefulWidget {
   const ConversesListPage({super.key});
@@ -30,13 +32,25 @@ class _ConversesListPageState extends ConsumerState<ConversesListPage> {
       appBar: AppBar(
         title: const Text('Chats'),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SearchPage(), // global search (no converseId)
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: _buildBody(state),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Navigate to new DM / contact picker
+          _showNewChatOptions(context);
         },
-        child: const Icon(Icons.chat),
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -101,8 +115,10 @@ class _ConversesListPageState extends ConsumerState<ConversesListPage> {
             const Divider(height: 1, indent: 72),
         itemBuilder: (context, index) {
           final converse = sorted[index];
+          final currentUserId = ref.read(authProvider).user?.id;
           return ConverseTile(
             converse: converse.toJson(),
+            currentUserId: currentUserId,
             onTap: () {
               ref
                   .read(conversesProvider.notifier)
@@ -112,6 +128,37 @@ class _ConversesListPageState extends ConsumerState<ConversesListPage> {
           );
         },
       ),
+    );
+  }
+
+  void _showNewChatOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.group_add),
+                title: const Text('Create Group'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/chat/new/group');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.person_add),
+                title: const Text('Add Friend'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/contacts/add');
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

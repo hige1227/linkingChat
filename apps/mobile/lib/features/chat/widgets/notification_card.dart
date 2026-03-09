@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 /// BOT_NOTIFICATION 消息的通知卡片组件
 ///
@@ -185,14 +186,43 @@ class _ActionButton extends StatelessWidget {
     required this.accentColor,
   });
 
+  void _handleAction(BuildContext context) {
+    debugPrint('[NotificationCard] Action: $actionType, payload: $payload');
+
+    switch (actionType) {
+      case 'view_result':
+        // Navigate to the relevant converse/chat thread
+        final converseId = payload?['converseId'] as String?;
+        if (converseId != null) {
+          context.push('/chat/$converseId');
+        }
+        break;
+
+      case 'retry':
+        // Re-emit the command to the device
+        final deviceId = payload?['deviceId'] as String?;
+        if (deviceId != null) {
+          context.push('/command/$deviceId');
+        }
+        break;
+
+      case 'navigate':
+        // Generic navigation to a route path
+        final route = payload?['route'] as String?;
+        if (route != null) {
+          context.push(route);
+        }
+        break;
+
+      default:
+        debugPrint('[NotificationCard] Unknown action type: $actionType');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return OutlinedButton(
-      onPressed: () {
-        // Sprint 2: 操作按钮 UI 就绪，具体动作在 Sprint 3 实现
-        debugPrint(
-            '[NotificationCard] Action tapped: $actionType, payload: $payload');
-      },
+      onPressed: () => _handleAction(context),
       style: OutlinedButton.styleFrom(
         foregroundColor: accentColor,
         side: BorderSide(color: accentColor.withValues(alpha: 0.5)),

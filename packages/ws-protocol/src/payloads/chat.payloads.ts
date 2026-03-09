@@ -29,6 +29,19 @@ export interface FriendRemovedPayload {
 
 // ========== 消息相关 ==========
 
+/** 附件信息（嵌套在 MessageResponse 中） */
+export interface AttachmentPayload {
+  id: string;
+  url: string;
+  filename: string;
+  mimeType: string;
+  size: number | null;
+  width: number | null;
+  height: number | null;
+  duration: number | null;
+  thumbnailUrl: string | null;
+}
+
 /** message:new / message:updated 事件的 payload */
 export interface MessageResponse {
   id: string;
@@ -44,6 +57,7 @@ export interface MessageResponse {
   };
   metadata?: Record<string, unknown>;
   replyToId?: string;
+  attachments?: AttachmentPayload[];
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
   deletedAt?: string; // ISO 8601, null if not deleted

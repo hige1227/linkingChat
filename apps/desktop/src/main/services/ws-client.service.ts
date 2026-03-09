@@ -33,6 +33,7 @@ export class WsClientService {
   private connectionStatus: 'disconnected' | 'connecting' | 'connected' =
     'disconnected';
   private executor = new CommandExecutor();
+  private connectErrorCount = 0;
 
   private deviceId = getDeviceId();
   private deviceName = getDeviceName();
@@ -97,6 +98,7 @@ export class WsClientService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
+      this.connectErrorCount = 0;
       console.log('[WS] Connected to Cloud Brain');
       this.updateStatus('connected');
       this.registerDevice();
@@ -110,6 +112,10 @@ export class WsClientService {
     this.socket.on('connect_error', (err) => {
       console.error('[WS] Connection error:', err.message);
       this.updateStatus('disconnected');
+      this.connectErrorCount++;
+      if (this.connectErrorCount <= 3) {
+        this.attemptTokenRefresh();
+      }
     });
 
     this.socket.on('device:command:execute', (data: DeviceCommandPayload) => {
@@ -119,6 +125,43 @@ export class WsClientService {
     this.socket.on('system:error', (err) => {
       console.error('[WS] System error:', err.code, err.message);
     });
+  }
+
+  private async attemptTokenRefresh(): Promise<void> {
+    const tokens = AuthStore.load();
+    if (!tokens?.refreshToken) return;
+
+    const API_BASE = process.env.API_BASE_URL || 'http://localhost:3008';
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+      });
+
+      if (!res.ok) {
+        AuthStore.clear();
+        return;
+      }
+
+      const data = (await res.json()) as {
+        accessToken: string;
+        refreshToken: string;
+      };
+      AuthStore.save(data);
+
+      // Update socket auth for next reconnection
+      if (this.socket) {
+        (this.socket as any).auth = {
+          token: data.accessToken,
+          deviceId: this.deviceId,
+          deviceType: 'desktop',
+        };
+        console.log('[WS] Token refreshed for device socket');
+      }
+    } catch (e) {
+      console.error('[WS] Token refresh failed:', e);
+    }
   }
 
   private registerDevice(): void {

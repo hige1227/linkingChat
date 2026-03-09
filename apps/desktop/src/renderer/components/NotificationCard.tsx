@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 
 interface NotificationAction {
   label: string
@@ -55,11 +56,46 @@ function formatDuration(ms: number): string {
 }
 
 export function NotificationCard({ metadata }: NotificationCardProps) {
+  const navigate = useNavigate()
   const style = CARD_STYLES[metadata.cardType] || CARD_STYLES.info
 
   const handleAction = (action: NotificationAction) => {
-    // Sprint 2: UI 就绪，具体动作在 Sprint 3 实现
-    console.log('[NotificationCard] Action:', action.action, action.payload)
+    switch (action.action) {
+      case 'view_result':
+      case 'navigate': {
+        const target =
+          (action.payload?.converseId as string) ||
+          (action.payload?.path as string)
+        if (target) {
+          if (target.startsWith('/')) {
+            navigate(target)
+          } else {
+            navigate(`/chat/${target}`)
+          }
+        }
+        break
+      }
+      case 'retry': {
+        const deviceId = action.payload?.deviceId as string | undefined
+        const command = action.payload?.command as string | undefined
+        if (deviceId && command) {
+          window.electronAPI.getToken().then((token) => {
+            if (!token) return
+            fetch('http://localhost:3008/api/v1/commands', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ deviceId, command }),
+            }).catch((e) => console.error('Retry command failed:', e))
+          })
+        }
+        break
+      }
+      default:
+        console.log('[NotificationCard] Unhandled action:', action.action, action.payload)
+    }
   }
 
   return (

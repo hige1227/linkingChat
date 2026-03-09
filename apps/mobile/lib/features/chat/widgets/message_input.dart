@@ -1,23 +1,33 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'voice_recorder.dart';
 
 class MessageInput extends StatefulWidget {
   final Function(String) onSend;
   final VoidCallback? onTypingStart;
   final VoidCallback? onTypingStop;
+  final VoidCallback? onAttachmentTap;
+  final Function(File audioFile, Duration duration)? onVoiceSend;
+
+  /// Key for programmatic access to pre-fill text (e.g., from Whisper)
+  final GlobalKey<MessageInputState>? inputKey;
 
   const MessageInput({
     super.key,
     required this.onSend,
     this.onTypingStart,
     this.onTypingStop,
+    this.onAttachmentTap,
+    this.onVoiceSend,
+    this.inputKey,
   });
 
   @override
-  State<MessageInput> createState() => _MessageInputState();
+  State<MessageInput> createState() => MessageInputState();
 }
 
-class _MessageInputState extends State<MessageInput> {
+class MessageInputState extends State<MessageInput> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   Timer? _typingTimer;
@@ -29,6 +39,17 @@ class _MessageInputState extends State<MessageInput> {
     _focusNode.dispose();
     _typingTimer?.cancel();
     super.dispose();
+  }
+
+  /// Pre-fill text (e.g., from Whisper suggestion). Does NOT replace if user
+  /// is already typing — only fills when input is empty.
+  void prefillText(String text) {
+    if (_controller.text.trim().isNotEmpty) return;
+    _controller.text = text;
+    _controller.selection = TextSelection.fromPosition(
+      TextPosition(offset: text.length),
+    );
+    _focusNode.requestFocus();
   }
 
   void _handleTextChanged(String text) {
@@ -74,6 +95,14 @@ class _MessageInputState extends State<MessageInput> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            if (widget.onAttachmentTap != null)
+              IconButton(
+                onPressed: widget.onAttachmentTap,
+                icon: Icon(
+                  Icons.add_circle_outline,
+                  color: Colors.grey.shade600,
+                ),
+              ),
             Expanded(
               child: TextField(
                 controller: _controller,
@@ -102,13 +131,29 @@ class _MessageInputState extends State<MessageInput> {
               valueListenable: _controller,
               builder: (_, value, __) {
                 final hasText = value.text.trim().isNotEmpty;
+                if (hasText) {
+                  return IconButton(
+                    onPressed: _handleSend,
+                    icon: Icon(
+                      Icons.send,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  );
+                }
+                // Show mic button when input is empty
+                if (widget.onVoiceSend != null) {
+                  return VoiceRecorder(
+                    onRecordComplete: (file, duration) {
+                      widget.onVoiceSend!(file, duration);
+                    },
+                    onRecordCancel: () {},
+                  );
+                }
                 return IconButton(
-                  onPressed: hasText ? _handleSend : null,
+                  onPressed: null,
                   icon: Icon(
                     Icons.send,
-                    color: hasText
-                        ? Theme.of(context).primaryColor
-                        : Colors.grey.shade400,
+                    color: Colors.grey.shade400,
                   ),
                 );
               },

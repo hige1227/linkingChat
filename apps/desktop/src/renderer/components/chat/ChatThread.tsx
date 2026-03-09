@@ -1,5 +1,10 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useChatStore } from '../../stores/chatStore';
+import { NotificationCard } from '../NotificationCard';
+import { ImageMessage } from './ImageMessage';
+import { FileMessage } from './FileMessage';
+import { VoiceMessage } from './VoiceMessage';
+import { MessageContextMenu } from './MessageContextMenu';
 import type { MessageResponse, ConverseResponse } from '@linkingchat/ws-protocol';
 
 interface ChatThreadProps {
@@ -19,8 +24,16 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
     s.converses.find((c) => c.id === converseId),
   );
   const currentUserId = useChatStore((s) => s.currentUserId);
+  const readReceipts = useChatStore((s) => s.readReceipts);
   const msgs = messages[converseId] ?? [];
   const typing = typingUsers[converseId] ?? [];
+  const lastReadId = readReceipts[converseId];
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    msg: MessageResponse;
+    position: { x: number; y: number };
+  } | null>(null);
 
   // Fetch messages on mount / converseId change
   useEffect(() => {
@@ -120,6 +133,37 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
   // Messages are stored newest-first, reverse for display
   const displayMsgs = [...msgs].reverse();
 
+  // Determine read receipt boundary (for newest-first array)
+  const lastReadIndex = lastReadId
+    ? msgs.findIndex((m) => m.id === lastReadId)
+    : -1;
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, msg: MessageResponse) => {
+    e.preventDefault();
+    if ((msg as any).deletedAt) return;
+    setContextMenu({ msg, position: { x: e.clientX, y: e.clientY } });
+  }, []);
+
+  const handleCopy = useCallback(async () => {
+    if (contextMenu?.msg.content) {
+      await navigator.clipboard.writeText(contextMenu.msg.content);
+    }
+  }, [contextMenu]);
+
+  const handleRecall = useCallback(async () => {
+    if (!contextMenu) return;
+    try {
+      const token = await window.electronAPI.getToken();
+      if (!token) return;
+      await fetch(`http://localhost:3008/api/v1/messages/${contextMenu.msg.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (err) {
+      console.error('Recall failed:', err);
+    }
+  }, [contextMenu]);
+
   return (
     <div className="chat-thread">
       <div className="chat-thread-header">
@@ -160,17 +204,82 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
             prev.authorId !== msg.authorId ||
             showDate;
 
+          const isOwn = msg.authorId === currentUserId;
+          const isRecalled = !!(msg as any).deletedAt;
+          // Read receipt: in newest-first array, msg at displayIndex maps to msgs[msgs.length - 1 - i]
+          const newestFirstIdx = msgs.length - 1 - i;
+          const isRead = isOwn && lastReadIndex >= 0 && newestFirstIdx >= lastReadIndex;
+
+          // BOT_NOTIFICATION type
+          if ((msg as any).type === 'BOT_NOTIFICATION') {
+            return (
+              <div key={msg.id}>
+                {showDate && (
+                  <div className="chat-date-separator">
+                    <span>{formatDateSeparator(msg.createdAt)}</span>
+                  </div>
+                )}
+                <div style={{ padding: '4px 16px' }}>
+                  <NotificationCard metadata={(msg as any).metadata ?? {}} />
+                </div>
+              </div>
+            );
+          }
+
+          // SYSTEM message (e.g., "Herry added Kitty to the group")
+          if ((msg as any).type === 'SYSTEM') {
+            return (
+              <div key={msg.id}>
+                {showDate && (
+                  <div className="chat-date-separator">
+                    <span>{formatDateSeparator(msg.createdAt)}</span>
+                  </div>
+                )}
+                <div style={{
+                  textAlign: 'center',
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  color: '#607b96',
+                }}>
+                  {msg.content}
+                </div>
+              </div>
+            );
+          }
+
+          // Recalled message placeholder
+          if (isRecalled) {
+            return (
+              <div key={msg.id}>
+                {showDate && (
+                  <div className="chat-date-separator">
+                    <span>{formatDateSeparator(msg.createdAt)}</span>
+                  </div>
+                )}
+                <div className="chat-message-recalled" style={{
+                  textAlign: 'center',
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  color: '#999',
+                  fontStyle: 'italic',
+                }}>
+                  {isOwn ? 'You recalled a message' : 'A message was recalled'}
+                </div>
+              </div>
+            );
+          }
+
           return (
-            <div key={msg.id}>
+            <div key={msg.id} onContextMenu={(e) => handleContextMenu(e, msg)}>
               {showDate && (
                 <div className="chat-date-separator">
                   <span>{formatDateSeparator(msg.createdAt)}</span>
                 </div>
               )}
               <div
-                className={`chat-message ${showAuthor ? 'with-avatar' : 'compact'}`}
+                className={`chat-message ${isOwn ? 'own' : 'other'} ${showAuthor ? 'with-avatar' : 'compact'}`}
               >
-                {showAuthor && (
+                {!isOwn && showAuthor && (
                   <div className="chat-message-avatar">
                     {(msg.author?.displayName ?? msg.author?.username ?? '?')
                       .charAt(0)
@@ -178,7 +287,7 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
                   </div>
                 )}
                 <div className="chat-message-body">
-                  {showAuthor && (
+                  {!isOwn && showAuthor && (
                     <div className="chat-message-header">
                       <span className="chat-message-author">
                         {msg.author?.displayName ?? msg.author?.username}
@@ -188,7 +297,23 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
                       </span>
                     </div>
                   )}
-                  <div className="chat-message-content">{msg.content}</div>
+                  <div className="chat-message-bubble">
+                    <div className="chat-message-content">
+                      {renderMessageContent(msg, isOwn)}
+                    </div>
+                    <div className="chat-message-meta">
+                      <span className="chat-message-time">
+                        {formatTime(msg.createdAt)}
+                      </span>
+                      {isOwn && (
+                        <span className="chat-message-read-receipt" style={{
+                          color: isRead ? '#4FC3F7' : '#999',
+                        }}>
+                          {isRead ? '✓✓' : '✓'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -212,8 +337,64 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
 
         <div ref={bottomRef} />
       </div>
+
+      {contextMenu && (() => {
+        const isOwn = contextMenu.msg.authorId === currentUserId;
+        const createdAt = new Date(contextMenu.msg.createdAt);
+        const withinRecallWindow = (Date.now() - createdAt.getTime()) / 1000 <= 120;
+        return (
+          <MessageContextMenu
+            message={contextMenu.msg}
+            isOwnMessage={isOwn}
+            withinRecallWindow={withinRecallWindow}
+            position={contextMenu.position}
+            onClose={() => setContextMenu(null)}
+            onCopy={handleCopy}
+            onRecall={handleRecall}
+          />
+        );
+      })()}
     </div>
   );
+}
+
+function renderMessageContent(msg: MessageResponse, isOwn: boolean) {
+  const attachments = (msg as any).attachments as Array<{
+    url: string;
+    filename: string;
+    mimeType: string;
+    size?: number;
+  }> | undefined;
+
+  if (attachments && attachments.length > 0) {
+    const att = attachments[0];
+    if (att.mimeType?.startsWith('image/')) {
+      return (
+        <>
+          <ImageMessage attachment={att} isOwnMessage={isOwn} />
+          {msg.content && <div style={{ marginTop: '4px' }}>{msg.content}</div>}
+        </>
+      );
+    }
+    if (att.mimeType?.startsWith('audio/')) {
+      const metadata = (att as any).metadata as { durationMs?: number } | undefined;
+      return (
+        <VoiceMessage
+          audioUrl={att.url}
+          durationMs={metadata?.durationMs ?? 0}
+          isOwn={isOwn}
+        />
+      );
+    }
+    return (
+      <>
+        <FileMessage attachment={att} isOwnMessage={isOwn} />
+        {msg.content && <div style={{ marginTop: '4px' }}>{msg.content}</div>}
+      </>
+    );
+  }
+
+  return <>{msg.content}</>;
 }
 
 function getConverseName(c?: ConverseResponse, currentUserId?: string | null): string {

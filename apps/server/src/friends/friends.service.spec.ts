@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { FriendsService } from './friends.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BroadcastService } from '../gateway/broadcast.service';
+import { I18nService } from '../i18n/i18n.service';
 import {
   BadRequestException,
   ConflictException,
@@ -49,9 +50,16 @@ describe('FriendsService', () => {
   const mockBroadcast = {
     unicast: jest.fn(),
     listcast: jest.fn(),
+    chatUnicast: jest.fn(),
+    chatListcast: jest.fn(),
     emitToRoom: jest.fn(),
     toRoom: jest.fn(),
     toRoomIfNotIn: jest.fn(),
+  };
+
+  const mockI18nService = {
+    t: jest.fn((key: string) => key),
+    detectLocale: jest.fn(() => 'en'),
   };
 
   beforeEach(async () => {
@@ -60,6 +68,7 @@ describe('FriendsService', () => {
         FriendsService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BroadcastService, useValue: mockBroadcast },
+        { provide: I18nService, useValue: mockI18nService },
       ],
     }).compile();
 
@@ -160,7 +169,7 @@ describe('FriendsService', () => {
 
       expect((result as any).id).toBe('req1');
       expect((result as any).status).toBe('PENDING');
-      expect(mockBroadcast.unicast).toHaveBeenCalledWith(
+      expect(mockBroadcast.chatUnicast).toHaveBeenCalledWith(
         'user2',
         'friend:request',
         expect.objectContaining({ id: 'req1' }),
@@ -252,8 +261,8 @@ describe('FriendsService', () => {
       });
 
       // Verify both parties notified
-      expect(mockBroadcast.unicast).toHaveBeenCalledTimes(2);
-      expect(mockBroadcast.listcast).toHaveBeenCalledWith(
+      expect(mockBroadcast.chatUnicast).toHaveBeenCalledTimes(2);
+      expect(mockBroadcast.chatListcast).toHaveBeenCalledWith(
         ['user1', 'user2'],
         'converse:new',
         expect.objectContaining({ id: 'dm1', type: 'DM' }),
@@ -324,7 +333,7 @@ describe('FriendsService', () => {
       });
 
       await service.reject('user2', 'req1');
-      expect(mockBroadcast.unicast).not.toHaveBeenCalled();
+      expect(mockBroadcast.chatUnicast).not.toHaveBeenCalled();
     });
   });
 
@@ -351,12 +360,12 @@ describe('FriendsService', () => {
       expect(result.success).toBe(true);
 
       // Verify both parties notified with friend:removed
-      expect(mockBroadcast.unicast).toHaveBeenCalledWith(
+      expect(mockBroadcast.chatUnicast).toHaveBeenCalledWith(
         'user1',
         'friend:removed',
         { userId: 'user2' },
       );
-      expect(mockBroadcast.unicast).toHaveBeenCalledWith(
+      expect(mockBroadcast.chatUnicast).toHaveBeenCalledWith(
         'user2',
         'friend:removed',
         { userId: 'user1' },
@@ -410,12 +419,12 @@ describe('FriendsService', () => {
       expect(result.success).toBe(true);
 
       // Verify only the blocked party is notified (as friend:removed)
-      expect(mockBroadcast.unicast).toHaveBeenCalledWith(
+      expect(mockBroadcast.chatUnicast).toHaveBeenCalledWith(
         'user2',
         'friend:removed',
         { userId: 'user1' },
       );
-      expect(mockBroadcast.unicast).toHaveBeenCalledTimes(1);
+      expect(mockBroadcast.chatUnicast).toHaveBeenCalledTimes(1);
     });
 
     it('should not notify when no prior friendship', async () => {
@@ -429,7 +438,7 @@ describe('FriendsService', () => {
       expect(result.success).toBe(true);
 
       // No notification since they weren't friends
-      expect(mockBroadcast.unicast).not.toHaveBeenCalled();
+      expect(mockBroadcast.chatUnicast).not.toHaveBeenCalled();
     });
   });
 

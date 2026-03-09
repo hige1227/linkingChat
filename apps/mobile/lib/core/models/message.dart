@@ -28,6 +28,46 @@ class MessageAuthor {
       };
 }
 
+class MessageAttachment {
+  final String id;
+  final String url;
+  final String filename;
+  final String mimeType;
+  final int size;
+  final String? fileKey;
+
+  const MessageAttachment({
+    required this.id,
+    required this.url,
+    required this.filename,
+    required this.mimeType,
+    required this.size,
+    this.fileKey,
+  });
+
+  factory MessageAttachment.fromJson(Map<String, dynamic> json) {
+    return MessageAttachment(
+      id: json['id'] as String,
+      url: json['url'] as String,
+      filename: json['filename'] as String,
+      mimeType: json['mimeType'] as String,
+      size: json['size'] as int? ?? 0,
+      fileKey: json['fileKey'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'url': url,
+        'filename': filename,
+        'mimeType': mimeType,
+        'size': size,
+        'fileKey': fileKey,
+      };
+
+  bool get isImage => mimeType.startsWith('image/');
+}
+
 class Message {
   final String id;
   final String? content;
@@ -37,6 +77,7 @@ class Message {
   final MessageAuthor author;
   final Map<String, dynamic>? metadata;
   final String? replyToId;
+  final List<MessageAttachment> attachments;
   final String createdAt;
   final String updatedAt;
   final String? deletedAt;
@@ -53,6 +94,7 @@ class Message {
     required this.author,
     this.metadata,
     this.replyToId,
+    this.attachments = const [],
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -60,6 +102,7 @@ class Message {
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
+    final attList = json['attachments'] as List<dynamic>?;
     return Message(
       id: json['id'] as String,
       content: json['content'] as String?,
@@ -69,6 +112,11 @@ class Message {
       author: MessageAuthor.fromJson(json['author'] as Map<String, dynamic>),
       metadata: json['metadata'] as Map<String, dynamic>?,
       replyToId: json['replyToId'] as String?,
+      attachments: attList
+              ?.map((a) =>
+                  MessageAttachment.fromJson(a as Map<String, dynamic>))
+              .toList() ??
+          const [],
       createdAt: json['createdAt'] as String,
       updatedAt: json['updatedAt'] as String,
       deletedAt: json['deletedAt'] as String?,
@@ -84,6 +132,7 @@ class Message {
         'author': author.toJson(),
         'metadata': metadata,
         'replyToId': replyToId,
+        'attachments': attachments.map((a) => a.toJson()).toList(),
         'createdAt': createdAt,
         'updatedAt': updatedAt,
         'deletedAt': deletedAt,
@@ -98,6 +147,7 @@ class Message {
     MessageAuthor? author,
     Map<String, dynamic>? metadata,
     String? replyToId,
+    List<MessageAttachment>? attachments,
     String? createdAt,
     String? updatedAt,
     String? deletedAt,
@@ -112,6 +162,7 @@ class Message {
       author: author ?? this.author,
       metadata: metadata ?? this.metadata,
       replyToId: replyToId ?? this.replyToId,
+      attachments: attachments ?? this.attachments,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,

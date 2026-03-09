@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { MessagesService } from './messages.service';
@@ -28,11 +29,34 @@ export class MessagesController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @Throttle({ default: { ttl: 60000, limit: 30 } }) // 30 messages per minute
   create(
     @CurrentUser('userId') userId: string,
     @Body() dto: CreateMessageDto,
   ) {
     return this.messagesService.create(userId, dto);
+  }
+
+  /**
+   * GET /api/v1/messages/search?query=xxx&converseId=xxx&limit=20&offset=0
+   * 消息搜索 — PostgreSQL 全文搜索 + ILIKE fallback
+   */
+  @Get('search')
+  @Throttle({ default: { ttl: 60000, limit: 20 } }) // 20 searches per minute
+  search(
+    @CurrentUser('userId') userId: string,
+    @Query('query') query: string,
+    @Query('converseId') converseId?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.messagesService.search(
+      userId,
+      query,
+      converseId,
+      limit ? parseInt(limit, 10) : 20,
+      offset ? parseInt(offset, 10) : 0,
+    );
   }
 
   /**

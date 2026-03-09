@@ -4,8 +4,11 @@ const electronAPI = {
   // Auth
   login: (email: string, password: string) =>
     ipcRenderer.invoke('auth:login', email, password),
+  register: (data: { email: string; username: string; password: string; displayName: string }) =>
+    ipcRenderer.invoke('auth:register', data),
   logout: () => ipcRenderer.invoke('auth:logout'),
   getToken: () => ipcRenderer.invoke('auth:get-token'),
+  refreshToken: () => ipcRenderer.invoke('auth:refresh-token'),
 
   // Device / WS status
   getConnectionStatus: () => ipcRenderer.invoke('device:get-status'),

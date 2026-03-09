@@ -16,7 +16,20 @@ import { PresenceService } from './presence.service';
 import { ConversesService } from '../converses/converses.service';
 import { FriendsService } from '../friends/friends.service';
 import { PrismaService } from '../prisma/prisma.service';
-import type { TypedSocket, PresencePayload } from '@linkingchat/ws-protocol';
+import { WhisperService } from '../ai/services/whisper.service';
+import { DraftService } from '../ai/services/draft.service';
+import { PredictiveService } from '../ai/services/predictive.service';
+import { MetricsService } from '../metrics/metrics.service';
+import type {
+  TypedSocket,
+  PresencePayload,
+  WhisperAcceptPayload,
+  DraftApprovePayload,
+  DraftRejectPayload,
+  DraftEditPayload,
+  PredictiveExecutePayload,
+  PredictiveDismissPayload,
+} from '@linkingchat/ws-protocol';
 
 @WebSocketGateway({ namespace: '/chat' })
 export class ChatGateway
@@ -33,6 +46,10 @@ export class ChatGateway
     private readonly conversesService: ConversesService,
     private readonly friendsService: FriendsService,
     private readonly prisma: PrismaService,
+    private readonly whisperService: WhisperService,
+    private readonly draftService: DraftService,
+    private readonly predictiveService: PredictiveService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   /**
@@ -50,6 +67,9 @@ export class ChatGateway
   async handleConnection(client: TypedSocket) {
     const userId = client.data.userId;
     client.join(`u-${userId}`);
+
+    // Prometheus: increment active WS connections
+    this.metricsService.wsConnectionsActive.labels('chat').inc();
 
     try {
       const wasOnline = await this.presenceService.isOnline(userId);
@@ -74,6 +94,9 @@ export class ChatGateway
    */
   async handleDisconnect(client: TypedSocket) {
     const userId = client.data.userId;
+
+    // Prometheus: decrement active WS connections
+    this.metricsService.wsConnectionsActive.labels('chat').dec();
 
     try {
       await this.presenceService.setOffline(userId, client.id);
@@ -102,6 +125,7 @@ export class ChatGateway
     @MessageBody() data: { converseId: string },
   ) {
     const userId = client.data.userId;
+    this.metricsService.wsMessagesTotal.labels('converse:join', 'chat').inc();
 
     try {
       await this.conversesService.verifyMembership(data.converseId, userId);
@@ -132,6 +156,7 @@ export class ChatGateway
     @ConnectedSocket() client: TypedSocket,
     @MessageBody() data: { converseId: string },
   ) {
+    this.metricsService.wsMessagesTotal.labels('converse:leave', 'chat').inc();
     client.leave(data.converseId);
     this.logger.debug(
       `[Chat] User ${client.data.userId} left room ${data.converseId}`,
@@ -148,6 +173,7 @@ export class ChatGateway
     @MessageBody() data: { converseId: string; isTyping: boolean },
   ) {
     const userId = client.data.userId;
+    this.metricsService.wsMessagesTotal.labels('message:typing', 'chat').inc();
 
     client.to(data.converseId).emit('message:typing', {
       converseId: data.converseId,
@@ -210,6 +236,8 @@ export class ChatGateway
     @MessageBody() data: { converseId: string; lastSeenMessageId: string },
   ) {
     const userId = client.data.userId;
+
+    this.metricsService.wsMessagesTotal.labels('message:read', 'chat').inc();
 
     if (!data.converseId || !data.lastSeenMessageId) {
       return;
@@ -282,6 +310,166 @@ export class ChatGateway
     this.logger.debug(
       `message:read: user=${userId} converse=${data.converseId} lastSeen=${data.lastSeenMessageId}`,
     );
+  }
+
+  // ──────────────────────────────────────
+  // AI Event Handlers (Sprint 3)
+  // ──────────────────────────────────────
+
+  /**
+   * ai:whisper:accept — 用户接受 Whisper 建议
+   */
+  @SubscribeMessage('ai:whisper:accept')
+  async handleWhisperAccept(
+    @ConnectedSocket() client: TypedSocket,
+    @MessageBody() data: WhisperAcceptPayload,
+  ) {
+    const userId = client.data.userId;
+    try {
+      await this.whisperService.acceptSuggestion(
+        userId,
+        data.suggestionId,
+        data.selectedIndex,
+      );
+      return { success: true };
+    } catch (error) {
+      this.logger.error(
+        `Whisper accept failed for user ${userId}: ${(error as Error).message}`,
+      );
+      return {
+        success: false,
+        error: { code: 'WHISPER_ACCEPT_FAILED', message: (error as Error).message },
+      };
+    }
+  }
+
+  /**
+   * ai:draft:approve — 用户批准草稿
+   */
+  @SubscribeMessage('ai:draft:approve')
+  async handleDraftApprove(
+    @ConnectedSocket() client: TypedSocket,
+    @MessageBody() data: DraftApprovePayload,
+  ) {
+    const userId = client.data.userId;
+    try {
+      const content = await this.draftService.approveDraft(userId, data.draftId);
+      return { success: true, data: { content } };
+    } catch (error) {
+      this.logger.error(
+        `Draft approve failed for user ${userId}: ${(error as Error).message}`,
+      );
+      return {
+        success: false,
+        error: { code: 'DRAFT_APPROVE_FAILED', message: (error as Error).message },
+      };
+    }
+  }
+
+  /**
+   * ai:draft:reject — 用户拒绝草稿
+   */
+  @SubscribeMessage('ai:draft:reject')
+  async handleDraftReject(
+    @ConnectedSocket() client: TypedSocket,
+    @MessageBody() data: DraftRejectPayload,
+  ) {
+    const userId = client.data.userId;
+    try {
+      await this.draftService.rejectDraft(userId, data.draftId, data.reason);
+      return { success: true };
+    } catch (error) {
+      this.logger.error(
+        `Draft reject failed for user ${userId}: ${(error as Error).message}`,
+      );
+      return {
+        success: false,
+        error: { code: 'DRAFT_REJECT_FAILED', message: (error as Error).message },
+      };
+    }
+  }
+
+  /**
+   * ai:draft:edit — 用户编辑后批准草稿
+   */
+  @SubscribeMessage('ai:draft:edit')
+  async handleDraftEdit(
+    @ConnectedSocket() client: TypedSocket,
+    @MessageBody() data: DraftEditPayload,
+  ) {
+    const userId = client.data.userId;
+    try {
+      const content = await this.draftService.editAndApproveDraft(
+        userId,
+        data.draftId,
+        data.editedContent,
+      );
+      return { success: true, data: { content } };
+    } catch (error) {
+      this.logger.error(
+        `Draft edit failed for user ${userId}: ${(error as Error).message}`,
+      );
+      return {
+        success: false,
+        error: { code: 'DRAFT_EDIT_FAILED', message: (error as Error).message },
+      };
+    }
+  }
+
+  /**
+   * ai:predictive:execute — 用户执行预测操作
+   */
+  @SubscribeMessage('ai:predictive:execute')
+  async handlePredictiveExecute(
+    @ConnectedSocket() client: TypedSocket,
+    @MessageBody() data: PredictiveExecutePayload,
+  ) {
+    const userId = client.data.userId;
+    try {
+      const action = await this.predictiveService.executeAction(
+        userId,
+        data.suggestionId,
+        data.actionIndex,
+      );
+      if (!action) {
+        return {
+          success: false,
+          error: { code: 'ACTION_NOT_FOUND', message: 'Suggestion or action not found' },
+        };
+      }
+      return { success: true, data: { action } };
+    } catch (error) {
+      this.logger.error(
+        `Predictive execute failed for user ${userId}: ${(error as Error).message}`,
+      );
+      return {
+        success: false,
+        error: { code: 'PREDICTIVE_EXECUTE_FAILED', message: (error as Error).message },
+      };
+    }
+  }
+
+  /**
+   * ai:predictive:dismiss — 用户忽略预测操作
+   */
+  @SubscribeMessage('ai:predictive:dismiss')
+  async handlePredictiveDismiss(
+    @ConnectedSocket() client: TypedSocket,
+    @MessageBody() data: PredictiveDismissPayload,
+  ) {
+    const userId = client.data.userId;
+    try {
+      await this.predictiveService.dismissAction(userId, data.suggestionId);
+      return { success: true };
+    } catch (error) {
+      this.logger.error(
+        `Predictive dismiss failed for user ${userId}: ${(error as Error).message}`,
+      );
+      return {
+        success: false,
+        error: { code: 'PREDICTIVE_DISMISS_FAILED', message: (error as Error).message },
+      };
+    }
   }
 
   /**

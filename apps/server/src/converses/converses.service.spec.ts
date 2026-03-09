@@ -24,7 +24,7 @@ describe('ConversesService', () => {
 
   beforeEach(async () => {
     mockPrisma = {
-      user: { findMany: jest.fn() },
+      user: { findMany: jest.fn(), findUnique: jest.fn() },
       converse: {
         create: jest.fn(),
         update: jest.fn(),
@@ -42,6 +42,7 @@ describe('ConversesService', () => {
       message: {
         count: jest.fn(),
         findUnique: jest.fn(),
+        create: jest.fn(),
       },
       bot: { findMany: jest.fn() },
       groupBan: {  // Phase 9: 群封禁
@@ -63,6 +64,8 @@ describe('ConversesService', () => {
       toRoom: jest.fn(),
       listcast: jest.fn(),
       unicast: jest.fn(),
+      chatListcast: jest.fn(),
+      chatUnicast: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -281,7 +284,7 @@ describe('ConversesService', () => {
           }),
         }),
       );
-      expect(mockBroadcast.listcast).toHaveBeenCalledWith(
+      expect(mockBroadcast.chatListcast).toHaveBeenCalledWith(
         [ownerId, 'member1', 'member2'],
         'group:created',
         expect.any(Object),
@@ -422,6 +425,19 @@ describe('ConversesService', () => {
         ]);
       mockPrisma.user.findMany.mockResolvedValue([{ id: 'new1' }]);
       mockPrisma.converseMember.createMany.mockResolvedValue({ count: 1 });
+      // Mock for SYSTEM message creation
+      mockPrisma.user.findUnique.mockResolvedValue({ displayName: 'Owner1', username: 'owner1' });
+      mockPrisma.message.create.mockResolvedValue({
+        id: 'sys-msg-1',
+        content: 'Owner1 added User new1 to the group',
+        type: 'SYSTEM',
+        converseId: 'conv1',
+        authorId: 'owner1',
+        author: mockUser('owner1'),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      });
 
       const result = await service.addMembers('owner1', 'conv1', {
         memberIds: ['new1', 'existing1'],

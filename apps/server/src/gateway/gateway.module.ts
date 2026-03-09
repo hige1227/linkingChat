@@ -6,10 +6,11 @@ import { PresenceService } from './presence.service';
 import { DevicesModule } from '../devices/devices.module';
 import { ConversesModule } from '../converses/converses.module';
 import { FriendsModule } from '../friends/friends.module';
+import { AiModule } from '../ai/ai.module';
 
 @Global()
 @Module({
-  imports: [DevicesModule, ConversesModule, FriendsModule],
+  imports: [DevicesModule, ConversesModule, FriendsModule, AiModule],
   providers: [DeviceGateway, ChatGateway, BroadcastService, PresenceService],
   exports: [BroadcastService, PresenceService],
 })

@@ -44,7 +44,13 @@ class AuthInterceptor extends QueuedInterceptor {
     options.headers['Authorization'] = 'Bearer $newToken';
 
     try {
-      final response = await _dio.fetch(options);
+      // Use a plain Dio (no interceptors) to avoid QueuedInterceptor deadlock.
+      final retryDio = Dio(BaseOptions(
+        baseUrl: _dio.options.baseUrl,
+        connectTimeout: _dio.options.connectTimeout,
+        receiveTimeout: _dio.options.receiveTimeout,
+      ));
+      final response = await retryDio.fetch(options);
       return handler.resolve(response);
     } on DioException catch (e) {
       return handler.next(e);

@@ -52,6 +52,17 @@ export class BroadcastService {
   // Chat 命名空间方法
   // ──────────────────────────────────────
 
+  /** 发送到单个用户（chat 命名空间，个人房间 u-{userId}） */
+  chatUnicast(userId: string, event: string, data: unknown) {
+    this.getNs('chat').to(`u-${userId}`).emit(event, data);
+  }
+
+  /** 发送到多个用户（chat 命名空间） */
+  chatListcast(userIds: string[], event: string, data: unknown) {
+    const rooms = userIds.map((id) => `u-${id}`);
+    this.getNs('chat').to(rooms).emit(event, data);
+  }
+
   /** 发送到 chat 命名空间的指定房间（如 converseId 房间） */
   toRoom(roomId: string, event: string, data: unknown) {
     this.getNs('chat').to(roomId).emit(event, data);

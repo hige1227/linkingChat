@@ -7,31 +7,54 @@
 > **不包含**：语音/视频通话、Ghost Text 灰体补全、自定义 Bot 创建（v2.0）、微服务拆分
 >
 > **参考**：[tech-decisions-v2.md](../decisions/tech-decisions-v2.md) §五 | [project-brief.md](../decisions/project-brief.md)
+>
+> **跳过**：Phase 3（推送通知）— 延后至后续版本
 
 ---
 
-## 并行策略
+## 详细开发文档
+
+每个 Phase 有独立的详细开发文档，位于 [`sprint4_phases/`](./sprint4_phases/) 目录：
+
+| 优先级 | Phase | 文档 | 预估工时 |
+|--------|-------|------|---------|
+| P1 | Phase 0: 文件/图片/语音消息 | [phase0_rich_media.md](./sprint4_phases/phase0_rich_media.md) | 5-7 天 |
+| P2 | Phase 1: 消息撤回增强 | [phase1_message_recall.md](./sprint4_phases/phase1_message_recall.md) | 1-2 天 |
+| P3 | Phase 5: 云端部署 | [phase5_cloud_deploy.md](./sprint4_phases/phase5_cloud_deploy.md) | 2-3 天 |
+| P4 | Phase 6: Nginx 反向代理 | [phase6_nginx_proxy.md](./sprint4_phases/phase6_nginx_proxy.md) | 1-2 天 |
+| P5 | Phase 9: 安全审计 + 监控 | [phase9_security_audit.md](./sprint4_phases/phase9_security_audit.md) | 3-4 天 |
+| P6 | Phase 2: 消息搜索 | [phase2_message_search.md](./sprint4_phases/phase2_message_search.md) | 2-3 天 |
+| P7 | Phase 4: i18n 国际化 | [phase4_i18n.md](./sprint4_phases/phase4_i18n.md) | 2-3 天 |
+| P8 | Phase 8: 性能优化 | [phase8_performance.md](./sprint4_phases/phase8_performance.md) | 2-3 天 |
+| P9 | Phase 7: 水平扩展验证 | [phase7_horizontal_scaling.md](./sprint4_phases/phase7_horizontal_scaling.md) | 1-2 天 |
+
+**总预估**：~20-29 天（单人+AI）
+
+---
+
+## 执行策略
+
+> 单人+AI 开发模式，两条线交叉进行，按优先级排序执行。Phase 3（推送通知）跳过。
 
 ```
-线 A — 社交增强                              线 B — 生产化
-  Phase 0: 文件/图片/语音消息                   Phase 5: 云端部署 (SSL + WSS)
-  Phase 1: 消息撤回增强                         Phase 6: Nginx 反向代理
-  Phase 2: 消息搜索                             Phase 7: 水平扩展验证
-  Phase 3: 推送通知                             Phase 8: 性能优化
-  Phase 4: i18n 国际化                          Phase 9: 安全审计 + 监控
+执行顺序（按优先级）：
 
-       线 B 可在线 A 进行到 Phase 1 后启动
+P1  Phase 0  富媒体消息（图片/文件/语音）     ← 功能核心
+P2  Phase 1  消息撤回增强                     ← 基础体验
+P3  Phase 5  云端部署（Docker + SSL）          ← 上线前提
+P4  Phase 6  Nginx 反向代理（WSS + LB）       ← 上线配套
+P5  Phase 9  安全审计 + 监控                  ← 上线前必须
+P6  Phase 2  消息搜索（PostgreSQL 全文搜索）   ← 体验增强
+P7  Phase 4  i18n 国际化（中/英双语）          ← 体验增强
+P8  Phase 8  性能优化（延迟 + 缓存）           ← 质量提升
+P9  Phase 7  水平扩展验证（多实例 + 压测）      ← 最后验证
 ```
 
-### 人员分配建议
+### 基础设施
 
-> 以下分配仅为参考，实际可根据团队规模灵活调整。Sprint 2/3 均为单人+AI 完成，Sprint 4 也可延续该模式。
-
-| 开发者 | 负责 | 说明 |
-|--------|------|------|
-| A（后端） | Phase 0-2 → Phase 5-7 | 先做后端功能，再做基础设施 |
-| B（桌面端 / DevOps） | Phase 5-9 | 生产化全流程 |
-| C（移动端） | Phase 0、3、4 的 Flutter 部分 | 富媒体 + 推送 + i18n |
+- **云服务**：腾讯云 CVM（已有服务器和域名）
+- **存储**：腾讯云 COS（S3 兼容，替代 MinIO）
+- **部署方式**：Docker Compose + Nginx
 
 ---
 
@@ -39,11 +62,11 @@
 
 ### Phase 0: 文件/图片/语音消息
 
-**目标**：支持富媒体消息类型 — 图片、文件、语音。使用 S3 兼容存储（开发用 MinIO，生产用 AWS S3 / 阿里 OSS）。
+**目标**：支持富媒体消息类型 — 图片、文件、语音。使用 S3 兼容存储（开发用 MinIO，生产用腾讯云 COS）。
 
 | # | 任务 | 产出 | 验收标准 |
 |---|------|------|---------|
-| 0.1 | 配置 S3 存储服务 | `apps/server/src/storage/storage.service.ts` | 开发环境连 MinIO，生产连 AWS S3 |
+| 0.1 | 配置 S3 存储服务 | `apps/server/src/storage/storage.service.ts` | 开发环境连 MinIO，生产连腾讯云 COS |
 | 0.2 | 预签名上传 URL | GET `/api/v1/upload/presign` | 返回预签名 URL + 文件 key |
 | 0.3 | 上传完成回调 | POST `/api/v1/upload/confirm` | 验证文件存在 → 创建 Attachment 记录 |
 | 0.4 | 图片消息 | MessageType.IMAGE | 缩略图生成（sharp 库，宽度限制 300px） |
@@ -85,7 +108,7 @@
 ```
 apps/server/src/storage/
   ├── storage.module.ts
-  ├── storage.service.ts        # S3 客户端 (aws-sdk v3)
+  ├── storage.service.ts        # S3 兼容客户端 (aws-sdk v3，兼容 MinIO/腾讯云 COS)
   ├── storage.controller.ts     # presign + confirm
   └── processors/
       └── image.processor.ts    # sharp 缩略图 + 头像裁剪
@@ -199,7 +222,12 @@ async search(userId: string, query: string, converseId?: string, limit = 20, off
 
 ---
 
-### Phase 3: 推送通知
+### ~~Phase 3: 推送通知~~ (跳过 — 延后至后续版本)
+
+> **已跳过**：推送通知延后至 v2.0+，MVP 阶段优先保证核心功能和生产化。
+
+<details>
+<summary>原始设计（折叠）</summary>
 
 **目标**：FCM（Android）+ APNs（iOS）推送，确保用户不在线时也能收到重要消息。
 
@@ -257,6 +285,8 @@ apps/server/src/notifications/
 - 静音会话不推送
 - 连续消息合并为 "XX 发送了 N 条消息"
 
+</details>
+
 ---
 
 ### Phase 4: i18n 国际化
@@ -309,14 +339,14 @@ apps/server/src/i18n/
 
 | # | 任务 | 产出 | 验收标准 |
 |---|------|------|---------|
-| 5.1 | 选择云服务商 | 阿里云 / AWS / DigitalOcean | 至少 2C4G 实例 |
+| 5.1 | 腾讯云 CVM 配置 | 已有 CVM 服务器 | 至少 2C4G 实例 |
 | 5.2 | Docker 化部署 | docker-compose.prod.yaml | 一键部署所有服务 |
 | 5.3 | SSL 证书 | Let's Encrypt + certbot | HTTPS + WSS |
 | 5.4 | 域名配置 | api.linkingchat.com | A 记录指向服务器 |
 | 5.5 | 环境变量管理 | .env.production | 敏感信息不入仓库 |
 | 5.6 | 数据库备份 | pg_dump 定时备份 | cron 每日凌晨备份 |
 | 5.7 | Redis 持久化 | RDB + AOF | 防止重启丢失 session |
-| 5.8 | S3 生产配置 | AWS S3 / 阿里 OSS | 替换 MinIO |
+| 5.8 | S3 生产配置 | 腾讯云 COS | 替换 MinIO |
 | 5.9 | 健康检查 | GET `/health` | Docker HEALTHCHECK + 外部监控 |
 
 **docker-compose.prod.yaml 核心**：
@@ -517,26 +547,26 @@ interface MessageLatencyMetric {
 **速率限制策略**：
 
 ```typescript
-// 全局限流
+// 全局限流（ttl 单位为毫秒，@nestjs/throttler v5+）
 @Module({
   imports: [
     ThrottlerModule.forRoot({
-      ttl: 60,    // 60 秒窗口
-      limit: 100, // 100 次请求
+      ttl: 60000,    // 60 秒窗口
+      limit: 100,    // 100 次请求
     }),
   ],
 })
 
 // 按路由限流
-@Throttle({ default: { ttl: 60, limit: 5 } })  // 登录尝试: 5次/分钟
+@Throttle({ default: { ttl: 60000, limit: 5 } })   // 登录尝试: 5次/分钟
 @Post('auth/login')
 async login() { ... }
 
-@Throttle({ default: { ttl: 60, limit: 30 } }) // 发消息: 30条/分钟
+@Throttle({ default: { ttl: 60000, limit: 30 } })  // 发消息: 30条/分钟
 @Post('messages')
 async createMessage() { ... }
 
-@Throttle({ default: { ttl: 60, limit: 10 } }) // AI 建议: 10次/分钟
+@Throttle({ default: { ttl: 60000, limit: 10 } })  // AI 建议: 10次/分钟
 @Post('ai/whisper')
 async requestWhisper() { ... }
 ```
@@ -603,7 +633,7 @@ const metrics = {
 | 富媒体消息 | 图片 + 文件 + 语音，S3 直传 | Phase 0 |
 | 消息撤回增强 | 2 分钟限制 + 管理员权限 + 附件清理 | Phase 1 |
 | 消息搜索 | PostgreSQL 全文搜索 + 中文分词 | Phase 2 |
-| 推送通知 | FCM + APNs + 静音 + 频率限制 | Phase 3 |
+| ~~推送通知~~ | ~~FCM + APNs + 静音 + 频率限制~~ (跳过) | ~~Phase 3~~ |
 | i18n | 中英双语全覆盖 | Phase 4 |
 | 云端部署 | SSL + WSS + Docker + 备份 | Phase 5 |
 | Nginx 代理 | WS 升级 + 限流 + CORS | Phase 6 |
@@ -620,8 +650,8 @@ const metrics = {
 | PATCH | `/api/v1/users/avatar` | 上传头像 |
 | PATCH | `/api/v1/converses/groups/:converseId/icon` | 上传群头像 |
 | GET | `/api/v1/messages/search` | 消息搜索 |
-| POST | `/api/v1/notifications/register` | 注册推送 token |
-| DELETE | `/api/v1/notifications/unregister` | 注销推送 token |
+| ~~POST~~ | ~~`/api/v1/notifications/register`~~ | ~~注册推送 token~~ (跳过) |
+| ~~DELETE~~ | ~~`/api/v1/notifications/unregister`~~ | ~~注销推送 token~~ (跳过) |
 | GET | `/health` | 健康检查 |
 | GET | `/metrics` | Prometheus 指标 |
 
@@ -631,7 +661,7 @@ const metrics = {
 |--------|---------|-----------|
 | **M1** | 富媒体可用：图片 + 文件 + 语音消息正常收发 | Phase 0 |
 | **M2** | 搜索可用：中文关键词搜索 + 结果高亮 + 跳转 | Phase 2 |
-| **M3** | 推送可用：离线收到推送 → 点击跳转到聊天 | Phase 3 |
+| ~~**M3**~~ | ~~推送可用：离线收到推送 → 点击跳转到聊天~~ (跳过) | ~~Phase 3~~ |
 | **M4** | 双语可用：中英文切换所有界面正确 | Phase 4 |
 | **M5** | 云端可访问：https://api.linkingchat.com 可用 | Phase 5-6 |
 | **M6** | 扩展验证：2 实例 + 1000 并发 + 消息互通 | Phase 7 |
@@ -646,7 +676,7 @@ Sprint 4 完成后，LinkingChat 达到 **MVP 可发布状态**：
 
 | 维度 | 状态 |
 |------|------|
-| 社交功能 | 好友 + 1对1聊天 + 群聊 + 富媒体 + 推送 + 搜索 + 已读 + @Bot 群聊 |
+| 社交功能 | 好友 + 1对1聊天 + 群聊 + 富媒体 + 搜索 + 已读 + @Bot 群聊 |
 | AI 功能 | @ai Whisper + Draft & Verify + Predictive Actions + Bot 间通信 |
 | 远程控制 | OpenClaw 集成 + 安全模型 + Bot 框架 + Supervisor 通知 |
 | 基础设施 | 云端部署 + SSL + 水平扩展 + 监控 + 告警 |

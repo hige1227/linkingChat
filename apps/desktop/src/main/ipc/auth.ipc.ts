@@ -39,6 +39,39 @@ export function registerAuthIpc(wsClient: WsClientService): void {
     },
   );
 
+  ipcMain.handle(
+    'auth:register',
+    async (_event, data: { email: string; username: string; password: string; displayName: string }) => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          return { success: false, error: err.message || 'Registration failed' };
+        }
+
+        const result = await res.json();
+        AuthStore.save({
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+        });
+
+        wsClient.connect();
+
+        return { success: true, user: result.user };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Network error',
+        };
+      }
+    },
+  );
+
   ipcMain.handle('auth:logout', async () => {
     wsClient.disconnect();
     AuthStore.clear();
@@ -48,5 +81,32 @@ export function registerAuthIpc(wsClient: WsClientService): void {
   ipcMain.handle('auth:get-token', async () => {
     const tokens = AuthStore.load();
     return tokens?.accessToken ?? null;
+  });
+
+  ipcMain.handle('auth:refresh-token', async () => {
+    const tokens = AuthStore.load();
+    if (!tokens?.refreshToken) return null;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+      });
+
+      if (!res.ok) {
+        AuthStore.clear();
+        return null;
+      }
+
+      const data = await res.json();
+      AuthStore.save({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+      });
+      return data.accessToken;
+    } catch {
+      return null;
+    }
   });
 }

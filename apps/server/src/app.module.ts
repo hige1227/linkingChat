@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -19,6 +21,10 @@ import { AgentsModule } from './agents/agents.module';
 import { MentionsModule } from './mentions/mentions.module';
 import { ProfileModule } from './profile/profile.module';
 import { UploadModule } from './upload/upload.module';
+import { MetricsModule } from './metrics/metrics.module';
+import { I18nModule } from './i18n/i18n.module';
+import { MailModule } from './mail/mail.module';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 @Module({
   imports: [
@@ -26,6 +32,11 @@ import { UploadModule } from './upload/upload.module';
       isGlobal: true,
     }),
     EventEmitterModule.forRoot(),
+    // Global rate limiting: 100 requests per 60 seconds per IP
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 100,
+    }]),
     PrismaModule,
     RedisModule,
     AuthModule,
@@ -42,8 +53,23 @@ import { UploadModule } from './upload/upload.module';
     MentionsModule,
     UploadModule,
     ProfileModule,
+    MetricsModule,
+    I18nModule,
+    MailModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Enable ThrottlerGuard globally for all REST endpoints
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    // Global logging + metrics interceptor
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
+  ],
 })
 export class AppModule {}

@@ -1,9 +1,5 @@
 // apps/mobile/lib/features/profile/models/user_profile.dart
-import 'package:json_annotation/json_annotation.dart';
 
-part 'user_profile.g.dart';
-
-@JsonSerializable()
 class UserProfile {
   final String id;
   final String email;
@@ -23,9 +19,27 @@ class UserProfile {
     this.lastSeenAt,
   });
 
-  factory UserProfile.fromJson(Map<String, dynamic> json) =>
-      _$UserProfileFromJson(json);
-  Map<String, dynamic> toJson() => _$UserProfileToJson(this);
+  factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
+        id: json['id'] as String,
+        email: json['email'] as String,
+        username: json['username'] as String,
+        displayName: json['displayName'] as String,
+        avatarUrl: json['avatarUrl'] as String?,
+        status: json['status'] as String,
+        lastSeenAt: json['lastSeenAt'] == null
+            ? null
+            : DateTime.parse(json['lastSeenAt'] as String),
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'email': email,
+        'username': username,
+        'displayName': displayName,
+        'avatarUrl': avatarUrl,
+        'status': status,
+        'lastSeenAt': lastSeenAt?.toIso8601String(),
+      };
 
   UserProfile copyWith({
     String? displayName,
@@ -43,7 +57,6 @@ class UserProfile {
     );
   }
 
-  // Telegram 风格的状态显示
   String get statusText {
     switch (status) {
       case 'ONLINE':

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/chat_socket_service.dart';
 
 // ──────────────────────────────────────
 // Friend Model
@@ -121,8 +122,47 @@ class FriendsState {
 
 class FriendsNotifier extends StateNotifier<FriendsState> {
   final Dio _dio;
+  final ChatSocketService _chatSocket;
 
-  FriendsNotifier(this._dio) : super(const FriendsState());
+  FriendsNotifier(this._dio, this._chatSocket) : super(const FriendsState()) {
+    _setupSocketListeners();
+    // Fetch pending requests on creation so badge shows immediately
+    fetchRequests();
+  }
+
+  void _setupSocketListeners() {
+    _chatSocket.on('friend:request', (data) {
+      if (data is Map<String, dynamic>) {
+        // Add the incoming request to receivedRequests immediately
+        final req = FriendRequest(
+          id: data['id'] as String? ?? '',
+          user: data['sender'] as Map<String, dynamic>? ?? {},
+          message: data['message'] as String?,
+          createdAt: data['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+        );
+        state = state.copyWith(
+          receivedRequests: [req, ...state.receivedRequests],
+        );
+      }
+    });
+
+    _chatSocket.on('friend:accepted', (data) {
+      // Our sent request was accepted — refresh lists
+      fetchFriends();
+      fetchRequests();
+    });
+
+    _chatSocket.on('friend:removed', (data) {
+      if (data is Map<String, dynamic>) {
+        final removedUserId = data['userId'] as String?;
+        if (removedUserId != null) {
+          state = state.copyWith(
+            friends: state.friends.where((f) => f.id != removedUserId).toList(),
+          );
+        }
+      }
+    });
+  }
 
   Future<void> fetchFriends() async {
     state = state.copyWith(isLoading: true, error: null);
@@ -197,7 +237,8 @@ class FriendsNotifier extends StateNotifier<FriendsState> {
 final friendsProvider =
     StateNotifierProvider<FriendsNotifier, FriendsState>((ref) {
   final dio = ref.read(dioProvider);
-  return FriendsNotifier(dio);
+  final chatSocket = ref.read(chatSocketServiceProvider);
+  return FriendsNotifier(dio, chatSocket);
 });
 
 // ──────────────────────────────────────

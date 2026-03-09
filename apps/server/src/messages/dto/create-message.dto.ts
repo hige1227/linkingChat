@@ -4,14 +4,57 @@ import {
   IsOptional,
   IsEnum,
   MaxLength,
+  IsArray,
+  ValidateNested,
+  IsNumber,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export enum MessageType {
   TEXT = 'TEXT',
   IMAGE = 'IMAGE',
   FILE = 'FILE',
+  VOICE = 'VOICE',
   SYSTEM = 'SYSTEM',
   BOT_NOTIFICATION = 'BOT_NOTIFICATION',
+}
+
+export class AttachmentInput {
+  @IsString()
+  @IsNotEmpty()
+  fileKey: string;
+
+  @IsString()
+  @IsNotEmpty()
+  url: string;
+
+  @IsString()
+  @IsNotEmpty()
+  filename: string;
+
+  @IsString()
+  @IsNotEmpty()
+  mimeType: string;
+
+  @IsNumber()
+  @IsOptional()
+  size?: number;
+
+  @IsNumber()
+  @IsOptional()
+  width?: number;
+
+  @IsNumber()
+  @IsOptional()
+  height?: number;
+
+  @IsNumber()
+  @IsOptional()
+  duration?: number;
+
+  @IsString()
+  @IsOptional()
+  thumbnailUrl?: string;
 }
 
 export class CreateMessageDto {
@@ -20,9 +63,9 @@ export class CreateMessageDto {
   converseId: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(10000)
-  content: string;
+  content?: string;
 
   @IsEnum(MessageType)
   @IsOptional()
@@ -31,4 +74,10 @@ export class CreateMessageDto {
   @IsString()
   @IsOptional()
   replyToId?: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AttachmentInput)
+  @IsOptional()
+  attachments?: AttachmentInput[];
 }

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:socket_io_client/socket_io_client.dart' as sio;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/api_endpoints.dart';
+import '../constants/ai_events.dart';
 import 'auth_repository.dart';
 import 'api_client.dart';
 
@@ -16,6 +17,8 @@ class ChatSocketService {
 
   ChatConnectionState _state = ChatConnectionState.disconnected;
   ChatConnectionState get state => _state;
+  bool _isRefreshingToken = false;
+  int _connectErrorCount = 0;
 
   final _stateController = StreamController<ChatConnectionState>.broadcast();
   Stream<ChatConnectionState> get stateStream => _stateController.stream;
@@ -54,6 +57,7 @@ class ChatSocketService {
     );
 
     _socket!.onConnect((_) {
+      _connectErrorCount = 0;
       _setState(ChatConnectionState.connected);
       debugPrint('[ChatSocket] Connected! socket.id=${_socket?.id}');
     });
@@ -66,9 +70,14 @@ class ChatSocketService {
     _socket!.onConnectError((error) {
       _setState(ChatConnectionState.error);
       debugPrint('[ChatSocket] Connect error: $error');
+      _connectErrorCount++;
+      if (_connectErrorCount <= 3) {
+        _attemptTokenRefresh();
+      }
     });
 
     _socket!.onReconnect((_) {
+      _connectErrorCount = 0;
       _setState(ChatConnectionState.connected);
       debugPrint('[ChatSocket] Reconnected');
     });
@@ -78,6 +87,8 @@ class ChatSocketService {
       'message:new',
       'message:updated',
       'message:deleted',
+      'message:typing',
+      'message:read',
       'converse:new',
       'converse:updated',
       'presence:changed',
@@ -91,6 +102,8 @@ class ChatSocketService {
       'group:member:added',
       'group:member:removed',
       'group:member:role:updated',
+      // AI events (Sprint 3)
+      ...AiEvents.serverToClientEvents,
     ];
 
     for (final event in chatEvents) {
@@ -155,6 +168,68 @@ class ChatSocketService {
   }
 
   // ──────────────────────────────────────
+  // AI emit helpers (Sprint 3)
+  // ──────────────────────────────────────
+
+  /// Accept a Whisper suggestion
+  void emitWhisperAccept(String suggestionId, int selectedIndex) {
+    _socket?.emitWithAck(AiEvents.whisperAccept, {
+      'suggestionId': suggestionId,
+      'selectedIndex': selectedIndex,
+    }, ack: (response) {
+      debugPrint('[ChatSocket] whisperAccept ack: $response');
+    });
+  }
+
+  /// Approve a draft
+  void emitDraftApprove(String draftId) {
+    _socket?.emitWithAck(AiEvents.draftApprove, {
+      'draftId': draftId,
+    }, ack: (response) {
+      debugPrint('[ChatSocket] draftApprove ack: $response');
+    });
+  }
+
+  /// Reject a draft with optional reason
+  void emitDraftReject(String draftId, {String? reason}) {
+    _socket?.emitWithAck(AiEvents.draftReject, {
+      'draftId': draftId,
+      if (reason != null) 'reason': reason,
+    }, ack: (response) {
+      debugPrint('[ChatSocket] draftReject ack: $response');
+    });
+  }
+
+  /// Edit and approve a draft
+  void emitDraftEdit(String draftId, Map<String, dynamic> editedContent) {
+    _socket?.emitWithAck(AiEvents.draftEdit, {
+      'draftId': draftId,
+      'editedContent': editedContent,
+    }, ack: (response) {
+      debugPrint('[ChatSocket] draftEdit ack: $response');
+    });
+  }
+
+  /// Execute a predictive action
+  void emitPredictiveExecute(String suggestionId, int actionIndex) {
+    _socket?.emitWithAck(AiEvents.predictiveExecute, {
+      'suggestionId': suggestionId,
+      'actionIndex': actionIndex,
+    }, ack: (response) {
+      debugPrint('[ChatSocket] predictiveExecute ack: $response');
+    });
+  }
+
+  /// Dismiss a predictive suggestion
+  void emitPredictiveDismiss(String suggestionId) {
+    _socket?.emitWithAck(AiEvents.predictiveDismiss, {
+      'suggestionId': suggestionId,
+    }, ack: (response) {
+      debugPrint('[ChatSocket] predictiveDismiss ack: $response');
+    });
+  }
+
+  // ──────────────────────────────────────
   // Event listener pattern (same as WsService)
   // ──────────────────────────────────────
 
@@ -183,6 +258,24 @@ class ChatSocketService {
   void _setState(ChatConnectionState newState) {
     _state = newState;
     _stateController.add(newState);
+  }
+
+  Future<void> _attemptTokenRefresh() async {
+    if (_isRefreshingToken) return;
+    _isRefreshingToken = true;
+    try {
+      final newToken = await _authRepo.refreshAccessToken();
+      if (newToken != null) {
+        debugPrint('[ChatSocket] Token refreshed, will use on next reconnect');
+        // Disconnect and reconnect with fresh token
+        disconnect();
+        await connect();
+      }
+    } catch (e) {
+      debugPrint('[ChatSocket] Token refresh failed: $e');
+    } finally {
+      _isRefreshingToken = false;
+    }
   }
 
   void dispose() {

@@ -65,7 +65,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
     try {
       final dio = _ref.read(dioProvider);
-      await dio.patch('/api/v1/profile/me', {
+      await dio.patch('/api/v1/profile/me', data: {
         'displayName': newName,
       });
     } catch (e) {
@@ -86,7 +86,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
     try {
       final dio = _ref.read(dioProvider);
-      await dio.patch('/api/v1/profile/me', {
+      await dio.patch('/api/v1/profile/me', data: {
         'status': newStatus,
       });
     } catch (e) {
@@ -100,9 +100,21 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     final oldProfile = state.profile;
     if (oldProfile == null) return;
 
+    // Optimistic update
     state = state.copyWith(
       profile: oldProfile.copyWith(avatarUrl: avatarUrl),
     );
+
+    try {
+      final dio = _ref.read(dioProvider);
+      await dio.patch('/api/v1/profile/me', data: {
+        'avatarUrl': avatarUrl,
+      });
+    } catch (e) {
+      // Revert on error
+      state = state.copyWith(profile: oldProfile);
+      rethrow;
+    }
   }
 }
 

@@ -304,7 +304,7 @@ export class ConversesService {
 
     // Broadcast to each member's personal room
     const allMemberIds = [userId, ...uniqueMemberIds];
-    this.broadcastService.listcast(
+    this.broadcastService.chatListcast(
       allMemberIds,
       CHAT_EVENTS.GROUP_CREATED,
       payload,
@@ -468,10 +468,61 @@ export class ConversesService {
     );
 
     // Also notify new members via their personal rooms
-    this.broadcastService.listcast(
+    this.broadcastService.chatListcast(
       newMemberIds,
       CHAT_EVENTS.GROUP_MEMBER_ADDED,
       payload,
+    );
+
+    // Create a SYSTEM message so the addition is visible in chat timeline
+    const adder = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { displayName: true, username: true },
+    });
+    const adderName = adder?.displayName || adder?.username || 'Someone';
+    const addedNames = addedMembers
+      .map((m) => m.user.displayName || m.user.username)
+      .join(', ');
+
+    const sysMsg = await this.prisma.message.create({
+      data: {
+        content: `${adderName} added ${addedNames} to the group`,
+        type: 'SYSTEM',
+        converseId,
+        authorId: userId,
+      },
+      include: { author: { select: USER_SELECT } },
+    });
+
+    this.broadcastService.toRoom(converseId, CHAT_EVENTS.MESSAGE_NEW, {
+      id: sysMsg.id,
+      content: sysMsg.content,
+      type: sysMsg.type,
+      authorId: sysMsg.authorId,
+      author: sysMsg.author,
+      converseId: sysMsg.converseId,
+      createdAt: sysMsg.createdAt.toISOString(),
+      updatedAt: sysMsg.updatedAt.toISOString(),
+      deletedAt: null,
+      attachments: [],
+    });
+
+    // Broadcast system message to newly added members too
+    this.broadcastService.chatListcast(
+      newMemberIds,
+      CHAT_EVENTS.MESSAGE_NEW,
+      {
+        id: sysMsg.id,
+        content: sysMsg.content,
+        type: sysMsg.type,
+        authorId: sysMsg.authorId,
+        author: sysMsg.author,
+        converseId: sysMsg.converseId,
+        createdAt: sysMsg.createdAt.toISOString(),
+        updatedAt: sysMsg.updatedAt.toISOString(),
+        deletedAt: null,
+        attachments: [],
+      },
     );
 
     this.logger.log(
@@ -527,7 +578,7 @@ export class ConversesService {
       payload,
     );
     // Also notify the removed member directly
-    this.broadcastService.unicast(
+    this.broadcastService.chatUnicast(
       memberId,
       CHAT_EVENTS.GROUP_MEMBER_REMOVED,
       payload,
@@ -580,7 +631,7 @@ export class ConversesService {
           }),
         ]);
 
-        this.broadcastService.unicast(userId, CHAT_EVENTS.GROUP_DELETED, {
+        this.broadcastService.chatUnicast(userId, CHAT_EVENTS.GROUP_DELETED, {
           id: converseId,
           deletedAt: new Date().toISOString(),
         });
@@ -742,7 +793,7 @@ export class ConversesService {
     );
 
     // 同时通知被禁言的用户
-    this.broadcastService.unicast(
+    this.broadcastService.chatUnicast(
       memberId,
       CHAT_EVENTS.GROUP_MEMBER_MUTED,
       payload,
@@ -790,7 +841,7 @@ export class ConversesService {
       payload,
     );
 
-    this.broadcastService.unicast(
+    this.broadcastService.chatUnicast(
       memberId,
       CHAT_EVENTS.GROUP_MEMBER_UNMUTED,
       payload,
@@ -862,7 +913,7 @@ export class ConversesService {
       payload,
     );
 
-    this.broadcastService.unicast(
+    this.broadcastService.chatUnicast(
       targetUserId,
       CHAT_EVENTS.GROUP_MEMBER_BANNED,
       payload,

@@ -7,11 +7,13 @@ import 'bot_badge.dart';
 class ConverseTile extends StatelessWidget {
   final Map<String, dynamic> converse;
   final VoidCallback onTap;
+  final String? currentUserId;
 
   const ConverseTile({
     super.key,
     required this.converse,
     required this.onTap,
+    this.currentUserId,
   });
 
   @override
@@ -112,31 +114,57 @@ class ConverseTile extends StatelessWidget {
     );
   }
 
+  /// Find the OTHER member in a DM (skip current user)
+  Map<String, dynamic>? _getOtherMember() {
+    final members = converse['members'] as List<dynamic>?;
+    if (members == null || members.isEmpty) return null;
+    for (final m in members) {
+      final member = m as Map<String, dynamic>;
+      final userId = member['userId'] as String?;
+      if (currentUserId != null && userId == currentUserId) continue;
+      return member;
+    }
+    // Fallback: return first member
+    return members.first as Map<String, dynamic>;
+  }
+
+  /// Read displayName from member (supports both flat and nested 'user' structure)
+  String _memberDisplayName(Map<String, dynamic> member) {
+    // Flat structure: { userId, displayName, username, ... }
+    final flat = member['displayName'] as String?;
+    if (flat != null && flat.isNotEmpty) return flat;
+    // Nested structure: { userId, user: { displayName, ... } }
+    final user = member['user'] as Map<String, dynamic>?;
+    if (user != null) return user['displayName'] as String? ?? '';
+    return member['username'] as String? ?? '';
+  }
+
+  /// Read avatarUrl from member (supports both flat and nested 'user' structure)
+  String? _memberAvatarUrl(Map<String, dynamic> member) {
+    final flat = member['avatarUrl'] as String?;
+    if (flat != null) return flat;
+    final user = member['user'] as Map<String, dynamic>?;
+    return user?['avatarUrl'] as String?;
+  }
+
   String _getDisplayName() {
     final botInfo = converse['botInfo'] as Map<String, dynamic>?;
     if (botInfo != null) return botInfo['name'] as String? ?? '';
 
-    // 普通 DM：取对方成员的 displayName
-    final members = converse['members'] as List<dynamic>?;
-    if (members != null && members.length == 2) {
-      for (final m in members) {
-        final member = m as Map<String, dynamic>;
-        final user = member['user'] as Map<String, dynamic>?;
-        if (user != null) return user['displayName'] as String? ?? '';
-      }
-    }
-    return converse['name'] as String? ?? '';
+    // Group name
+    final name = converse['name'] as String?;
+    if (name != null && name.isNotEmpty) return name;
+
+    // DM：show other member's displayName
+    final other = _getOtherMember();
+    if (other != null) return _memberDisplayName(other);
+
+    return '';
   }
 
   String? _getAvatarUrl() {
-    final members = converse['members'] as List<dynamic>?;
-    if (members != null) {
-      for (final m in members) {
-        final member = m as Map<String, dynamic>;
-        final user = member['user'] as Map<String, dynamic>?;
-        if (user != null) return user['avatarUrl'] as String?;
-      }
-    }
+    final other = _getOtherMember();
+    if (other != null) return _memberAvatarUrl(other);
     return null;
   }
 }

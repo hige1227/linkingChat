@@ -92,6 +92,8 @@ class ConversesNotifier extends StateNotifier<ConversesState> {
     });
 
     _chatSocket.on('group:created', (_) => fetchConverses());
+    _chatSocket.on('group:member:added', (_) => fetchConverses());
+    _chatSocket.on('group:member:removed', (_) => fetchConverses());
     _chatSocket.on('group:deleted', (data) {
       if (data is Map<String, dynamic>) {
         final id = data['id'] as String?;
@@ -125,7 +127,7 @@ class ConversesNotifier extends StateNotifier<ConversesState> {
     }
   }
 
-  void markConverseRead(String converseId) {
+  void markConverseRead(String converseId, {String? lastMessageId}) {
     state = state.copyWith(
       converses: state.converses.map((c) {
         if (c.id == converseId) {
@@ -134,6 +136,10 @@ class ConversesNotifier extends StateNotifier<ConversesState> {
         return c;
       }).toList(),
     );
+    // Emit to server so other clients see read status
+    if (lastMessageId != null) {
+      _chatSocket.markRead(converseId, lastMessageId);
+    }
   }
 }
 
@@ -154,6 +160,8 @@ class MessagesState {
   final bool hasMore;
   final String? nextCursor;
   final String? error;
+  /// Last message ID read by a peer (for read receipt ✓✓)
+  final String? lastReadMessageId;
 
   const MessagesState({
     this.messages = const [],
@@ -161,6 +169,7 @@ class MessagesState {
     this.hasMore = true,
     this.nextCursor,
     this.error,
+    this.lastReadMessageId,
   });
 
   MessagesState copyWith({
@@ -169,6 +178,7 @@ class MessagesState {
     bool? hasMore,
     String? nextCursor,
     String? error,
+    String? lastReadMessageId,
   }) {
     return MessagesState(
       messages: messages ?? this.messages,
@@ -176,6 +186,7 @@ class MessagesState {
       hasMore: hasMore ?? this.hasMore,
       nextCursor: nextCursor ?? this.nextCursor,
       error: error,
+      lastReadMessageId: lastReadMessageId ?? this.lastReadMessageId,
     );
   }
 }
@@ -195,20 +206,33 @@ class MessagesNotifier extends StateNotifier<MessagesState> {
       if (data is Map<String, dynamic>) {
         if (data['converseId'] == converseId) {
           final msg = Message.fromJson(data);
-          // Avoid duplicates (optimistic insert)
-          if (!state.messages.any((m) => m.id == msg.id)) {
-            state = state.copyWith(
-              messages: [msg, ...state.messages],
-            );
-          } else {
-            // Update the optimistic message with server data
+
+          // 1. Dedup: message with same server ID already exists
+          if (state.messages.any((m) => m.id == msg.id)) {
             state = state.copyWith(
               messages: state.messages.map((m) {
                 if (m.id == msg.id) return msg;
                 return m;
               }).toList(),
             );
+            return;
           }
+
+          // 2. Race condition: WS broadcast arrived before REST response.
+          //    Find and replace the pending optimistic message (temp_*) from same author.
+          final tempIdx = state.messages.indexWhere((m) =>
+              m.id.startsWith('temp_') && m.authorId == msg.authorId);
+          if (tempIdx >= 0) {
+            final updated = List<Message>.from(state.messages);
+            updated[tempIdx] = msg;
+            state = state.copyWith(messages: updated);
+            return;
+          }
+
+          // 3. New message from another user
+          state = state.copyWith(
+            messages: [msg, ...state.messages],
+          );
         }
       }
     });
@@ -236,9 +260,35 @@ class MessagesNotifier extends StateNotifier<MessagesState> {
       if (data is Map<String, dynamic> && data['converseId'] == converseId) {
         final msgId = data['id'] as String? ?? data['messageId'] as String?;
         if (msgId != null) {
-          state = state.copyWith(
-            messages: state.messages.where((m) => m.id != msgId).toList(),
-          );
+          final recalledBy = data['recalledBy'] as String?;
+          if (recalledBy != null) {
+            // Recall: mark message as deleted in-place (show "[已撤回]")
+            state = state.copyWith(
+              messages: state.messages.map((m) {
+                if (m.id == msgId) {
+                  return m.copyWith(
+                    deletedAt: data['deletedAt'] as String? ??
+                        DateTime.now().toUtc().toIso8601String(),
+                  );
+                }
+                return m;
+              }).toList(),
+            );
+          } else {
+            // Hard delete: remove from list
+            state = state.copyWith(
+              messages: state.messages.where((m) => m.id != msgId).toList(),
+            );
+          }
+        }
+      }
+    });
+
+    _chatSocket.on('message:read', (data) {
+      if (data is Map<String, dynamic> && data['converseId'] == converseId) {
+        final lastSeenId = data['lastSeenMessageId'] as String?;
+        if (lastSeenId != null) {
+          state = state.copyWith(lastReadMessageId: lastSeenId);
         }
       }
     });
@@ -284,9 +334,19 @@ class MessagesNotifier extends StateNotifier<MessagesState> {
     }
   }
 
+  /// Recall a message (soft-delete)
+  Future<bool> recallMessage(String messageId) async {
+    try {
+      await _dio.delete('/api/v1/messages/$messageId');
+      return true;
+    } on DioException {
+      return false;
+    }
+  }
+
   /// Optimistic send: insert message locally, then POST to server
   Future<void> sendMessage(String content, String userId, String username,
-      String displayName) async {
+      String displayName, {List<Map<String, dynamic>>? attachments}) async {
     final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
     final now = DateTime.now().toUtc().toIso8601String();
 
@@ -309,10 +369,15 @@ class MessagesNotifier extends StateNotifier<MessagesState> {
     state = state.copyWith(messages: [optimistic, ...state.messages]);
 
     try {
-      final response = await _dio.post('/api/v1/messages', data: {
+      final data = <String, dynamic>{
         'converseId': converseId,
         'content': content,
-      });
+      };
+      if (attachments != null && attachments.isNotEmpty) {
+        data['attachments'] = attachments;
+      }
+
+      final response = await _dio.post('/api/v1/messages', data: data);
 
       final serverMsg = Message.fromJson(response.data as Map<String, dynamic>);
 

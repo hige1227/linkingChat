@@ -9,6 +9,7 @@ interface ChatState {
   typingUsers: Record<string, string[]>; // converseId → userIds
   hasMore: Record<string, boolean>;
   cursors: Record<string, string | null>;
+  readReceipts: Record<string, string>; // converseId → lastSeenMessageId by peer
 
   // Actions
   setCurrentUserId: (id: string | null) => void;
@@ -23,10 +24,12 @@ interface ChatState {
   ) => void;
   updateMessage: (converseId: string, msg: Partial<MessageResponse> & { id: string }) => void;
   removeMessage: (converseId: string, messageId: string) => void;
+  markMessageRecalled: (converseId: string, messageId: string, deletedAt: string) => void;
   setTyping: (converseId: string, userIds: string[]) => void;
   updateConverse: (id: string, update: Partial<ConverseResponse>) => void;
   removeConverse: (id: string) => void;
   markConverseRead: (converseId: string) => void;
+  setReadReceipt: (converseId: string, lastSeenMessageId: string) => void;
   updateLastMessage: (converseId: string, msg: MessageResponse, incrementUnread?: boolean) => void;
 }
 
@@ -38,10 +41,32 @@ export const useChatStore = create<ChatState>((set) => ({
   typingUsers: {},
   hasMore: {},
   cursors: {},
+  readReceipts: {},
 
   setCurrentUserId: (id) => set({ currentUserId: id }),
 
-  setConverses: (list) => set({ converses: list }),
+  setConverses: (list) =>
+    set((state) => {
+      // Build lookup of locally-read converses (unreadCount === 0 set by markConverseRead)
+      // to prevent server re-fetch from overwriting the local read state.
+      const localReadSet = new Set(
+        state.converses
+          .filter((c) => c.unreadCount === 0)
+          .map((c) => c.id),
+      );
+
+      // If store was empty (first load), just set directly
+      if (state.converses.length === 0) {
+        return { converses: list };
+      }
+
+      // Merge: preserve local unreadCount=0 for converses the user already read
+      return {
+        converses: list.map((c) =>
+          localReadSet.has(c.id) ? { ...c, unreadCount: 0 } : c,
+        ),
+      };
+    }),
 
   setActiveConverse: (id) => set({ activeConverseId: id }),
 
@@ -104,6 +129,19 @@ export const useChatStore = create<ChatState>((set) => ({
       };
     }),
 
+  markMessageRecalled: (converseId, messageId, deletedAt) =>
+    set((state) => {
+      const existing = state.messages[converseId] ?? [];
+      return {
+        messages: {
+          ...state.messages,
+          [converseId]: existing.map((m) =>
+            m.id === messageId ? { ...m, deletedAt } : m,
+          ),
+        },
+      };
+    }),
+
   setTyping: (converseId, userIds) =>
     set((state) => ({
       typingUsers: { ...state.typingUsers, [converseId]: userIds },
@@ -126,6 +164,11 @@ export const useChatStore = create<ChatState>((set) => ({
       converses: state.converses.map((c) =>
         c.id === converseId ? { ...c, unreadCount: 0 } : c,
       ),
+    })),
+
+  setReadReceipt: (converseId, lastSeenMessageId) =>
+    set((state) => ({
+      readReceipts: { ...state.readReceipts, [converseId]: lastSeenMessageId },
     })),
 
   updateLastMessage: (converseId, msg, incrementUnread = true) =>

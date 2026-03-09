@@ -1,7 +1,13 @@
 // apps/mobile/lib/features/profile/pages/profile_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../l10n/app_localizations.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../../core/services/upload_service.dart';
+import '../../../core/providers/locale_provider.dart';
+import '../models/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/settings_tile.dart';
@@ -110,6 +116,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             title: '状态',
             subtitle: profile.statusText,
             onTap: () => _showStatusSelector(profile.status),
+          ),
+        ]),
+
+        SizedBox(height: 16),
+
+        // 语言设置卡片
+        _buildSectionCard([
+          SettingsTile(
+            icon: Icons.language,
+            title: AppLocalizations.of(context)?.language ?? '语言',
+            subtitle: LocaleNotifier.currentLanguageCode == 'zh' ? '中文' : 'English',
+            onTap: () => _showLanguageSelector(),
           ),
         ]),
 
@@ -341,7 +359,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               title: Text('拍照'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: 实现拍照
+                _pickAndUploadAvatar(ImageSource.camera);
               },
             ),
             ListTile(
@@ -349,7 +367,102 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               title: Text('从相册选择'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: 实现相册选择
+                _pickAndUploadAvatar(ImageSource.gallery);
+              },
+            ),
+            SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadAvatar(ImageSource source) async {
+    final picker = ImagePicker();
+    final xFile = await picker.pickImage(
+      source: source,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (xFile == null) return;
+
+    try {
+      final file = File(xFile.path);
+      final ext = xFile.path.split('.').last.toLowerCase();
+      final mimeType = ext == 'png' ? 'image/png' : 'image/jpeg';
+
+      final uploadService = ref.read(uploadServiceProvider);
+      final result = await uploadService.uploadFile(
+        file: file,
+        filename: xFile.name,
+        mimeType: mimeType,
+        category: 'avatar',
+      );
+
+      // Update profile with new avatar URL
+      await ref.read(profileProvider.notifier).updateAvatar(result.url);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('头像更新成功')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('头像上传失败: $e')),
+        );
+      }
+    }
+  }
+
+  void _showLanguageSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                AppLocalizations.of(context)?.language ?? '语言',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              title: Text('中文'),
+              trailing: LocaleNotifier.currentLanguageCode == 'zh'
+                  ? Icon(Icons.check, color: Theme.of(context).primaryColor)
+                  : null,
+              onTap: () {
+                ref.read(localeProvider.notifier).setLocale('zh');
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: Text('English'),
+              trailing: LocaleNotifier.currentLanguageCode == 'en'
+                  ? Icon(Icons.check, color: Theme.of(context).primaryColor)
+                  : null,
+              onTap: () {
+                ref.read(localeProvider.notifier).setLocale('en');
+                Navigator.pop(context);
               },
             ),
             SizedBox(height: 16),

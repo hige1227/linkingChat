@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BroadcastService } from '../gateway/broadcast.service';
+import { I18nService } from '../i18n/i18n.service';
 import { SendFriendRequestDto } from './dto/send-request.dto';
 import { FriendResponseDto } from './dto/friend-response.dto';
 
@@ -18,6 +19,7 @@ export class FriendsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly broadcast: BroadcastService,
+    private readonly i18n: I18nService,
   ) {}
 
   // ──────────────────────────────────────
@@ -29,7 +31,7 @@ export class FriendsService {
 
     // 1. 不能自己加自己
     if (senderId === receiverId) {
-      throw new BadRequestException('Cannot send friend request to yourself');
+      throw new BadRequestException(this.i18n.t('friends.cannot_add_self'));
     }
 
     // 2. 检查接收方是否存在
@@ -39,7 +41,7 @@ export class FriendsService {
     });
 
     if (!receiver) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(this.i18n.t('auth.user_not_found'));
     }
 
     // 3. 检查是否被对方拉黑（双向检查）
@@ -53,7 +55,7 @@ export class FriendsService {
     });
 
     if (blocked) {
-      throw new ForbiddenException('Cannot send friend request to this user');
+      throw new ForbiddenException(this.i18n.t('friends.blocked'));
     }
 
     // 4. 检查是否已经是好友
@@ -63,7 +65,7 @@ export class FriendsService {
     });
 
     if (existingFriendship) {
-      throw new ConflictException('Already friends');
+      throw new ConflictException(this.i18n.t('friends.already_friends'));
     }
 
     // 5. 检查是否已有待处理的请求（双向检查）
@@ -81,7 +83,7 @@ export class FriendsService {
       if (existingRequest.senderId === receiverId) {
         return this.accept(senderId, existingRequest.id);
       }
-      throw new ConflictException('Friend request already sent');
+      throw new ConflictException(this.i18n.t('friends.request_already_sent'));
     }
 
     // 6. 创建好友请求
@@ -99,8 +101,8 @@ export class FriendsService {
       },
     });
 
-    // 7. WS 通知接收方
-    this.broadcast.unicast(receiverId, 'friend:request', {
+    // 7. WS 通知接收方（chat 命名空间，客户端只连接 chat）
+    this.broadcast.chatUnicast(receiverId, 'friend:request', {
       id: friendRequest.id,
       sender: friendRequest.sender,
       message: friendRequest.message,
@@ -139,7 +141,7 @@ export class FriendsService {
     });
 
     if (!friendRequest) {
-      throw new NotFoundException('Friend request not found');
+      throw new NotFoundException(this.i18n.t('friends.request_not_found'));
     }
 
     if (friendRequest.receiverId !== currentUserId) {
@@ -208,12 +210,12 @@ export class FriendsService {
       return { friendship, converse };
     });
 
-    // 4. WS 广播：通知双方已成为好友
-    this.broadcast.unicast(friendRequest.senderId, 'friend:accepted', {
+    // 4. WS 广播：通知双方已成为好友（chat 命名空间）
+    this.broadcast.chatUnicast(friendRequest.senderId, 'friend:accepted', {
       friendId: friendRequest.receiverId,
       friend: friendRequest.receiver,
     });
-    this.broadcast.unicast(friendRequest.receiverId, 'friend:accepted', {
+    this.broadcast.chatUnicast(friendRequest.receiverId, 'friend:accepted', {
       friendId: friendRequest.senderId,
       friend: friendRequest.sender,
     });
@@ -229,7 +231,7 @@ export class FriendsService {
       createdAt: result.converse.createdAt?.toISOString?.() ?? new Date().toISOString(),
     };
 
-    this.broadcast.listcast(
+    this.broadcast.chatListcast(
       [friendRequest.senderId, friendRequest.receiverId],
       'converse:new',
       conversePayload,
@@ -255,7 +257,7 @@ export class FriendsService {
     });
 
     if (!friendRequest) {
-      throw new NotFoundException('Friend request not found');
+      throw new NotFoundException(this.i18n.t('friends.request_not_found'));
     }
 
     if (friendRequest.receiverId !== currentUserId) {
@@ -395,11 +397,11 @@ export class FriendsService {
       }
     });
 
-    // WS 通知双方
-    this.broadcast.unicast(currentUserId, 'friend:removed', {
+    // WS 通知双方（chat 命名空间）
+    this.broadcast.chatUnicast(currentUserId, 'friend:removed', {
       userId: targetUserId,
     });
-    this.broadcast.unicast(targetUserId, 'friend:removed', {
+    this.broadcast.chatUnicast(targetUserId, 'friend:removed', {
       userId: currentUserId,
     });
 
@@ -414,7 +416,7 @@ export class FriendsService {
 
   async blockUser(blockerId: string, blockedId: string) {
     if (blockerId === blockedId) {
-      throw new BadRequestException('Cannot block yourself');
+      throw new BadRequestException(this.i18n.t('friends.cannot_add_self'));
     }
 
     const blockedUser = await this.prisma.user.findUnique({
@@ -481,9 +483,9 @@ export class FriendsService {
       });
     });
 
-    // 如果之前是好友，通知被拉黑方
+    // 如果之前是好友，通知被拉黑方（chat 命名空间）
     if (hadFriendship) {
-      this.broadcast.unicast(blockedId, 'friend:removed', {
+      this.broadcast.chatUnicast(blockedId, 'friend:removed', {
         userId: blockerId,
       });
     }

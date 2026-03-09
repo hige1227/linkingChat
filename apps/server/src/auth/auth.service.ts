@@ -1,14 +1,20 @@
 import {
   Injectable,
+  Inject,
   ConflictException,
   UnauthorizedException,
+  BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { BotInitService } from '../bots/bot-init.service';
+import { MailService } from '../mail/mail.service';
 import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
+import { Redis } from 'ioredis';
+import { I18nService } from '../i18n/i18n.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -25,6 +31,9 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly botInitService: BotInitService,
+    private readonly i18n: I18nService,
+    private readonly mailService: MailService,
+    @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {
     this.jwtPrivateKey = Buffer.from(
       process.env.AUTH_JWT_PRIVATE_KEY!,
@@ -54,8 +63,8 @@ export class AuthService {
     if (existing) {
       throw new ConflictException(
         existing.email === dto.email
-          ? 'Email already registered'
-          : 'Username already taken',
+          ? this.i18n.t('auth.email_already_exists')
+          : this.i18n.t('auth.user_already_exists'),
       );
     }
 
@@ -82,12 +91,23 @@ export class AuthService {
       );
     }
 
+    // Send verification email (non-blocking)
+    try {
+      const code = await this.generateVerificationCode(user.id);
+      await this.mailService.sendVerificationEmail(user.email, code);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send verification email to ${user.email}: ${error}`,
+      );
+    }
+
     return {
       user: {
         id: user.id,
         email: user.email,
         username: user.username,
         displayName: user.displayName,
+        isEmailVerified: false,
       },
       ...tokens,
     };
@@ -99,13 +119,13 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException(this.i18n.t('auth.invalid_credentials'));
     }
 
     const isPasswordValid = await argon2.verify(user.password, dto.password);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException(this.i18n.t('auth.invalid_credentials'));
     }
 
     const tokens = await this.generateTokenPair(user.id, user.username);
@@ -117,6 +137,7 @@ export class AuthService {
         email: user.email,
         username: user.username,
         displayName: user.displayName,
+        isEmailVerified: user.isEmailVerified,
       },
       ...tokens,
     };
@@ -130,11 +151,11 @@ export class AuthService {
         publicKey: this.refreshPublicKey,
       });
     } catch {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new UnauthorizedException(this.i18n.t('auth.token_expired'));
     }
 
     if (payload.type !== 'refresh') {
-      throw new UnauthorizedException('Invalid token type');
+      throw new UnauthorizedException(this.i18n.t('auth.token_invalid'));
     }
 
     const storedToken = await this.prisma.refreshToken.findUnique({
@@ -142,7 +163,7 @@ export class AuthService {
     });
 
     if (!storedToken || storedToken.expiresAt < new Date()) {
-      throw new UnauthorizedException('Refresh token revoked or expired');
+      throw new UnauthorizedException(this.i18n.t('auth.token_expired'));
     }
 
     const user = await this.prisma.user.findUnique({
@@ -150,7 +171,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException(this.i18n.t('auth.user_not_found'));
     }
 
     // Token Rotation: delete old, generate new
@@ -216,5 +237,136 @@ export class AuthService {
         expiresAt,
       },
     });
+  }
+
+  // ========== Email Verification (Phase 1) ==========
+
+  async generateVerificationCode(userId: string): Promise<string> {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const key = `email-verify:${userId}`;
+    await this.redis.set(key, code, 'EX', 15 * 60); // 15 min expiry
+    return code;
+  }
+
+  async verifyEmail(userId: string, code: string) {
+    // 1. Check lockout
+    const lockKey = `email-verify-lock:${userId}`;
+    const locked = await this.redis.get(lockKey);
+    if (locked) {
+      throw new ForbiddenException(
+        'Too many failed attempts. Please try again in 15 minutes.',
+      );
+    }
+
+    // 2. Get stored code
+    const storedCode = await this.redis.get(`email-verify:${userId}`);
+    if (!storedCode) {
+      throw new BadRequestException('Verification code expired or not found.');
+    }
+
+    // 3. Validate
+    if (storedCode !== code) {
+      const failKey = `email-verify-fail:${userId}`;
+      const failures = await this.redis.incr(failKey);
+      await this.redis.expire(failKey, 15 * 60);
+
+      if (failures >= 5) {
+        await this.redis.set(lockKey, '1', 'EX', 15 * 60);
+        throw new ForbiddenException(
+          'Too many failed attempts. Locked for 15 minutes.',
+        );
+      }
+      throw new BadRequestException('Invalid verification code.');
+    }
+
+    // 4. Mark verified
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isEmailVerified: true },
+    });
+
+    // 5. Cleanup Redis
+    await this.redis.del(
+      `email-verify:${userId}`,
+      `email-verify-fail:${userId}`,
+    );
+
+    return { verified: true };
+  }
+
+  async resendVerification(userId: string) {
+    // Rate limit: 1 per minute
+    const rateKey = `email-verify-resend:${userId}`;
+    const recent = await this.redis.get(rateKey);
+    if (recent) {
+      throw new ForbiddenException(
+        'Please wait 1 minute before requesting another verification email.',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new BadRequestException('User not found.');
+    }
+    if (user.isEmailVerified) {
+      return { message: 'Email already verified.' };
+    }
+
+    const code = await this.generateVerificationCode(userId);
+    await this.mailService.sendVerificationEmail(user.email, code);
+    await this.redis.set(rateKey, '1', 'EX', 60); // 1 min cooldown
+
+    return { message: 'Verification email sent.' };
+  }
+
+  // ========== Password Reset (Phase 2) ==========
+
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    // Always return same response to prevent email enumeration
+    if (user) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      await this.redis.set(`pwd-reset:${email}`, code, 'EX', 15 * 60);
+      try {
+        await this.mailService.sendPasswordResetEmail(email, code);
+      } catch (error) {
+        this.logger.error(`Failed to send reset email to ${email}: ${error}`);
+      }
+    }
+
+    return {
+      message: 'If that email is registered, a reset code has been sent.',
+    };
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string) {
+    const storedCode = await this.redis.get(`pwd-reset:${email}`);
+    if (!storedCode || storedCode !== code) {
+      throw new BadRequestException('Invalid or expired reset code.');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new BadRequestException('Invalid or expired reset code.');
+    }
+
+    const hashedPassword = await argon2.hash(newPassword);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+
+    // Invalidate all refresh tokens (force re-login on all devices)
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId: user.id },
+    });
+
+    // Cleanup Redis
+    await this.redis.del(`pwd-reset:${email}`);
+
+    return { message: 'Password reset successfully. Please log in.' };
   }
 }

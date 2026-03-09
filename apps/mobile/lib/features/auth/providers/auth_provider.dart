@@ -5,7 +5,7 @@ import '../../../core/network/chat_socket_service.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../models/auth_response.dart';
 
-enum AuthStatus { initial, authenticated, unauthenticated }
+enum AuthStatus { initial, authenticated, unauthenticated, pendingVerification }
 
 class AuthState {
   final AuthStatus status;
@@ -61,6 +61,50 @@ class AuthNotifier extends StateNotifier<AuthState> {
       user: authResponse.user,
       accessToken: authResponse.accessToken,
     );
+  }
+
+  Future<void> register({
+    required String email,
+    required String username,
+    required String displayName,
+    required String password,
+  }) async {
+    final dio = _ref.read(dioProvider);
+    final authRepo = _ref.read(authRepositoryProvider);
+
+    final response = await dio.post(
+      ApiEndpoints.register,
+      data: {
+        'email': email,
+        'username': username,
+        'displayName': displayName,
+        'password': password,
+      },
+    );
+
+    final authResponse = AuthResponse.fromJson(response.data);
+
+    await authRepo.saveTokens(
+      accessToken: authResponse.accessToken,
+      refreshToken: authResponse.refreshToken,
+    );
+    await authRepo.saveUserId(authResponse.user.id);
+
+    final wsService = _ref.read(wsServiceProvider);
+    await wsService.connect();
+
+    final chatSocket = _ref.read(chatSocketServiceProvider);
+    await chatSocket.connect();
+
+    state = AuthState(
+      status: AuthStatus.pendingVerification,
+      user: authResponse.user,
+      accessToken: authResponse.accessToken,
+    );
+  }
+
+  void completeVerification() {
+    state = state.copyWith(status: AuthStatus.authenticated);
   }
 
   Future<bool> checkSavedAuth() async {

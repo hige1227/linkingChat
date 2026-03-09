@@ -55,6 +55,8 @@ describe('ConversesService - Group Permissions (Phase 9)', () => {
       toRoom: jest.fn(),
       unicast: jest.fn(),
       listcast: jest.fn(),
+      chatUnicast: jest.fn(),
+      chatListcast: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({

@@ -7,8 +7,19 @@ interface ElectronAPI {
     error?: string;
     user?: { id: string; username: string; displayName: string };
   }>;
+  register: (data: {
+    email: string;
+    username: string;
+    password: string;
+    displayName: string;
+  }) => Promise<{
+    success: boolean;
+    error?: string;
+    user?: { id: string; username: string; displayName: string };
+  }>;
   logout: () => Promise<{ success: boolean }>;
   getToken: () => Promise<string | null>;
+  refreshToken: () => Promise<string | null>;
 
   getConnectionStatus: () => Promise<string>;
   getDeviceInfo: () => Promise<{

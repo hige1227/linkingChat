@@ -5,6 +5,7 @@ class ConverseMemberModel {
   final String? avatarUrl;
   final String? role;
   final bool isOpen;
+  final DateTime? mutedUntil;
 
   const ConverseMemberModel({
     required this.userId,
@@ -13,7 +14,11 @@ class ConverseMemberModel {
     this.avatarUrl,
     this.role,
     this.isOpen = true,
+    this.mutedUntil,
   });
+
+  bool get isMuted =>
+      mutedUntil != null && mutedUntil!.isAfter(DateTime.now());
 
   factory ConverseMemberModel.fromJson(Map<String, dynamic> json) {
     return ConverseMemberModel(
@@ -23,6 +28,9 @@ class ConverseMemberModel {
       avatarUrl: json['avatarUrl'] as String?,
       role: json['role'] as String?,
       isOpen: json['isOpen'] as bool? ?? true,
+      mutedUntil: json['mutedUntil'] != null
+          ? DateTime.parse(json['mutedUntil'] as String)
+          : null,
     );
   }
 
@@ -33,6 +41,7 @@ class ConverseMemberModel {
         'avatarUrl': avatarUrl,
         'role': role,
         'isOpen': isOpen,
+        'mutedUntil': mutedUntil?.toIso8601String(),
       };
 
   ConverseMemberModel copyWith({
@@ -42,6 +51,7 @@ class ConverseMemberModel {
     String? avatarUrl,
     String? role,
     bool? isOpen,
+    DateTime? mutedUntil,
   }) {
     return ConverseMemberModel(
       userId: userId ?? this.userId,
@@ -50,6 +60,7 @@ class ConverseMemberModel {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       role: role ?? this.role,
       isOpen: isOpen ?? this.isOpen,
+      mutedUntil: mutedUntil ?? this.mutedUntil,
     );
   }
 }

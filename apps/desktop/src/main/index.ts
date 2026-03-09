@@ -6,6 +6,14 @@ import { registerOpenClawIpc, connectToGateway } from './ipc/openclaw.ipc';
 import { WsClientService } from './services/ws-client.service';
 import { AuthStore } from './services/auth-store.service';
 
+// Prevent uncaught errors from showing Electron error dialogs (e.g. OpenClaw connection failures)
+process.on('uncaughtException', (err) => {
+  console.error('[Main] Uncaught exception:', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[Main] Unhandled rejection:', reason);
+});
+
 let mainWindow: BrowserWindow | null = null;
 const wsClient = new WsClientService();
 
@@ -24,6 +32,7 @@ function createWindow(): void {
 
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
+    mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
@@ -47,6 +56,8 @@ app.whenReady().then(() => {
       } else {
         console.warn('[Main] OpenClaw Gateway not available:', status.error);
       }
+    }).catch((err) => {
+      console.warn('[Main] OpenClaw Gateway connection error (ignored):', err.message);
     });
   }
 

@@ -88,6 +88,9 @@ model User {
   displayName String
   avatarUrl   String?
 
+  // Sprint 5 新增字段
+  isEmailVerified Boolean @default(false)
+
   // Sprint 2 新增字段
   status      UserStatus @default(OFFLINE)
   lastSeenAt  DateTime?

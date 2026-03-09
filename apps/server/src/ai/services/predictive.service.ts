@@ -25,20 +25,31 @@ interface ContextTrigger {
 export class PredictiveService {
   private readonly logger = new Logger(PredictiveService.name);
 
-  /** 危险命令黑名单 — 引用自 Sprint 1 DeviceGateway */
+  /** 危险命令黑名单 — 跨平台，与 DeviceGateway 保持同步 */
   private readonly DANGEROUS_PATTERNS: RegExp[] = [
+    // Unix/Linux/macOS
     /^rm\s+(-rf?|--recursive)\s+\//,
     /^rm\s+-rf?\s+~/,
-    /^format\s/i,
     /^mkfs\./,
     /^dd\s+if=/,
-    /^:\(\)\{.*\|.*&\s*\}\s*;/,
     /shutdown|reboot|halt|poweroff/i,
     /^chmod\s+(-R\s+)?777\s+\//,
     /^chown\s+(-R\s+)?.*\s+\//,
-    />\s*\/dev\/sd[a-z]/,
+    />\s*\/dev\/(sd[a-z]|hd[a-z]|nvme)/,
     /\|\s*bash\s*$/,
     /curl.*\|\s*sh/i,
+    /wget.*\|\s*sh/i,
+    // Windows
+    /^format\s/i,
+    /^del\s+\/s\s+\/q\s+[A-Z]:\\/i,
+    /^rd\s+\/s\s+\/q\s+[A-Z]:\\/i,
+    /^rmdir\s+\/s\s+\/q/i,
+    /^reg\s+delete/i,
+    /^bcdedit/i,
+    /^diskpart/i,
+    // Universal
+    /^:\(\)\{.*\|.*&\s*\}\s*;/,
+    /\|\s*base64\s+-d\s*\|.*sh/,
   ];
 
   /** 上下文触发器模式（specific patterns first, generic last） */

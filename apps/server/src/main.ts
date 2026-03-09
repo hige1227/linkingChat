@@ -3,12 +3,42 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { RedisIoAdapter } from './gateway/adapters/redis-io.adapter';
+import { WinstonModule } from 'nest-winston';
+import * as winston from 'winston';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  const winstonLogger = WinstonModule.createLogger({
+    transports: [
+      new winston.transports.Console({
+        format: isProduction
+          ? winston.format.combine(
+              winston.format.timestamp(),
+              winston.format.json(),
+            )
+          : winston.format.combine(
+              winston.format.colorize(),
+              winston.format.timestamp({ format: 'HH:mm:ss' }),
+              winston.format.printf(({ timestamp, level, message, context, ...meta }) => {
+                const ctx = context ? `[${context}]` : '';
+                const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
+                return `${timestamp} ${level} ${ctx} ${message}${metaStr}`;
+              }),
+            ),
+      }),
+    ],
+    level: isProduction ? 'info' : 'debug',
+  });
+
+  const app = await NestFactory.create(AppModule, {
+    logger: winstonLogger,
+  });
 
   app.enableCors({
-    origin: process.env.CORS_ORIGINS?.split(',') || true,
+    origin: isProduction
+      ? (process.env.CORS_ORIGINS?.split(',') ?? [])
+      : true,
     credentials: true,
   });
 
@@ -39,6 +69,6 @@ async function bootstrap() {
 
   const port = process.env.APP_PORT || 3008;
   await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}`);
+  winstonLogger.log(`Application is running on: http://localhost:${port}`);
 }
 bootstrap();

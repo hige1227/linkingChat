@@ -3,12 +3,14 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/auth/pages/login_page.dart';
+import 'features/auth/pages/verify_email_page.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/device/pages/device_list_page.dart';
 import 'features/device/pages/command_page.dart';
 import 'features/chat/pages/converses_list_page.dart';
 import 'features/chat/pages/chat_thread_page.dart';
 import 'features/chat/pages/group_detail_page.dart';
+import 'features/chat/pages/create_group_page.dart';
 import 'features/friends/pages/friends_list_page.dart';
 import 'features/friends/pages/add_friend_page.dart';
 import 'features/profile/pages/profile_page.dart';
@@ -21,11 +23,18 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/chat',
     refreshListenable: _AuthRefreshNotifier(ref),
     redirect: (context, state) {
-      final isAuth = authState.status == AuthStatus.authenticated;
-      final isLoginRoute = state.matchedLocation == '/login';
+      final status = authState.status;
+      final loc = state.matchedLocation;
 
-      if (!isAuth && !isLoginRoute) return '/login';
-      if (isAuth && isLoginRoute) return '/chat';
+      // Pending email verification → force to verify-email page
+      if (status == AuthStatus.pendingVerification) {
+        if (loc != '/verify-email') return '/verify-email';
+        return null;
+      }
+
+      final isAuth = status == AuthStatus.authenticated;
+      if (!isAuth && loc != '/login') return '/login';
+      if (isAuth && loc == '/login') return '/chat';
       return null;
     },
     routes: [
@@ -51,11 +60,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/profile',
-            builder: (context, state) => const ProfilePage(),
+            builder: (context, state) => ProfilePage(),
           ),
         ],
       ),
       // Full-screen pages (no bottom nav)
+      // Static paths MUST come before dynamic :converseId to avoid conflicts
+      GoRoute(
+        path: '/chat/new/group',
+        builder: (context, state) => const CreateGroupPage(),
+      ),
       GoRoute(
         path: '/chat/:converseId',
         builder: (context, state) => ChatThreadPage(
@@ -77,6 +91,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => CommandPage(
           deviceId: state.pathParameters['deviceId']!,
         ),
+      ),
+      GoRoute(
+        path: '/verify-email',
+        builder: (context, state) => const VerifyEmailPage(),
       ),
     ],
   );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../chat/providers/chat_provider.dart';
+import '../../friends/providers/friends_provider.dart';
 
 class BottomNavScaffold extends ConsumerStatefulWidget {
   final Widget child;
@@ -18,6 +19,8 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
     final conversesState = ref.watch(conversesProvider);
     final totalUnread = conversesState.converses
         .fold<int>(0, (sum, c) => sum + c.unreadCount);
+    final friendsState = ref.watch(friendsProvider);
+    final pendingRequests = friendsState.receivedRequests.length;
 
     final location = GoRouterState.of(context).matchedLocation;
 
@@ -41,9 +44,17 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
               ),
               label: 'Chat',
             ),
-            const NavigationDestination(
-              icon: Icon(Icons.people_outline),
-              selectedIcon: Icon(Icons.people),
+            NavigationDestination(
+              icon: Badge(
+                isLabelVisible: pendingRequests > 0,
+                label: Text(pendingRequests > 99 ? '99+' : '$pendingRequests'),
+                child: const Icon(Icons.people_outline),
+              ),
+              selectedIcon: Badge(
+                isLabelVisible: pendingRequests > 0,
+                label: Text(pendingRequests > 99 ? '99+' : '$pendingRequests'),
+                child: const Icon(Icons.people),
+              ),
               label: 'Contacts',
             ),
             const NavigationDestination(

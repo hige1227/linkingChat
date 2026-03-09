@@ -2,6 +2,10 @@
 node_modules/
 .pnpm-store/
 
+# Production secrets
+.env.production
+backups/
+
 # Build outputs
 dist/
 build/
@@ -13,9 +17,10 @@ out/
 .env.local
 .env.*.local
 
-# Keys (sensitive)
+# Keys & tokens (sensitive)
 keys/
 *.pem
+token.txt
 
 # IDE
 .vscode/

@@ -8,6 +8,7 @@ import {
 } from '../providers/llm-provider.interface';
 import { DeepSeekProvider } from '../providers/deepseek.provider';
 import { KimiProvider } from '../providers/kimi.provider';
+import { MetricsService } from '../../metrics/metrics.service';
 
 /** 每次 LLM 调用的计量记录 */
 export interface LlmCallMetrics {
@@ -46,6 +47,7 @@ export class LlmRouterService {
   constructor(
     private readonly deepseek: DeepSeekProvider,
     private readonly kimi: KimiProvider,
+    private readonly metricsService: MetricsService,
   ) {
     this.providers = new Map<string, LlmProvider>([
       ['deepseek', deepseek],
@@ -200,6 +202,15 @@ export class LlmRouterService {
   private logMetrics(metrics: LlmCallMetrics): void {
     const status = metrics.success ? 'OK' : 'FAIL';
     const fallbackLabel = metrics.fallback ? ' [FALLBACK]' : '';
+
+    // Prometheus: increment LLM request counter + record latency
+    const promStatus = metrics.success ? 'success' : 'error';
+    this.metricsService.llmRequestsTotal
+      .labels(metrics.provider, metrics.model || 'unknown', promStatus)
+      .inc();
+    this.metricsService.llmLatencySeconds
+      .labels(metrics.provider, metrics.model || 'unknown')
+      .observe(metrics.durationMs / 1000);
 
     this.logger.log(
       `[LLM ${status}${fallbackLabel}] ` +

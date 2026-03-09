@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { LlmRouterService } from './llm-router.service';
 import { DeepSeekProvider } from '../providers/deepseek.provider';
 import { KimiProvider } from '../providers/kimi.provider';
+import { MetricsService } from '../../metrics/metrics.service';
 import { LlmRequest, LlmResponse } from '../providers/llm-provider.interface';
 
 // ── 测试数据 ────────────────────────────
@@ -40,6 +41,18 @@ const mockKimi = {
   stream: jest.fn(),
 };
 
+const mockMetricsService = {
+  httpRequestDuration: { observe: jest.fn(), labels: jest.fn().mockReturnThis() },
+  httpRequestsTotal: { inc: jest.fn(), labels: jest.fn().mockReturnThis() },
+  wsConnectionsActive: { inc: jest.fn(), dec: jest.fn(), labels: jest.fn().mockReturnThis() },
+  wsMessagesTotal: { inc: jest.fn(), labels: jest.fn().mockReturnThis() },
+  messagesSentTotal: { inc: jest.fn() },
+  messagesRecalledTotal: { inc: jest.fn() },
+  llmRequestsTotal: { inc: jest.fn(), labels: jest.fn().mockReturnThis() },
+  llmLatencySeconds: { observe: jest.fn(), labels: jest.fn().mockReturnThis() },
+  uploadsTotal: { inc: jest.fn(), labels: jest.fn().mockReturnThis() },
+};
+
 // ── 测试套件 ────────────────────────────
 
 describe('LlmRouterService', () => {
@@ -51,6 +64,7 @@ describe('LlmRouterService', () => {
         LlmRouterService,
         { provide: DeepSeekProvider, useValue: mockDeepSeek },
         { provide: KimiProvider, useValue: mockKimi },
+        { provide: MetricsService, useValue: mockMetricsService },
       ],
     }).compile();
 

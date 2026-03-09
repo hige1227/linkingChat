@@ -24,18 +24,31 @@ import type {
 } from '@linkingchat/ws-protocol';
 
 const DANGEROUS_PATTERNS: RegExp[] = [
+  // ── Unix/Linux/macOS ──
   /^rm\s+(-rf?|--recursive)\s+\//,
   /^rm\s+-rf?\s+~/,
-  /^format\s/i,
   /^mkfs\./,
   /^dd\s+if=/,
-  /^:\(\)\{.*\|.*&\s*\}\s*;/,
   /shutdown|reboot|halt|poweroff/i,
   /^chmod\s+(-R\s+)?777\s+\//,
   /^chown\s+(-R\s+)?.*\s+\//,
-  />\s*\/dev\/sd[a-z]/,
+  />\s*\/dev\/(sd[a-z]|hd[a-z]|nvme)/,
   /\|\s*bash\s*$/,
   /curl.*\|\s*sh/i,
+  /wget.*\|\s*sh/i,
+
+  // ── Windows ──
+  /^format\s/i,
+  /^del\s+\/s\s+\/q\s+[A-Z]:\\/i,
+  /^rd\s+\/s\s+\/q\s+[A-Z]:\\/i,
+  /^rmdir\s+\/s\s+\/q/i,
+  /^reg\s+delete/i,
+  /^bcdedit/i,
+  /^diskpart/i,
+
+  // ── Universal ──
+  /^:\(\)\{.*\|.*&\s*\}\s*;/,          // Fork bomb
+  /\|\s*base64\s+-d\s*\|.*sh/,         // Encoded execution
 ];
 
 function isDangerousCommand(action: string): boolean {

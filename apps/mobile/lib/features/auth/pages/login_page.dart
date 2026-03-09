@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 import '../providers/auth_provider.dart';
+import 'forgot_password_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -12,10 +14,13 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _displayNameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _checkingAuth = true;
+  bool _isRegisterMode = false;
   String? _errorMessage;
 
   @override
@@ -36,6 +41,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   void dispose() {
     _emailController.dispose();
+    _usernameController.dispose();
+    _displayNameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -58,13 +65,61 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = _extractError(e);
       });
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _handleRegister() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await ref.read(authProvider.notifier).register(
+            email: _emailController.text.trim(),
+            username: _usernameController.text.trim(),
+            displayName: _displayNameController.text.trim(),
+            password: _passwordController.text,
+          );
+      // Auth state is now pendingVerification,
+      // GoRouter redirect will automatically navigate to /verify-email
+    } catch (e) {
+      setState(() {
+        _errorMessage = _extractError(e);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  String _extractError(dynamic e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map) {
+        return data['message']?.toString() ?? 'Request failed';
+      }
+      if (e.response?.statusCode == 429) {
+        return 'Too many requests, please try later';
+      }
+    }
+    return e.toString();
+  }
+
+  void _toggleMode() {
+    setState(() {
+      _isRegisterMode = !_isRegisterMode;
+      _errorMessage = null;
+    });
   }
 
   @override
@@ -113,6 +168,31 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     validator: (v) =>
                         v != null && v.contains('@') ? null : 'Invalid email',
                   ),
+                  if (_isRegisterMode) ...[
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _usernameController,
+                      decoration: const InputDecoration(
+                        hintText: 'Username',
+                        prefixIcon: Icon(Icons.person_outline),
+                        border: UnderlineInputBorder(),
+                      ),
+                      validator: (v) => v != null && v.length >= 3
+                          ? null
+                          : 'At least 3 characters',
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _displayNameController,
+                      decoration: const InputDecoration(
+                        hintText: 'Display Name',
+                        prefixIcon: Icon(Icons.badge_outlined),
+                        border: UnderlineInputBorder(),
+                      ),
+                      validator: (v) =>
+                          v != null && v.isNotEmpty ? null : 'Required',
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
@@ -125,7 +205,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     validator: (v) => v != null && v.length >= 8
                         ? null
                         : 'At least 8 characters',
-                    onFieldSubmitted: (_) => _handleLogin(),
+                    onFieldSubmitted: (_) =>
+                        _isRegisterMode ? _handleRegister() : _handleLogin(),
                   ),
                   const SizedBox(height: 24),
                   if (_errorMessage != null)
@@ -141,7 +222,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
+                      onPressed: _isLoading
+                          ? null
+                          : (_isRegisterMode
+                              ? _handleRegister
+                              : _handleLogin),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF07C160),
                         foregroundColor: Colors.white,
@@ -158,10 +243,36 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Login',
-                              style: TextStyle(fontSize: 16)),
+                          : Text(
+                              _isRegisterMode ? 'Register' : 'Login',
+                              style: const TextStyle(fontSize: 16),
+                            ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: _toggleMode,
+                    child: Text(
+                      _isRegisterMode
+                          ? 'Already have an account? Login'
+                          : "Don't have an account? Register",
+                      style: const TextStyle(color: Color(0xFF07C160)),
+                    ),
+                  ),
+                  if (!_isRegisterMode)
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ForgotPasswordPage(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        '忘记密码？',
+                        style: TextStyle(color: Color(0xFF07C160)),
+                      ),
+                    ),
                 ],
               ),
             ),

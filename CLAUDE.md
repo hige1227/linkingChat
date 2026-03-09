@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-LinkingChat (codename: Ghost Mate) has completed **Sprint 0–2**. The platform has a working NestJS server with auth, device control, friends, 1-on-1 & group chat, bots framework, plus full Flutter mobile UI and Electron desktop UI. **Sprint 3 (AI module + OpenClaw integration)** is next.
+LinkingChat (codename: Ghost Mate) has completed **Sprint 0–5**. The platform has a working NestJS server with auth, device control, friends, 1-on-1 & group chat, bots framework, AI modules, email verification, password reset, voice messages, i18n, plus full Flutter mobile UI and Electron desktop UI.
 
 ### What's working:
 - `pnpm install` — Turborepo v2 + pnpm 10 workspace (5 packages)
@@ -13,7 +13,7 @@ LinkingChat (codename: Ghost Mate) has completed **Sprint 0–2**. The platform 
 - `pnpm dev:desktop` — Electron + electron-vite + React (full chat UI with group info panel)
 - `pnpm dev:mobile` — Flutter mobile app (full chat UI, friends, groups, device control)
 - `pnpm build` — All 4 packages compile (server, desktop, shared, ws-protocol)
-- `pnpm test` — 7 suites, 102 tests passing (auth, friends, messages, presence, converses, bots, bot-init)
+- `pnpm test` — 30 suites, 373 tests passing (auth, friends, messages, presence, converses, bots, bot-init, mail, email-verify, password-reset, etc.)
 - `pnpm lint` / `pnpm type-check` — Code quality checks
 - `pnpm db:migrate` / `pnpm db:seed` — Prisma migrations and seeding
 - Prisma schema: 12 models (User, Device, Command, RefreshToken, FriendRequest, Friendship, UserBlock, Converse, ConverseMember, Message, Attachment, Bot)
@@ -31,6 +31,11 @@ Required `.env` in `apps/server/`:
 - **Sprint 2** ✅ — Friends, 1-on-1 chat, presence, read receipts, Bot framework (Bot-as-User), group chat CRUD + permissions, Flutter + Desktop full chat UI (~90 new files, ~8,500+ lines)
 - **Sprint 3** 🔧 — AI module (LLM Router, Whisper, Draft & Verify, Predictive Actions) + OpenClaw Gateway + Supervisor notifications
   - **Phase 5** ✅ — OpenClaw Gateway 云端集成已完成 (2026-02-28)
+- **Sprint 5** ✅ — 账号安全 + 基础功能补全 (2026-03-07)
+  - Phase 1 ✅ — 邮箱验证 (MailModule + 验证码 + Guard + Flutter/Desktop UI)
+  - Phase 2 ✅ — 忘记密码/重置密码 (防枚举 + token 失效 + Flutter/Desktop UI)
+  - Phase 3 ✅ — 语音消息 (录制/播放组件 + 消息气泡集成，双端)
+  - Phase 4 ✅ — i18n 客户端集成 (Flutter l10n + Desktop i18next，语言切换 UI)
 
 ### Sprint 2 deferred to Sprint 3:
 - ~~OpenClaw Gateway integration~~ (Phase 5 ✅ 完成)
@@ -208,7 +213,17 @@ docs/
 │   ├── sprint2_implement.md            — Sprint 2: Friends, chat, bots, groups, UI (✅ DONE)
 │   ├── sprint2_implement_mark.md       — Sprint 2 implementation record
 │   ├── sprint3_implement.md            — Sprint 3: AI module + OpenClaw + enhancements (🔧 NEXT)
-│   └── sprint4_implement.md            — Sprint 4: Polish + production readiness
+│   ├── sprint4_implement.md            — Sprint 4: Polish + production readiness
+│   └── sprint4_phases/                 — Sprint 4 individual Phase development docs
+│       ├── phase0_rich_media.md        — P1: S3 storage + image/file/voice messages
+│       ├── phase1_message_recall.md    — P2: Message recall enhancement
+│       ├── phase5_cloud_deploy.md      — P3: Tencent Cloud Docker deployment
+│       ├── phase6_nginx_proxy.md       — P4: Nginx reverse proxy + SSL + WSS
+│       ├── phase9_security_audit.md    — P5: Security audit + Prometheus monitoring
+│       ├── phase2_message_search.md    — P6: PostgreSQL full-text search
+│       ├── phase4_i18n.md              — P7: i18n (Chinese + English)
+│       ├── phase8_performance.md       — P8: Performance optimization
+│       └── phase7_horizontal_scaling.md — P9: Horizontal scaling + load testing
 │
 ├── plans/                              # Phase-specific design documents
 │   ├── 2026-02-28-phase5-openclaw-design.md        — Phase 5 OpenClaw 架构设计

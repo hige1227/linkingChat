@@ -1,0 +1,53 @@
+{
+  "auth": {
+    "invalid_credentials": "用户名或密码错误",
+    "user_not_found": "用户不存在",
+    "user_already_exists": "用户名已被注册",
+    "email_already_exists": "邮箱已被注册",
+    "token_expired": "登录已过期，请重新登录",
+    "token_invalid": "无效的认证令牌",
+    "unauthorized": "未授权访问",
+    "forbidden": "没有权限执行此操作"
+  },
+  "messages": {
+    "not_found": "消息不存在",
+    "not_member": "你不是该会话的成员",
+    "recall_time_expired": "已超过撤回时限（2分钟）",
+    "recall_no_permission": "没有权限撤回此消息",
+    "search_query_required": "搜索关键词不能为空",
+    "content_or_attachment_required": "消息内容或附件不能同时为空"
+  },
+  "converses": {
+    "not_found": "会话不存在",
+    "not_member": "你不是该群组的成员",
+    "no_permission": "没有权限执行此操作",
+    "group_name_required": "群组名称不能为空",
+    "already_member": "该用户已是群组成员",
+    "cannot_remove_owner": "不能移除群主",
+    "cannot_leave_as_owner": "群主不能直接退出群组，请先转让群主"
+  },
+  "friends": {
+    "already_friends": "你们已经是好友了",
+    "request_already_sent": "好友请求已发送",
+    "request_not_found": "好友请求不存在",
+    "cannot_add_self": "不能添加自己为好友",
+    "blocked": "该用户已被拉黑"
+  },
+  "upload": {
+    "file_too_large": "文件大小超出限制",
+    "invalid_type": "不支持的文件类型",
+    "upload_failed": "上传失败，请重试",
+    "file_not_found": "文件不存在"
+  },
+  "devices": {
+    "not_found": "设备未注册",
+    "command_dangerous": "该命令可能造成危险，已被阻止",
+    "command_timeout": "命令执行超时"
+  },
+  "general": {
+    "internal_error": "服务器内部错误",
+    "rate_limit_exceeded": "请求过于频繁，请稍后再试",
+    "validation_failed": "请求参数验证失败",
+    "not_found": "资源不存在"
+  }
+}

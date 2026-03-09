@@ -30,13 +30,19 @@ export class RedisIoAdapter extends IoAdapter {
     const server = super.createIOServer(port, {
       ...options,
       cors: {
-        origin: process.env.CORS_ORIGINS?.split(',') || '*',
+        origin: process.env.NODE_ENV === 'production'
+          ? (process.env.CORS_ORIGINS?.split(',') ?? [])
+          : (process.env.CORS_ORIGINS?.split(',') ?? '*'),
         credentials: true,
       },
       transports: ['websocket', 'polling'],
       pingInterval: 25000,
       pingTimeout: 60000,
       maxHttpBufferSize: 1e6,
+      // Enable per-message compression for WebSocket (only compress messages > 1KB)
+      perMessageDeflate: {
+        threshold: 1024,
+      },
     });
 
     server.adapter(this.adapterConstructor);

@@ -1,0 +1,53 @@
+{
+  "auth": {
+    "invalid_credentials": "Invalid username or password",
+    "user_not_found": "User not found",
+    "user_already_exists": "Username is already taken",
+    "email_already_exists": "Email is already registered",
+    "token_expired": "Session expired, please log in again",
+    "token_invalid": "Invalid authentication token",
+    "unauthorized": "Unauthorized access",
+    "forbidden": "You do not have permission to perform this action"
+  },
+  "messages": {
+    "not_found": "Message not found",
+    "not_member": "You are not a member of this conversation",
+    "recall_time_expired": "Recall time limit exceeded (2 minutes)",
+    "recall_no_permission": "You do not have permission to recall this message",
+    "search_query_required": "Search query cannot be empty",
+    "content_or_attachment_required": "Message content or attachment is required"
+  },
+  "converses": {
+    "not_found": "Conversation not found",
+    "not_member": "You are not a member of this group",
+    "no_permission": "You do not have permission to perform this action",
+    "group_name_required": "Group name is required",
+    "already_member": "User is already a member of this group",
+    "cannot_remove_owner": "Cannot remove the group owner",
+    "cannot_leave_as_owner": "Owner cannot leave the group directly. Please transfer ownership first"
+  },
+  "friends": {
+    "already_friends": "You are already friends",
+    "request_already_sent": "Friend request has already been sent",
+    "request_not_found": "Friend request not found",
+    "cannot_add_self": "Cannot add yourself as a friend",
+    "blocked": "This user has been blocked"
+  },
+  "upload": {
+    "file_too_large": "File size exceeds the limit",
+    "invalid_type": "Unsupported file type",
+    "upload_failed": "Upload failed, please try again",
+    "file_not_found": "File not found"
+  },
+  "devices": {
+    "not_found": "Device not registered",
+    "command_dangerous": "This command may be dangerous and has been blocked",
+    "command_timeout": "Command execution timed out"
+  },
+  "general": {
+    "internal_error": "Internal server error",
+    "rate_limit_exceeded": "Too many requests, please try again later",
+    "validation_failed": "Request validation failed",
+    "not_found": "Resource not found"
+  }
+}
