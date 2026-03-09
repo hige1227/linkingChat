@@ -131,7 +131,7 @@ export interface ServerToClientEvents {
   // Chat events (Sprint 2)
   'message:new': (data: MessageResponse) => void;
   'message:updated': (data: MessageResponse) => void;
-  'message:deleted': (data: { messageId: string; converseId: string }) => void;
+  'message:deleted': (data: { id: string; converseId: string; deletedAt?: string; recalledBy?: string }) => void;
   'friend:request': (data: FriendRequestPayload) => void;
   'friend:accepted': (data: FriendAcceptedPayload) => void;
   'friend:removed': (data: FriendRemovedPayload) => void;

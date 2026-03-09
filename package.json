@@ -12,9 +12,11 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "db:migrate": "pnpm --filter @linkingchat/server prisma migrate dev",
-    "db:seed": "pnpm --filter @linkingchat/server prisma db seed"
+    "db:seed": "pnpm --filter @linkingchat/server prisma db seed",
+    "check-ws-coverage": "tsx scripts/check-ws-coverage.ts"
   },
   "devDependencies": {
+    "tsx": "^4.21.0",
     "turbo": "^2"
   },
   "engines": {

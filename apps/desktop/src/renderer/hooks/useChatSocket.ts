@@ -219,6 +219,18 @@ function initSocket() {
       useChatStore.getState().updateConverse(data.id, data as Partial<ConverseResponse>);
     });
 
+    socket.on('group:member:role:updated', (data: { converseId: string; userId: string; role: string }) => {
+      // Refetch converse to get updated member roles
+      const state = useChatStore.getState();
+      const converse = state.converses.find((c) => c.id === data.converseId);
+      if (converse) {
+        const members = (converse.members ?? []).map((m) =>
+          m.userId === data.userId ? { ...m, role: data.role } : m,
+        );
+        state.updateConverse(data.converseId, { members } as Partial<ConverseResponse>);
+      }
+    });
+
     // ──── Typing events ────
     socket.on('message:typing', (data: { converseId: string; userId: string; isTyping: boolean }) => {
       const state = useChatStore.getState();

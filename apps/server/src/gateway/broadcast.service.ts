@@ -1,10 +1,29 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Namespace } from 'socket.io';
+import { EVENT_VALIDATORS } from '@linkingchat/ws-protocol';
+
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 @Injectable()
 export class BroadcastService {
   private readonly logger = new Logger(BroadcastService.name);
   private namespaces = new Map<string, Namespace>();
+
+  /**
+   * Dev-mode payload validation against zod schemas.
+   * Logs errors but never blocks emission (fire-and-forget).
+   */
+  private validatePayload(event: string, data: unknown): void {
+    if (IS_PRODUCTION) return;
+    const schema = EVENT_VALIDATORS[event];
+    if (!schema) return;
+    const result = schema.safeParse(data);
+    if (!result.success) {
+      this.logger.error(
+        `[PayloadValidator] Invalid payload for "${event}": ${JSON.stringify(result.error.format())}`,
+      );
+    }
+  }
 
   /**
    * 由 Gateway 在 afterInit 中调用，传入 Socket.IO Namespace 实例。
@@ -54,17 +73,20 @@ export class BroadcastService {
 
   /** 发送到单个用户（chat 命名空间，个人房间 u-{userId}） */
   chatUnicast(userId: string, event: string, data: unknown) {
+    this.validatePayload(event, data);
     this.getNs('chat').to(`u-${userId}`).emit(event, data);
   }
 
   /** 发送到多个用户（chat 命名空间） */
   chatListcast(userIds: string[], event: string, data: unknown) {
+    this.validatePayload(event, data);
     const rooms = userIds.map((id) => `u-${id}`);
     this.getNs('chat').to(rooms).emit(event, data);
   }
 
   /** 发送到 chat 命名空间的指定房间（如 converseId 房间） */
   toRoom(roomId: string, event: string, data: unknown) {
+    this.validatePayload(event, data);
     this.getNs('chat').to(roomId).emit(event, data);
   }
 
@@ -78,6 +100,7 @@ export class BroadcastService {
     event: string,
     data: unknown,
   ): void {
+    this.validatePayload(event, data);
     const ns = this.getNs('chat');
     const targetSockets = ns.adapter.rooms.get(targetRoom);
     const excludeSockets = ns.adapter.rooms.get(excludeRoom);

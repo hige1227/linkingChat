@@ -18,5 +18,8 @@
     "socket.io": {
       "optional": true
     }
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
   }
 }
