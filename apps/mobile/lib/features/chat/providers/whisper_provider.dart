@@ -80,6 +80,11 @@ class WhisperNotifier extends StateNotifier<WhisperState> {
     return text;
   }
 
+  /// Request Whisper suggestions (pre-send trigger, no message sent)
+  void requestSuggestions() {
+    _chatSocket.emitWhisperRequest(converseId);
+  }
+
   void toggleAlternatives() {
     state = state.copyWith(showAlternatives: !state.showAlternatives);
   }

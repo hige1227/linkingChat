@@ -4,7 +4,7 @@
 export interface WhisperSuggestionsPayload {
   suggestionId: string;
   converseId: string;
-  messageId: string;
+  messageId?: string; // optional: 发送前触发时无关联消息
   primary: string;
   alternatives: string[];
   createdAt: string; // ISO 8601

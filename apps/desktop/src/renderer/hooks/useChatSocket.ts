@@ -386,6 +386,13 @@ export function useChatSocket() {
     },
 
     // ── AI emit helpers ──
+    emitWhisperRequest: (converseId: string) => {
+      sharedSocket?.emit('ai:whisper:request', { converseId }, (res: any) => {
+        if (!res?.success) {
+          console.error('Whisper request failed:', res?.error);
+        }
+      });
+    },
     emitWhisperAccept: (suggestionId: string, selectedIndex: number) => {
       sharedSocket?.emit('ai:whisper:accept', { suggestionId, selectedIndex });
     },

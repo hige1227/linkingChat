@@ -189,6 +189,7 @@ export class MessagesService {
       where: { id: dto.converseId },
       select: { type: true },
     });
+    // TODO: 已有发送前触发（ai:whisper:request），此处保留作为兜底，后续可移除
     if (
       converse &&
       converse.type !== 'GROUP' &&

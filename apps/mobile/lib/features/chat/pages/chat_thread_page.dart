@@ -212,6 +212,11 @@ class _ChatThreadPageState extends ConsumerState<ChatThreadPage> {
                     authState.user?.displayName ?? '',
                   );
             },
+            onWhisperRequest: () {
+              ref
+                  .read(whisperProvider(widget.converseId).notifier)
+                  .requestSuggestions();
+            },
             onTypingStart: () {
               ref.read(chatSocketServiceProvider).emitTyping(
                     widget.converseId,

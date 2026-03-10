@@ -107,6 +107,59 @@ export class WhisperService {
   }
 
   /**
+   * 处理客户端主动请求建议（发送前触发）
+   * 与 handleWhisperTrigger 的区别：不需要 messageId，不依赖已发送的消息
+   */
+  async handleWhisperRequest(
+    userId: string,
+    converseId: string,
+  ): Promise<void> {
+    try {
+      const context = await this.extractContext(converseId);
+      const suggestions = await this.generateSuggestions(context);
+      if (!suggestions) {
+        this.logger.warn(
+          `Whisper request timed out for converse ${converseId}`,
+        );
+        return;
+      }
+
+      const record = await this.prisma.aiSuggestion.create({
+        data: {
+          type: 'WHISPER',
+          userId,
+          converseId,
+          suggestions: {
+            primary: suggestions.primary,
+            alternatives: suggestions.alternatives,
+          },
+        },
+      });
+
+      const payload: WhisperSuggestionsPayload = {
+        suggestionId: record.id,
+        converseId,
+        primary: suggestions.primary,
+        alternatives: suggestions.alternatives,
+        createdAt: record.createdAt.toISOString(),
+      };
+
+      this.broadcastService.toRoom(
+        `u-${userId}`,
+        'ai:whisper:suggestions',
+        payload,
+      );
+
+      this.logger.log(
+        `Whisper suggestions (pre-send) sent to user ${userId}`,
+      );
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Whisper request failed: ${msg}`);
+    }
+  }
+
+  /**
    * 用户采纳建议
    */
   async acceptSuggestion(

@@ -252,6 +252,53 @@ describe('WhisperService', () => {
     });
   });
 
+  // ── handleWhisperRequest() ────────────────────────────
+
+  describe('handleWhisperRequest', () => {
+    it('should generate suggestions without messageId (pre-send)', async () => {
+      mockPrisma.message.findMany.mockResolvedValue(mockMessages);
+      mockLlmRouter.complete.mockResolvedValue({
+        content: JSON.stringify({
+          primary: '方案看起来不错',
+          alternatives: ['时间上有点紧', '需要再讨论一下'],
+        }),
+      });
+      mockPrisma.aiSuggestion.create.mockResolvedValue(mockSuggestionRecord);
+
+      await service.handleWhisperRequest(mockUserId, mockConverseId);
+
+      // Should save to DB without messageId
+      expect(mockPrisma.aiSuggestion.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: 'WHISPER',
+            userId: mockUserId,
+            converseId: mockConverseId,
+          }),
+        }),
+      );
+
+      // Verify messageId is NOT in the data
+      const createCall = mockPrisma.aiSuggestion.create.mock.calls[0][0];
+      expect(createCall.data.messageId).toBeUndefined();
+
+      // Should push via WS without messageId
+      expect(mockBroadcast.toRoom).toHaveBeenCalledWith(
+        `u-${mockUserId}`,
+        'ai:whisper:suggestions',
+        expect.objectContaining({
+          suggestionId: 'suggestion-001',
+          converseId: mockConverseId,
+          primary: '方案看起来不错',
+        }),
+      );
+
+      // Verify payload does NOT contain messageId
+      const payload = mockBroadcast.toRoom.mock.calls[0][2];
+      expect(payload.messageId).toBeUndefined();
+    });
+  });
+
   // ── acceptSuggestion() ────────────────────────────
 
   describe('acceptSuggestion', () => {

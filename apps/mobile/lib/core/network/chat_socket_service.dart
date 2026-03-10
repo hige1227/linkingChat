@@ -171,6 +171,15 @@ class ChatSocketService {
   // AI emit helpers (Sprint 3)
   // ──────────────────────────────────────
 
+  /// Request Whisper suggestions (pre-send trigger)
+  void emitWhisperRequest(String converseId) {
+    _socket?.emitWithAck(AiEvents.whisperRequest, {
+      'converseId': converseId,
+    }, ack: (response) {
+      debugPrint('[ChatSocket] whisperRequest ack: $response');
+    });
+  }
+
   /// Accept a Whisper suggestion
   void emitWhisperAccept(String suggestionId, int selectedIndex) {
     _socket?.emitWithAck(AiEvents.whisperAccept, {

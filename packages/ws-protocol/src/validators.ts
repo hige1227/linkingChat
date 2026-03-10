@@ -180,7 +180,7 @@ export const GroupMemberRoleUpdatedSchema = z.object({
 export const WhisperSuggestionsSchema = z.object({
   suggestionId: z.string(),
   converseId: z.string(),
-  messageId: z.string(),
+  messageId: z.string().optional(),
   primary: z.string(),
   alternatives: z.array(z.string()),
   createdAt: z.string(),

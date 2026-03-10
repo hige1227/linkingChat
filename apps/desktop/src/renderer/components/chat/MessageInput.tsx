@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useChatStore } from '../../stores/chatStore';
+import { useChatSocket } from '../../hooks/useChatSocket';
 import { uploadFile } from '../../services/uploadService';
 import { VoiceRecorder } from './VoiceRecorder';
 import type { MessageResponse } from '@linkingchat/ws-protocol';
@@ -19,6 +20,7 @@ export function MessageInput({ converseId, prefillText, onPrefillConsumed, onFil
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
+  const { emitWhisperRequest } = useChatSocket();
 
   // Reset text when converseId changes
   useEffect(() => {
@@ -76,6 +78,14 @@ export function MessageInput({ converseId, prefillText, onPrefillConsumed, onFil
   const handleSend = async () => {
     const content = text.trim();
     if (!content || sending) return;
+
+    // @ai 拦截：不发送消息，改为请求 Whisper 建议
+    if (/(?<!\w)@ai\b/i.test(content)) {
+      emitWhisperRequest(converseId);
+      setText('');
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+      return;
+    }
 
     setText('');
     setSending(true);

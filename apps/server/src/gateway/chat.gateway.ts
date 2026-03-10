@@ -23,6 +23,7 @@ import { MetricsService } from '../metrics/metrics.service';
 import type {
   TypedSocket,
   PresencePayload,
+  WhisperRequestPayload,
   WhisperAcceptPayload,
   DraftApprovePayload,
   DraftRejectPayload,
@@ -315,6 +316,51 @@ export class ChatGateway
   // ──────────────────────────────────────
   // AI Event Handlers (Sprint 3)
   // ──────────────────────────────────────
+
+  /**
+   * ai:whisper:request — 客户端主动请求建议（发送前触发）
+   */
+  @SubscribeMessage('ai:whisper:request')
+  async handleWhisperRequest(
+    @ConnectedSocket() client: TypedSocket,
+    @MessageBody() data: WhisperRequestPayload,
+  ) {
+    const userId = client.data.userId;
+    try {
+      await this.conversesService.verifyMembership(data.converseId, userId);
+
+      // 群聊不支持 whisper，静默忽略
+      const converse = await this.prisma.converse.findUnique({
+        where: { id: data.converseId },
+        select: { type: true },
+      });
+      if (converse?.type === 'GROUP') {
+        return { success: true };
+      }
+
+      this.whisperService
+        .handleWhisperRequest(userId, data.converseId)
+        .catch((err) =>
+          this.logger.error(
+            `Whisper request failed: ${(err as Error).message}`,
+            (err as Error).stack,
+          ),
+        );
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error(
+        `Whisper request failed for user ${userId}: ${(error as Error).message}`,
+      );
+      return {
+        success: false,
+        error: {
+          code: 'WHISPER_REQUEST_FAILED',
+          message: (error as Error).message,
+        },
+      };
+    }
+  }
 
   /**
    * ai:whisper:accept — 用户接受 Whisper 建议

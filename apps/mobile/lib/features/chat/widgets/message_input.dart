@@ -5,6 +5,7 @@ import 'voice_recorder.dart';
 
 class MessageInput extends StatefulWidget {
   final Function(String) onSend;
+  final VoidCallback? onWhisperRequest;
   final VoidCallback? onTypingStart;
   final VoidCallback? onTypingStop;
   final VoidCallback? onAttachmentTap;
@@ -16,6 +17,7 @@ class MessageInput extends StatefulWidget {
   const MessageInput({
     super.key,
     required this.onSend,
+    this.onWhisperRequest,
     this.onTypingStart,
     this.onTypingStop,
     this.onAttachmentTap,
@@ -67,9 +69,18 @@ class MessageInputState extends State<MessageInput> {
     });
   }
 
+  static final _aiPattern = RegExp(r'(?<!\w)@ai\b', caseSensitive: false);
+
   void _handleSend() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
+
+    // @ai 拦截：不发送消息，改为请求 Whisper 建议
+    if (_aiPattern.hasMatch(text)) {
+      widget.onWhisperRequest?.call();
+      _controller.clear();
+      return;
+    }
 
     widget.onSend(text);
     _controller.clear();
