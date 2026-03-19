@@ -59,24 +59,67 @@ export class CommandExecutor {
     const startTime = Date.now();
 
     try {
-      // 使用 OpenClaw 的 Agent 来执行命令
-      // 通过发送消息给 Agent，让它执行 system.run
-      const message = `Please execute the following command and return the output: ${command}`;
+      const client = openClawClientService.getClient();
+      if (!client) {
+        throw new Error('OpenClaw client not available');
+      }
 
-      const response = await Promise.race([
-        openClawClientService.sendMessage(message),
-        this.createTimeoutPromise<string>(timeout, 'OpenClaw execution timed out'),
-      ]);
+      // Use streaming chat API to discriminate tool_result from text
+      const message = `Please execute the following command and return the output: ${command}`;
+      const stream = client.chat(message, { timeout });
+
+      const toolResults: string[] = [];
+      const textParts: string[] = [];
+      let errorText = '';
+
+      for await (const chunk of stream) {
+        switch (chunk.type) {
+          case 'tool_result':
+            // Actual command output from system.run
+            toolResults.push(chunk.text);
+            break;
+          case 'text':
+            // Agent's explanation/commentary
+            textParts.push(chunk.text);
+            break;
+          case 'error':
+            errorText = chunk.text;
+            break;
+          case 'done':
+            break;
+          // tool_use chunks are internal (agent deciding to call a tool)
+        }
+      }
 
       const executionTimeMs = Date.now() - startTime;
 
-      // 解析 Agent 响应
-      // TODO: 根据 OpenClaw 的实际响应格式进行解析
+      if (errorText) {
+        return {
+          status: 'error',
+          error: {
+            code: 'OPENCLAW_AGENT_ERROR',
+            message: errorText,
+          },
+          data: {
+            output: toolResults.join('\n') || textParts.join('') || undefined,
+          },
+          executionTimeMs,
+        };
+      }
+
+      // Prefer tool_result output (actual command output) over text (agent commentary)
+      const output = toolResults.length > 0
+        ? toolResults.join('\n')
+        : textParts.join('') || '(no output)';
+
+      // Attempt to infer exit code from tool_result content
+      const exitCode = this.inferExitCode(output, toolResults.length > 0);
+
       return {
-        status: 'success',
+        status: exitCode === 0 ? 'success' : 'error',
         data: {
-          output: response,
-          exitCode: 0,
+          output,
+          exitCode,
         },
         executionTimeMs,
       };
@@ -158,13 +201,29 @@ export class CommandExecutor {
     });
   }
 
+
   /**
-   * 创建超时 Promise
+   * Infer exit code from command output.
+   * If we got a tool_result, the command ran — default to 0 unless patterns suggest failure.
    */
-  private createTimeoutPromise<T>(timeout: number, message: string): Promise<T> {
-    return new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(message)), timeout);
-    });
+  private inferExitCode(output: string, hasToolResult: boolean): number {
+    if (!hasToolResult) return 0;
+
+    // Check for common error patterns in tool_result output
+    const errorPatterns = [
+      /exit code[:\s]+(\d+)/i,
+      /exited with[:\s]+(\d+)/i,
+      /return code[:\s]+(\d+)/i,
+    ];
+
+    for (const pattern of errorPatterns) {
+      const match = output.match(pattern);
+      if (match) {
+        return parseInt(match[1], 10);
+      }
+    }
+
+    return 0;
   }
 }
 

@@ -252,6 +252,7 @@ export class WsClientService {
       data: result.data,
       error: result.error,
       executionTimeMs: result.executionTimeMs,
+      source: result.source,
     });
   }
 

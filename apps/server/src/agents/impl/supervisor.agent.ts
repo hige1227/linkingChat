@@ -143,11 +143,27 @@ ${tasksSummary}
       // Get or create Supervisor's DM Converse
       const converse = await this.botsService.getOrCreateSupervisorConverse(userId);
 
+      // Build metadata for NotificationCard rendering
+      const hasError = response.actions?.some(a => a.type === 'execute');
+      const metadata: Record<string, any> = {
+        cardType: hasError ? 'error' : 'task_complete',
+        title: response.content,
+        sourceBotName: supervisorBot.name,
+      };
+      if (response.actions && response.actions.length > 0) {
+        metadata.actions = response.actions.map(a => ({
+          label: a.label,
+          action: a.type === 'view' ? 'view_result' : a.type,
+          payload: a.data,
+        }));
+      }
+
       // Create message using the bot's actual userId
       const message = await this.messagesService.create(supervisorBot.userId, {
         converseId: converse.id,
         content: response.content,
         type: MessageType.BOT_NOTIFICATION,
+        metadata,
       });
 
       // Push notification via WebSocket

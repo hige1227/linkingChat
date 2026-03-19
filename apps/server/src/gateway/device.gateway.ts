@@ -280,6 +280,7 @@ export class DeviceGateway
           exitCode: result.data?.exitCode,
           executionTimeMs: result.executionTimeMs,
           error: result.error,
+          source: result.source,
         },
       });
 

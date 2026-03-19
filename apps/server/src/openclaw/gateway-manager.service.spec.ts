@@ -1,45 +1,37 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { GatewayManagerService } from './gateway-manager.service';
 
 // ── Mock Services ────────────────────────────
 
-const createMockConfigService = () => ({
+const MOCK_GATEWAY_URL = 'ws://127.0.0.1:18790';
+const MOCK_GATEWAY_TOKEN = 'test-gateway-token';
+
+const createMockConfigService = (overrides: Record<string, any> = {}) => ({
   get: jest.fn((key: string, defaultValue: any) => {
     const config: Record<string, any> = {
-      OPENCLAW_BASE_PORT: 18790,
-      OPENCLAW_MAX_PORTS: 100,
-      OPENCLAW_PATH: '/mock/openclaw/dist/index.js',
-      OPENCLAW_WORKSPACES_PATH: '/mock/workspaces',
-      GATEWAY_HOST: 'localhost',
-      JWT_SECRET: 'test-secret-key',
+      OPENCLAW_MODE: 'single',
+      OPENCLAW_GATEWAY_URL: MOCK_GATEWAY_URL,
+      OPENCLAW_GATEWAY_TOKEN: MOCK_GATEWAY_TOKEN,
+      ...overrides,
     };
     return config[key] ?? defaultValue;
   }),
 });
 
-const createMockJwtService = () => ({
-  verifyAsync: jest.fn(),
-});
-
-// ── 测试套件 ────────────────────────────
+// ── Tests ────────────────────────────
 
 describe('GatewayManagerService', () => {
   let service: GatewayManagerService;
   let mockConfigService: ReturnType<typeof createMockConfigService>;
-  let mockJwtService: ReturnType<typeof createMockJwtService>;
 
   beforeEach(async () => {
-    // Create fresh mocks before each test
     mockConfigService = createMockConfigService();
-    mockJwtService = createMockJwtService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GatewayManagerService,
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: JwtService, useValue: mockJwtService },
       ],
     }).compile();
 
@@ -47,157 +39,80 @@ describe('GatewayManagerService', () => {
   });
 
   afterEach(async () => {
-    // Cleanup: stop all gateways
     await service.onModuleDestroy();
   });
 
-  describe('初始化', () => {
-    it('应该正确初始化服务', () => {
+  describe('initialization', () => {
+    it('should create the service', () => {
       expect(service).toBeDefined();
     });
 
-    it('应该正确配置基础端口', () => {
-      expect(mockConfigService.get).toHaveBeenCalledWith('OPENCLAW_BASE_PORT', 18790);
+    it('should read OPENCLAW_MODE from config', () => {
+      expect(mockConfigService.get).toHaveBeenCalledWith('OPENCLAW_MODE', 'single');
+    });
+
+    it('should fall back to single mode for unknown mode', async () => {
+      const customConfig = createMockConfigService({ OPENCLAW_MODE: 'unknown-mode' });
+      const module = await Test.createTestingModule({
+        providers: [
+          GatewayManagerService,
+          { provide: ConfigService, useValue: customConfig },
+        ],
+      }).compile();
+
+      const svc = module.get<GatewayManagerService>(GatewayManagerService);
+      const result = await svc.acquire('any-user');
+      expect(result.url).toBe(MOCK_GATEWAY_URL);
     });
   });
 
-  describe('getUserGateway', () => {
-    it('对于不存在的用户应返回 null', () => {
-      const result = service.getUserGateway('non-existent-user');
-      expect(result).toBeNull();
+  describe('acquire (single mode)', () => {
+    it('should return the shared gateway URL and token', async () => {
+      const result = await service.acquire('user-1');
+
+      expect(result).toEqual({
+        url: MOCK_GATEWAY_URL,
+        token: MOCK_GATEWAY_TOKEN,
+      });
+    });
+
+    it('should return the same URL for different users', async () => {
+      const result1 = await service.acquire('user-1');
+      const result2 = await service.acquire('user-2');
+
+      expect(result1.url).toBe(result2.url);
+      expect(result1.token).toBe(result2.token);
     });
   });
 
-  describe('startUserGateway', () => {
-    it('应该为用户分配有效端口', async () => {
-      const userId = 'test-user-1';
-
-      // Mock process spawn with immediate ready signal
-      const originalSpawn = require('child_process').spawn;
-      const mockProcess = {
-        stdout: {
-          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
-            if (event === 'data') {
-              // Immediately emit "Gateway started" to signal ready
-              callback(Buffer.from('Gateway started on port 18790'));
-            }
-          }),
-        },
-        stderr: { on: jest.fn() },
-        on: jest.fn(),
-        kill: jest.fn(),
-      };
-      require('child_process').spawn = jest.fn(() => mockProcess as any);
-
-      try {
-        const result = await service.startUserGateway(userId);
-
-        expect(result).toBeDefined();
-        expect(result.port).toBeGreaterThanOrEqual(18790);
-        expect(result.port).toBeLessThan(18890);
-        expect(result.status).toBe('running');
-        expect(result.token).toBeDefined();
-        expect(result.token).toMatch(/^lc_gw_/);
-      } finally {
-        require('child_process').spawn = originalSpawn;
-      }
-    });
-
-    it('同一用户重复调用应返回相同端口', async () => {
-      const userId = 'test-user-2';
-
-      // Mock process spawn with immediate ready signal
-      const originalSpawn = require('child_process').spawn;
-      const mockProcess = {
-        stdout: {
-          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
-            if (event === 'data') {
-              callback(Buffer.from('Gateway started'));
-            }
-          }),
-        },
-        stderr: { on: jest.fn() },
-        on: jest.fn(),
-        kill: jest.fn(),
-      };
-      require('child_process').spawn = jest.fn(() => mockProcess as any);
-
-      try {
-        const result1 = await service.startUserGateway(userId);
-        const result2 = await service.startUserGateway(userId);
-
-        expect(result1.port).toBe(result2.port);
-      } finally {
-        require('child_process').spawn = originalSpawn;
-      }
+  describe('release (single mode)', () => {
+    it('should be a no-op without errors', async () => {
+      await expect(service.release('user-1')).resolves.not.toThrow();
     });
   });
 
-  describe('stopUserGateway', () => {
-    it('停止不存在的 Gateway 不应抛出错误', async () => {
-      await expect(service.stopUserGateway('non-existent-user')).resolves.not.toThrow();
+  describe('health (single mode)', () => {
+    it('should return false when gateway is unreachable', async () => {
+      // In test env, no actual gateway is running on this port
+      const customConfig = createMockConfigService({
+        OPENCLAW_GATEWAY_URL: 'ws://127.0.0.1:19999',
+      });
+      const module = await Test.createTestingModule({
+        providers: [
+          GatewayManagerService,
+          { provide: ConfigService, useValue: customConfig },
+        ],
+      }).compile();
+
+      const svc = module.get<GatewayManagerService>(GatewayManagerService);
+      const healthy = await svc.health('user-1');
+      expect(healthy).toBe(false);
     });
   });
 
-  describe('isGatewayRunning', () => {
-    it('对于未启动的用户应返回 false', () => {
-      expect(service.isGatewayRunning('non-existent-user')).toBe(false);
-    });
-  });
-
-  describe('getAllGateways', () => {
-    it('没有 Gateway 时应返回空数组', () => {
-      const gateways = service.getAllGateways();
-      expect(gateways).toEqual([]);
-    });
-  });
-
-  describe('getGatewayConnectionInfo', () => {
-    it('无效 JWT 应返回 null', async () => {
-      mockJwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
-
-      const result = await service.getGatewayConnectionInfo('invalid-token');
-
-      expect(result).toBeNull();
-    });
-
-    it('有效 JWT 应返回连接信息', async () => {
-      mockJwtService.verifyAsync.mockResolvedValue({ sub: 'user-123' });
-
-      // Mock process spawn with immediate ready signal
-      const originalSpawn = require('child_process').spawn;
-      const mockProcess = {
-        stdout: {
-          on: jest.fn((event: string, callback: (data: Buffer) => void) => {
-            if (event === 'data') {
-              callback(Buffer.from('Gateway started'));
-            }
-          }),
-        },
-        stderr: { on: jest.fn() },
-        on: jest.fn(),
-        kill: jest.fn(),
-      };
-      require('child_process').spawn = jest.fn(() => mockProcess as any);
-
-      try {
-        const result = await service.getGatewayConnectionInfo('valid-token');
-
-        expect(result).toBeDefined();
-        expect(result?.url).toBeDefined();
-        expect(result?.token).toBeDefined();
-        expect(result?.port).toBeGreaterThanOrEqual(18790);
-      } finally {
-        require('child_process').spawn = originalSpawn;
-      }
-    });
-  });
-
-  describe('generateGatewayToken', () => {
-    it('应该生成正确格式的 Token', () => {
-      // 通过 startUserGateway 间接测试 token 生成
-      const token = 'lc_gw_' + Buffer.from('test:data:123').toString('base64url');
-      expect(token).toMatch(/^lc_gw_[A-Za-z0-9_-]+$/);
+  describe('onModuleDestroy', () => {
+    it('should clean up without errors', async () => {
+      await expect(service.onModuleDestroy()).resolves.not.toThrow();
     });
   });
 });

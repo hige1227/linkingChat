@@ -29,6 +29,8 @@ export interface DeviceResultPayload {
   };
   error?: { code: string; message: string };
   executionTimeMs: number;
+  /** Execution backend: 'openclaw' (preferred) or 'child_process' (fallback) */
+  source?: 'openclaw' | 'child_process';
 }
 
 export interface DeviceStatusPayload {
