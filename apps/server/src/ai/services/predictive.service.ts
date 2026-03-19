@@ -147,8 +147,9 @@ export class PredictiveService {
       );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : '';
       this.logger.error(
-        `Predictive analysis failed for ${params.triggerCategory}: ${msg}`,
+        `Predictive analysis failed for ${params.triggerCategory}: ${msg}\n${stack}`,
       );
     }
   }

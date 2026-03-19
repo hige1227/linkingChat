@@ -163,13 +163,17 @@ export function ChatPage() {
             )}
 
             {/* AI Draft Cards */}
-            {drafts.length > 0 && (
-              <div className="ai-cards-area">
-                {drafts.map((d) => (
-                  <DraftCard key={d.draftId} draft={d} converseId={converseId} />
-                ))}
-              </div>
-            )}
+            {drafts.length > 0 && (() => {
+              const sorted = [...drafts].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+              console.log('[Draft] Render order:', sorted.map((d, i) => `${i}: ${d.botName} createdAt=${d.createdAt}`));
+              return (
+                <div className="ai-cards-area">
+                  {sorted.map((d) => (
+                    <DraftCard key={d.draftId} draft={d} converseId={converseId} />
+                  ))}
+                </div>
+              );
+            })()}
 
             {/* AI Predictive Action Cards */}
             {activePredictions.length > 0 && (
@@ -192,6 +196,7 @@ export function ChatPage() {
 
             <MessageInput
               converseId={converseId}
+              isGroup={isGroup}
               prefillText={prefillText}
               onPrefillConsumed={() => setPrefillText('')}
             />

@@ -1,26 +1,35 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useChatStore } from '../../stores/chatStore';
+import { useAiStore } from '../../stores/aiStore';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import { uploadFile } from '../../services/uploadService';
 import { VoiceRecorder } from './VoiceRecorder';
 import type { MessageResponse } from '@linkingchat/ws-protocol';
 
+const AI_MENTION_RE = /(?<!\w)@ai\b/i;
+
 interface MessageInputProps {
   converseId: string;
+  isGroup?: boolean;
   prefillText?: string;
   onPrefillConsumed?: () => void;
   onFilesDropped?: (files: File[]) => void;
 }
 
-export function MessageInput({ converseId, prefillText, onPrefillConsumed, onFilesDropped }: MessageInputProps) {
+export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsumed, onFilesDropped }: MessageInputProps) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showAiHint, setShowAiHint] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
+  const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { emitWhisperRequest } = useChatSocket();
+  const whisper = useAiStore((s) => s.whisper[converseId]);
+  const showAiButton = !isGroup;
 
   // Reset text when converseId changes
   useEffect(() => {
@@ -50,10 +59,46 @@ export function MessageInput({ converseId, prefillText, onPrefillConsumed, onFil
     el.style.height = Math.min(el.scrollHeight, 144) + 'px';
   }, []);
 
+  // Reset AI hint when converseId changes
+  useEffect(() => {
+    setShowAiHint(false);
+    setAiLoading(false);
+    if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current);
+  }, [converseId]);
+
+  // Reset aiLoading when whisper suggestion arrives
+  useEffect(() => {
+    if (whisper && aiLoading) {
+      setAiLoading(false);
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current);
+        aiTimeoutRef.current = null;
+      }
+    }
+  }, [whisper, aiLoading]);
+
+  const handleAiRequest = (userPrompt?: string) => {
+    if (aiLoading) return;
+    console.log('[AI] handleAiRequest called, converseId:', converseId, 'prompt:', userPrompt);
+    setAiLoading(true);
+    emitWhisperRequest(converseId, userPrompt);
+    // 5s timeout fallback
+    aiTimeoutRef.current = setTimeout(() => {
+      setAiLoading(false);
+      aiTimeoutRef.current = null;
+      console.log('[AI] 5s timeout — loading reset');
+    }, 5000);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
+    const value = e.target.value;
+    setText(value);
     adjustHeight();
     emitTyping();
+    // Real-time @ai detection
+    if (showAiButton) {
+      setShowAiHint(AI_MENTION_RE.test(value));
+    }
   };
 
   const emitTyping = useCallback(() => {
@@ -79,10 +124,13 @@ export function MessageInput({ converseId, prefillText, onPrefillConsumed, onFil
     const content = text.trim();
     if (!content || sending) return;
 
-    // @ai 拦截：不发送消息，改为请求 Whisper 建议
-    if (/(?<!\w)@ai\b/i.test(content)) {
-      emitWhisperRequest(converseId);
+    // @ai 拦截：仅当提示条可见时拦截（用户已有预期）
+    if (showAiHint) {
+      // Extract user's text minus @ai as prompt context
+      const prompt = content.replace(AI_MENTION_RE, '').trim() || undefined;
+      handleAiRequest(prompt);
       setText('');
+      setShowAiHint(false);
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
       return;
     }
@@ -191,6 +239,14 @@ export function MessageInput({ converseId, prefillText, onPrefillConsumed, onFil
 
   return (
     <div className="message-input-container">
+      {showAiHint && (
+        <div className="ai-hint-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+          </svg>
+          <span>Contains @ai — sending will request AI suggestions, message won't be sent</span>
+        </div>
+      )}
       <div className="message-input-wrapper">
         <input
           type="file"
@@ -224,6 +280,30 @@ export function MessageInput({ converseId, prefillText, onPrefillConsumed, onFil
           onKeyDown={handleKeyDown}
           rows={1}
         />
+        {showAiButton && (
+          <button
+            className={`message-ai-btn${aiLoading ? ' loading' : ''}`}
+            onClick={() => {
+              // If user has typed text, use it as prompt context for AI
+              const inputText = text.trim();
+              const prompt = inputText ? inputText.replace(AI_MENTION_RE, '').trim() || undefined : undefined;
+              handleAiRequest(prompt);
+            }}
+            disabled={aiLoading}
+            title="AI suggestions"
+          >
+            {aiLoading ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin">
+                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74L12 2z" />
+                <path d="M20 16l1.04 3.13L24 20l-2.96.87L20 24l-1.04-3.13L16 20l2.96-.87L20 16z" opacity="0.6" />
+              </svg>
+            )}
+          </button>
+        )}
         {text.trim() ? (
           <button
             className="message-send-btn"

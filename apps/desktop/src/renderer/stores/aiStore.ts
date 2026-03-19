@@ -49,8 +49,9 @@ interface AiState {
   // Draft: converseId → draft list
   drafts: Record<string, DraftItem[]>;
   addDraft: (converseId: string, draft: DraftItem) => void;
-  updateDraftStatus: (draftId: string, status: DraftStatus) => void;
+  updateDraftStatus: (draftId: string, status: DraftStatus, updatedContent?: Record<string, unknown>) => void;
   expireDraft: (draftId: string) => void;
+  removeDraft: (draftId: string) => void;
 
   // Predictive: converseId → suggestion list
   predictions: Record<string, PredictiveSuggestion[]>;
@@ -91,22 +92,27 @@ export const useAiStore = create<AiState>((set) => ({
     set((state) => ({
       drafts: {
         ...state.drafts,
-        [converseId]: [draft, ...(state.drafts[converseId] ?? [])],
+        [converseId]: [...(state.drafts[converseId] ?? []), draft],
       },
     })),
 
-  updateDraftStatus: (draftId, status) =>
+  updateDraftStatus: (draftId, status, updatedContent?) => {
     set((state) => {
       const newDrafts: Record<string, DraftItem[]> = {};
       for (const [cid, items] of Object.entries(state.drafts)) {
         newDrafts[cid] = items.map((d) =>
-          d.draftId === draftId ? { ...d, status } : d,
+          d.draftId === draftId
+            ? { ...d, status, ...(updatedContent ? { draftContent: updatedContent } : {}) }
+            : d,
         );
       }
       return { drafts: newDrafts };
-    }),
+    });
+    // Auto-remove after 30s
+    setTimeout(() => useAiStore.getState().removeDraft(draftId), 30_000);
+  },
 
-  expireDraft: (draftId) =>
+  expireDraft: (draftId) => {
     set((state) => {
       const newDrafts: Record<string, DraftItem[]> = {};
       for (const [cid, items] of Object.entries(state.drafts)) {
@@ -115,6 +121,17 @@ export const useAiStore = create<AiState>((set) => ({
             ? { ...d, status: 'expired' as DraftStatus }
             : d,
         );
+      }
+      return { drafts: newDrafts };
+    });
+    setTimeout(() => useAiStore.getState().removeDraft(draftId), 30_000);
+  },
+
+  removeDraft: (draftId) =>
+    set((state) => {
+      const newDrafts: Record<string, DraftItem[]> = {};
+      for (const [cid, items] of Object.entries(state.drafts)) {
+        newDrafts[cid] = items.filter((d) => d.draftId !== draftId);
       }
       return { drafts: newDrafts };
     }),

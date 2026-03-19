@@ -172,9 +172,10 @@ class ChatSocketService {
   // ──────────────────────────────────────
 
   /// Request Whisper suggestions (pre-send trigger)
-  void emitWhisperRequest(String converseId) {
+  void emitWhisperRequest(String converseId, {String? prompt}) {
     _socket?.emitWithAck(AiEvents.whisperRequest, {
       'converseId': converseId,
+      if (prompt != null) 'prompt': prompt,
     }, ack: (response) {
       debugPrint('[ChatSocket] whisperRequest ack: $response');
     });

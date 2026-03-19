@@ -130,7 +130,13 @@ export class BotCommunicationService {
           type: 'BOT_NOTIFICATION',
           converseId: targetConverse.id,
           authorId: toBot.userId,
-          metadata: { triggerSource } as any,
+          metadata: {
+            cardType: 'info',
+            title: `来自 ${fromBot.name} 的协作`,
+            description: content,
+            sourceBotName: fromBot.name,
+            triggerSource,
+          } as any,
         },
       });
 

@@ -56,6 +56,7 @@ export class DevicesService {
         platform: payload.platform,
         status: 'ONLINE',
         lastSeenAt: new Date(),
+        userId,
       },
     });
   }

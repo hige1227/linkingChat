@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../../stores/chatStore';
 import { CreateGroupDialog } from './CreateGroupDialog';
+import { BotBadge } from '../BotBadge';
 import type { ConverseResponse } from '@linkingchat/ws-protocol';
 
 export function ConversationList() {
@@ -65,9 +66,17 @@ export function ConversationList() {
               navigate(`/chat/${c.id}`);
             }}
           >
-            <div className="conversation-avatar">
-              {getAvatarLetter(c, currentUserId)}
-            </div>
+            {(c as any).isBot ? (
+              <BotBadge>
+                <div className="conversation-avatar">
+                  {getAvatarLetter(c, currentUserId)}
+                </div>
+              </BotBadge>
+            ) : (
+              <div className="conversation-avatar">
+                {getAvatarLetter(c, currentUserId)}
+              </div>
+            )}
             <div className="conversation-info">
               <div className="conversation-name-row">
                 <span className="conversation-name">{getConverseName(c, currentUserId)}</span>

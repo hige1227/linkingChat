@@ -14,6 +14,8 @@ export interface WhisperSuggestionsPayload {
 export interface WhisperRequestPayload {
   converseId: string;
   messageId?: string;
+  /** 用户输入的额外上下文（如 "@ai 帮我回复" 中的 "帮我回复"） */
+  prompt?: string;
 }
 
 /** ai:whisper:accept 事件的 payload (C→S) */

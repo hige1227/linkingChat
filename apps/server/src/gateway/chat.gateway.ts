@@ -339,7 +339,7 @@ export class ChatGateway
       }
 
       this.whisperService
-        .handleWhisperRequest(userId, data.converseId)
+        .handleWhisperRequest(userId, data.converseId, data.prompt)
         .catch((err) =>
           this.logger.error(
             `Whisper request failed: ${(err as Error).message}`,

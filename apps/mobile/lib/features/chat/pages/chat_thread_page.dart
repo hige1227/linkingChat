@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +32,8 @@ class ChatThreadPage extends ConsumerStatefulWidget {
 class _ChatThreadPageState extends ConsumerState<ChatThreadPage> {
   final _scrollController = ScrollController();
   final _messageInputKey = GlobalKey<MessageInputState>();
+  bool _aiLoading = false;
+  Timer? _aiTimeoutTimer;
 
   @override
   void initState() {
@@ -51,6 +54,7 @@ class _ChatThreadPageState extends ConsumerState<ChatThreadPage> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _aiTimeoutTimer?.cancel();
     super.dispose();
   }
 
@@ -79,9 +83,21 @@ class _ChatThreadPageState extends ConsumerState<ChatThreadPage> {
     final typingState = ref.watch(typingProvider(widget.converseId));
     final whisperState = ref.watch(whisperProvider(widget.converseId));
     final draftState = ref.watch(draftProvider(widget.converseId));
+    if (draftState.drafts.isNotEmpty) {
+      debugPrint('[ChatThread] build: drafts=${draftState.drafts.length}, statuses=${draftState.drafts.map((d) => d.status.name).join(",")}');
+    }
     final predictiveState = ref.watch(predictiveProvider(widget.converseId));
     final authState = ref.watch(authProvider);
     final currentUserId = authState.user?.id ?? '';
+
+    // Reset AI loading when whisper suggestions arrive
+    ref.listen<WhisperState>(whisperProvider(widget.converseId),
+        (prev, next) {
+      if (next.hasSuggestion && _aiLoading) {
+        setState(() => _aiLoading = false);
+        _aiTimeoutTimer?.cancel();
+      }
+    });
 
     // Auto-mark read when new messages arrive
     ref.listen<MessagesState>(messagesProvider(widget.converseId),
@@ -143,8 +159,8 @@ class _ChatThreadPageState extends ConsumerState<ChatThreadPage> {
             child: _buildMessageList(msgState, currentUserId, converse),
           ),
 
-          // Draft cards (pinned above input area)
-          ...draftState.activeDrafts.map((draft) => DraftCard(
+          // Draft cards (pinned above input area, oldest first)
+          ...(List.of(draftState.drafts)..sort((a, b) => a.createdAt.compareTo(b.createdAt))).map((draft) => DraftCard(
                 draft: draft,
                 onApprove: (draftId) {
                   ref.read(draftProvider(widget.converseId).notifier).approve(draftId);
@@ -202,6 +218,22 @@ class _ChatThreadPageState extends ConsumerState<ChatThreadPage> {
           // Message input
           MessageInput(
             key: _messageInputKey,
+            showAiButton: converse?.type != 'GROUP',
+            aiLoading: _aiLoading,
+            onAiButtonPressed: (prompt) {
+              if (_aiLoading) return;
+              setState(() => _aiLoading = true);
+              ref
+                  .read(whisperProvider(widget.converseId).notifier)
+                  .requestSuggestions(prompt: prompt);
+              // 5s timeout fallback
+              _aiTimeoutTimer?.cancel();
+              _aiTimeoutTimer = Timer(const Duration(seconds: 5), () {
+                if (mounted && _aiLoading) {
+                  setState(() => _aiLoading = false);
+                }
+              });
+            },
             onSend: (content) {
               ref
                   .read(messagesProvider(widget.converseId).notifier)

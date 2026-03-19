@@ -43,7 +43,10 @@ function initSocket() {
 
   (async () => {
     const token = window.electronAPI ? await window.electronAPI.getToken() : null;
-    if (!token) return;
+    if (!token) {
+      console.error('[ChatSocket] No token available, socket not created');
+      return;
+    }
 
     const userId = getUserIdFromToken(token);
     if (userId) {
@@ -64,6 +67,7 @@ function initSocket() {
 
     socket.on('connect', () => {
       connectErrorCount = 0;
+      console.log('[ChatSocket] Connected, socket.id:', socket.id);
       notifyConnected(true);
       sharedJoinedRooms.clear();
       const converses = useChatStore.getState().converses;
@@ -75,12 +79,14 @@ function initSocket() {
       useFriendsStore.getState().fetchRequests();
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
+      console.log('[ChatSocket] Disconnected, reason:', reason);
       notifyConnected(false);
       sharedJoinedRooms.clear();
     });
 
-    socket.on('connect_error', async () => {
+    socket.on('connect_error', async (err) => {
+      console.error('[ChatSocket] Connect error:', err.message);
       connectErrorCount++;
       if (connectErrorCount <= 3 && window.electronAPI) {
         try {
@@ -256,6 +262,7 @@ function initSocket() {
       primary: string;
       alternatives: string[];
     }) => {
+      console.log('[AI] Received whisper suggestions:', data.suggestionId, 'converseId:', data.converseId, 'primary:', data.primary?.substring(0, 50));
       useAiStore.getState().setWhisper(data.converseId, {
         suggestionId: data.suggestionId,
         primary: data.primary,
@@ -274,6 +281,7 @@ function initSocket() {
       expiresAt: string;
       createdAt: string;
     }) => {
+      console.log('[AI] Received draft:created:', data.draftId, 'botName:', data.botName, 'createdAt:', data.createdAt, 'ts:', new Date(data.createdAt).getTime());
       useAiStore.getState().addDraft(data.converseId, {
         ...data,
         status: 'pending',
@@ -386,12 +394,30 @@ export function useChatSocket() {
     },
 
     // ── AI emit helpers ──
-    emitWhisperRequest: (converseId: string) => {
-      sharedSocket?.emit('ai:whisper:request', { converseId }, (res: any) => {
-        if (!res?.success) {
-          console.error('Whisper request failed:', res?.error);
-        }
-      });
+    emitWhisperRequest: (converseId: string, prompt?: string) => {
+      const payload = { converseId, ...(prompt ? { prompt } : {}) };
+      console.log('[AI] emitWhisperRequest, socket connected:', sharedSocket?.connected, 'converseId:', converseId, 'prompt:', prompt);
+
+      if (sharedSocket?.connected) {
+        sharedSocket.emit('ai:whisper:request', payload, (res: any) => {
+          console.log('[AI] whisper request ack:', res);
+        });
+      } else if (sharedSocket) {
+        // Socket exists but disconnected — force reconnect and retry once
+        console.log('[AI] Socket disconnected, reconnecting...');
+        sharedSocket.connect();
+        const onReconnect = () => {
+          console.log('[AI] Reconnected, retrying whisper request');
+          sharedSocket?.emit('ai:whisper:request', payload, (res: any) => {
+            console.log('[AI] whisper request ack (reconnected):', res);
+          });
+        };
+        sharedSocket.once('connect', onReconnect);
+        // Give up after 3s
+        setTimeout(() => { sharedSocket?.off('connect', onReconnect); }, 3000);
+      } else {
+        console.error('[AI] No socket available — initSocket may have failed');
+      }
     },
     emitWhisperAccept: (suggestionId: string, selectedIndex: number) => {
       sharedSocket?.emit('ai:whisper:accept', { suggestionId, selectedIndex });

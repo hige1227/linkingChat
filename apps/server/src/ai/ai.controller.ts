@@ -12,6 +12,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { LlmRouterService } from './services/llm-router.service';
 import { DraftService } from './services/draft.service';
 import { PredictiveService } from './services/predictive.service';
+import { BroadcastService } from '../gateway/broadcast.service';
 
 @Controller('ai')
 export class AiController {
@@ -19,6 +20,7 @@ export class AiController {
     private readonly llmRouter: LlmRouterService,
     private readonly draftService: DraftService,
     private readonly predictiveService: PredictiveService,
+    private readonly broadcastService: BroadcastService,
   ) {}
 
   /** GET /api/v1/ai/health — AI 模块健康检查 */
@@ -122,5 +124,48 @@ export class AiController {
     });
 
     return { triggered: true, category };
+  }
+
+  /**
+   * POST /api/v1/ai/test/predictive/mock
+   * 直接推送 mock 预测卡片（跳过 LLM，用于 UI 测试）
+   */
+  @Post('test/predictive/mock')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  testPredictiveMock(
+    @CurrentUser('userId') userId: string,
+    @Body() body: { converseId: string },
+  ) {
+    const suggestionId = `mock-pred-${Date.now()}`;
+    const payload = {
+      suggestionId,
+      converseId: body.converseId,
+      trigger: 'Error: ENOENT: no such file or directory, open /home/user/project/config.json',
+      actions: [
+        {
+          type: 'shell',
+          action: 'touch /home/user/project/config.json && echo "{}" > /home/user/project/config.json',
+          description: 'Create missing config.json with empty object',
+          dangerLevel: 'safe',
+        },
+        {
+          type: 'shell',
+          action: 'find / -name "config.json" 2>/dev/null | head -5',
+          description: 'Search for config.json in other locations',
+          dangerLevel: 'warning',
+        },
+        {
+          type: 'shell',
+          action: 'rm -rf /home/user/project && git clone <repo> /home/user/project',
+          description: 'Re-clone the entire project from scratch',
+          dangerLevel: 'dangerous',
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    };
+
+    this.broadcastService.toRoom(`u-${userId}`, 'ai:predictive:action', payload);
+    return { suggestionId, actions: payload.actions.length };
   }
 }

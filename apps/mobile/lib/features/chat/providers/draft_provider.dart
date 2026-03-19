@@ -40,14 +40,14 @@ class DraftItem {
 
   bool get isExpired => remainingTime == Duration.zero;
 
-  DraftItem copyWith({DraftStatus? status}) {
+  DraftItem copyWith({DraftStatus? status, Map<String, dynamic>? draftContent}) {
     return DraftItem(
       draftId: draftId,
       converseId: converseId,
       botId: botId,
       botName: botName,
       draftType: draftType,
-      draftContent: draftContent,
+      draftContent: draftContent ?? this.draftContent,
       expiresAt: expiresAt,
       createdAt: createdAt,
       status: status ?? this.status,
@@ -101,7 +101,7 @@ class DraftNotifier extends StateNotifier<DraftState> {
           data['createdAt'] as String? ?? DateTime.now().toIso8601String()),
     );
 
-    state = state.copyWith(drafts: [draft, ...state.drafts]);
+    state = state.copyWith(drafts: [...state.drafts, draft]);
     debugPrint('[Draft] New draft received: ${draft.draftId}');
   }
 
@@ -111,21 +111,42 @@ class DraftNotifier extends StateNotifier<DraftState> {
     if (draftId == null) return;
 
     _updateDraftStatus(draftId, DraftStatus.expired);
+    _scheduleRemoval(draftId);
   }
 
   void approve(String draftId) {
     _chatSocket.emitDraftApprove(draftId);
     _updateDraftStatus(draftId, DraftStatus.approved);
+    _scheduleRemoval(draftId);
   }
 
   void reject(String draftId, {String? reason}) {
     _chatSocket.emitDraftReject(draftId, reason: reason);
     _updateDraftStatus(draftId, DraftStatus.rejected);
+    _scheduleRemoval(draftId);
   }
 
   void editAndApprove(String draftId, Map<String, dynamic> editedContent) {
     _chatSocket.emitDraftEdit(draftId, editedContent);
-    _updateDraftStatus(draftId, DraftStatus.approved);
+    state = state.copyWith(
+      drafts: state.drafts.map((d) {
+        if (d.draftId == draftId) {
+          return d.copyWith(status: DraftStatus.approved, draftContent: editedContent);
+        }
+        return d;
+      }).toList(),
+    );
+    _scheduleRemoval(draftId);
+  }
+
+  /// Auto-remove non-pending cards after 30 seconds to prevent UI overflow
+  void _scheduleRemoval(String draftId) {
+    Future.delayed(const Duration(seconds: 30), () {
+      if (!mounted) return;
+      state = state.copyWith(
+        drafts: state.drafts.where((d) => d.draftId != draftId).toList(),
+      );
+    });
   }
 
   void _updateDraftStatus(String draftId, DraftStatus newStatus) {
@@ -139,10 +160,11 @@ class DraftNotifier extends StateNotifier<DraftState> {
 
   /// Check every second to update expired drafts in UI
   void _startExpiryCheck() {
-    _expiryTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _expiryTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       final hasExpired = state.drafts.any(
           (d) => d.status == DraftStatus.pending && d.isExpired);
       if (hasExpired) {
+        debugPrint('[Draft] expiryCheck: marking expired drafts');
         state = state.copyWith(
           drafts: state.drafts.map((d) {
             if (d.status == DraftStatus.pending && d.isExpired) {

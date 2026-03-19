@@ -113,17 +113,32 @@ export class WhisperService {
   async handleWhisperRequest(
     userId: string,
     converseId: string,
+    prompt?: string,
   ): Promise<void> {
     try {
+      this.logger.log(
+        `[handleWhisperRequest] START userId=${userId}, converseId=${converseId}, prompt=${prompt ?? '(none)'}`,
+      );
+
+      // 1. Extract context
       const context = await this.extractContext(converseId);
-      const suggestions = await this.generateSuggestions(context);
+      this.logger.debug(
+        `[handleWhisperRequest] Context extracted, length=${context.length}`,
+      );
+
+      // 2. Generate suggestions via LLM
+      const suggestions = await this.generateSuggestions(context, prompt);
       if (!suggestions) {
         this.logger.warn(
-          `Whisper request timed out for converse ${converseId}`,
+          `[handleWhisperRequest] generateSuggestions returned null (LLM failed or timed out) for converse ${converseId}`,
         );
         return;
       }
+      this.logger.debug(
+        `[handleWhisperRequest] Suggestions generated: primary="${suggestions.primary.substring(0, 50)}..."`,
+      );
 
+      // 3. Persist to DB
       const record = await this.prisma.aiSuggestion.create({
         data: {
           type: 'WHISPER',
@@ -135,7 +150,11 @@ export class WhisperService {
           },
         },
       });
+      this.logger.debug(
+        `[handleWhisperRequest] Saved to DB, id=${record.id}`,
+      );
 
+      // 4. Broadcast to user
       const payload: WhisperSuggestionsPayload = {
         suggestionId: record.id,
         converseId,
@@ -151,11 +170,14 @@ export class WhisperService {
       );
 
       this.logger.log(
-        `Whisper suggestions (pre-send) sent to user ${userId}`,
+        `[handleWhisperRequest] DONE — suggestions broadcast to u-${userId}`,
       );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Whisper request failed: ${msg}`);
+      this.logger.error(
+        `[handleWhisperRequest] FAILED: ${msg}`,
+        error instanceof Error ? error.stack : undefined,
+      );
     }
   }
 
@@ -217,29 +239,42 @@ export class WhisperService {
    */
   async generateSuggestions(
     context: string,
+    prompt?: string,
   ): Promise<WhisperSuggestions | null> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.WHISPER_TIMEOUT);
-
     try {
+      let userContent = `以下是聊天记录:\n\n${context}\n\n`;
+      if (prompt) {
+        userContent += `用户的请求: ${prompt}\n\n请根据聊天上下文和用户的请求生成 3 条回复建议。`;
+      } else {
+        userContent += `请根据上下文生成 3 条回复建议。`;
+      }
+
+      this.logger.debug(
+        `[generateSuggestions] Calling LLM, context length=${context.length}, prompt=${prompt ?? '(none)'}`,
+      );
+
       const response = await this.llmRouter.complete({
         taskType: 'whisper',
         systemPrompt: WHISPER_SYSTEM_PROMPT,
         messages: [
           {
             role: 'user',
-            content: `以下是聊天记录:\n\n${context}\n\n请根据上下文生成 3 条回复建议。`,
+            content: userContent,
           },
         ],
         maxTokens: 512,
         temperature: 0.8,
       });
 
+      this.logger.debug(
+        `[generateSuggestions] LLM response received, length=${response.content.length}`,
+      );
+
       return this.parseSuggestions(response.content);
-    } catch {
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[generateSuggestions] LLM call failed: ${msg}`);
       return null;
-    } finally {
-      clearTimeout(timer);
     }
   }
 
@@ -247,13 +282,25 @@ export class WhisperService {
    * 解析 LLM 输出为结构化建议
    */
   parseSuggestions(content: string): WhisperSuggestions {
+    // Strip markdown code block wrapper if present (```json ... ```)
+    let cleaned = content.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned
+        .replace(/^```(?:json)?\s*\n?/, '')
+        .replace(/\n?```\s*$/, '')
+        .trim();
+    }
+
     // Try JSON parsing first
     try {
-      const parsed = JSON.parse(content);
+      const parsed = JSON.parse(cleaned);
       if (parsed.primary && Array.isArray(parsed.alternatives)) {
         return {
           primary: String(parsed.primary),
-          alternatives: parsed.alternatives.map(String).slice(0, 2),
+          alternatives: parsed.alternatives
+            .map(String)
+            .filter((s: string) => s.length > 0)
+            .slice(0, 2),
         };
       }
     } catch {
@@ -261,13 +308,13 @@ export class WhisperService {
     }
 
     // Line-based parsing: first non-empty line = primary, next 2 = alternatives
-    const lines = content
+    const lines = cleaned
       .split('\n')
       .map((l) => l.replace(/^[\d.)\-*]+\s*/, '').trim())
       .filter((l) => l.length > 0);
 
     return {
-      primary: lines[0] || content.trim(),
+      primary: lines[0] || cleaned,
       alternatives: lines.slice(1, 3),
     };
   }

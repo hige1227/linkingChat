@@ -87,7 +87,12 @@ export class BroadcastService {
   /** 发送到 chat 命名空间的指定房间（如 converseId 房间） */
   toRoom(roomId: string, event: string, data: unknown) {
     this.validatePayload(event, data);
-    this.getNs('chat').to(roomId).emit(event, data);
+    const ns = this.getNs('chat');
+    const roomSockets = ns.adapter.rooms.get(roomId);
+    this.logger.debug(
+      `[toRoom] room=${roomId} event=${event} socketsInRoom=${roomSockets?.size ?? 0}`,
+    );
+    ns.to(roomId).emit(event, data);
   }
 
   /**

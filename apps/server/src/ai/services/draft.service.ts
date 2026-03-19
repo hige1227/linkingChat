@@ -92,6 +92,10 @@ export class DraftService {
       createdAt: draft.createdAt.toISOString(),
     };
 
+    this.logger.log(
+      `[Draft] Broadcasting ai:draft:created to room u-${params.userId}, draftId=${draft.id}, payload keys=${Object.keys(payload).join(',')}`,
+    );
+
     this.broadcastService.toRoom(
       `u-${params.userId}`,
       'ai:draft:created',

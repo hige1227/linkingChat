@@ -104,6 +104,7 @@ export class MessagesService {
         authorId: userId,
         converseId: dto.converseId,
         replyToId: dto.replyToId ?? null,
+        ...(dto.metadata ? { metadata: dto.metadata } : {}),
         ...(attachmentData ? { attachments: attachmentData } : {}),
       },
       include: {

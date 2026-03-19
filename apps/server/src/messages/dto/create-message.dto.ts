@@ -75,6 +75,9 @@ export class CreateMessageDto {
   @IsOptional()
   replyToId?: string;
 
+  @IsOptional()
+  metadata?: Record<string, any>;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AttachmentInput)

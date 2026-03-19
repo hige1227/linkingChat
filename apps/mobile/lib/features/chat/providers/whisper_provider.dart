@@ -81,8 +81,8 @@ class WhisperNotifier extends StateNotifier<WhisperState> {
   }
 
   /// Request Whisper suggestions (pre-send trigger, no message sent)
-  void requestSuggestions() {
-    _chatSocket.emitWhisperRequest(converseId);
+  void requestSuggestions({String? prompt}) {
+    _chatSocket.emitWhisperRequest(converseId, prompt: prompt);
   }
 
   void toggleAlternatives() {

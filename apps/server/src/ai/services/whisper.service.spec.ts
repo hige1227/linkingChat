@@ -163,6 +163,27 @@ describe('WhisperService', () => {
 
       expect(result.alternatives).toHaveLength(2);
     });
+
+    it('should strip markdown code block wrapper', () => {
+      const json = '```json\n{"primary":"好的","alternatives":["没问题","可以"]}\n```';
+
+      const result = service.parseSuggestions(json);
+
+      expect(result.primary).toBe('好的');
+      expect(result.alternatives).toEqual(['没问题', '可以']);
+    });
+
+    it('should filter empty alternatives', () => {
+      const json = JSON.stringify({
+        primary: '好的',
+        alternatives: ['没问题', '', '可以'],
+      });
+
+      const result = service.parseSuggestions(json);
+
+      expect(result.primary).toBe('好的');
+      expect(result.alternatives).toEqual(['没问题', '可以']);
+    });
   });
 
   // ── extractContext() ────────────────────────────
@@ -296,6 +317,34 @@ describe('WhisperService', () => {
       // Verify payload does NOT contain messageId
       const payload = mockBroadcast.toRoom.mock.calls[0][2];
       expect(payload.messageId).toBeUndefined();
+    });
+
+    it('should pass prompt to LLM when provided', async () => {
+      mockPrisma.message.findMany.mockResolvedValue(mockMessages);
+      mockLlmRouter.complete.mockResolvedValue({
+        content: JSON.stringify({
+          primary: '微信小程序是一种轻量级应用',
+          alternatives: ['小程序基于微信生态', '可以理解为H5应用的增强版'],
+        }),
+      });
+      mockPrisma.aiSuggestion.create.mockResolvedValue(mockSuggestionRecord);
+
+      await service.handleWhisperRequest(
+        mockUserId,
+        mockConverseId,
+        '帮我解释微信小程序',
+      );
+
+      // Verify the LLM call includes user's prompt
+      expect(mockLlmRouter.complete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messages: expect.arrayContaining([
+            expect.objectContaining({
+              content: expect.stringContaining('帮我解释微信小程序'),
+            }),
+          ]),
+        }),
+      );
     });
   });
 
