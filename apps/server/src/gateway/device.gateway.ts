@@ -17,6 +17,7 @@ import { DevicesService } from '../devices/devices.service';
 import { CommandsService } from '../devices/commands.service';
 import type {
   DeviceRegisterPayload,
+  DeviceHeartbeatPayload,
   DeviceCommandPayload,
   DeviceResultPayload,
   WsEnvelope,
@@ -163,10 +164,12 @@ export class DeviceGateway
 
   @SubscribeMessage('device:heartbeat')
   async handleHeartbeat(
-    @MessageBody() data: { deviceId: string },
+    @MessageBody() data: DeviceHeartbeatPayload,
   ): Promise<void> {
     await this.devicesService.updateLastSeen(data.deviceId);
-    this.logger.debug(`Heartbeat: device=${data.deviceId}`);
+    this.logger.debug(
+      `Heartbeat: device=${data.deviceId} openclawConnected=${data.openclawConnected ?? 'N/A'}`,
+    );
   }
 
   @SubscribeMessage('device:command:send')

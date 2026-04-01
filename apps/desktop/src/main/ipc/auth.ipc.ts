@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import { AuthStore } from '../services/auth-store.service';
 import type { WsClientService } from '../services/ws-client.service';
+import { connectToGateway, disconnectFromGateway } from './openclaw.ipc';
 
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:3008';
 
@@ -28,6 +29,11 @@ export function registerAuthIpc(wsClient: WsClientService): void {
 
         // Connect WS after successful login
         wsClient.connect();
+
+        // Connect to OpenClaw Gateway (non-blocking)
+        connectToGateway().catch((err) => {
+          console.warn('[Auth] OpenClaw connect after login failed (ignored):', err.message);
+        });
 
         return { success: true, user: data.user };
       } catch (error: any) {
@@ -62,6 +68,11 @@ export function registerAuthIpc(wsClient: WsClientService): void {
 
         wsClient.connect();
 
+        // Connect to OpenClaw Gateway (non-blocking)
+        connectToGateway().catch((err) => {
+          console.warn('[Auth] OpenClaw connect after register failed (ignored):', err.message);
+        });
+
         return { success: true, user: result.user };
       } catch (error: any) {
         return {
@@ -74,6 +85,8 @@ export function registerAuthIpc(wsClient: WsClientService): void {
 
   ipcMain.handle('auth:logout', async () => {
     wsClient.disconnect();
+    // Disconnect OpenClaw (non-blocking)
+    disconnectFromGateway().catch(() => {});
     AuthStore.clear();
     return { success: true };
   });

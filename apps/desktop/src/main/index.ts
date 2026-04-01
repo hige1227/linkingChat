@@ -2,7 +2,8 @@ import { app, BrowserWindow } from 'electron';
 import { join } from 'path';
 import { registerAuthIpc } from './ipc/auth.ipc';
 import { registerDeviceIpc } from './ipc/device.ipc';
-import { registerOpenClawIpc, connectToGateway } from './ipc/openclaw.ipc';
+import { registerOpenClawIpc, connectToGateway, disconnectFromGateway } from './ipc/openclaw.ipc';
+import { openClawProcessService } from './services/openclaw-process.service';
 import { WsClientService } from './services/ws-client.service';
 import { AuthStore } from './services/auth-store.service';
 
@@ -50,14 +51,15 @@ app.whenReady().then(() => {
   if (tokens) {
     wsClient.connect();
     // Connect to OpenClaw Gateway after WebSocket is ready
+    const mode = openClawProcessService.resolveMode();
     connectToGateway().then((status) => {
       if (status.connected) {
-        console.log('[Main] OpenClaw Gateway connected');
+        console.log(`[Main] OpenClaw Gateway connected (mode=${mode})`);
       } else {
-        console.warn('[Main] OpenClaw Gateway not available:', status.error);
+        console.warn(`[Main] OpenClaw Gateway not available (mode=${mode}):`, status.error);
       }
     }).catch((err) => {
-      console.warn('[Main] OpenClaw Gateway connection error (ignored):', err.message);
+      console.warn(`[Main] OpenClaw Gateway connection error (mode=${mode}, ignored):`, err.message);
     });
   }
 
@@ -66,11 +68,15 @@ app.whenReady().then(() => {
   });
 });
 
+// Ensure OpenClaw sidecar is stopped on quit (covers macOS Cmd+Q)
+app.on('before-quit', () => {
+  openClawProcessService.stop().catch((err) => {
+    console.warn('[Main] OpenClaw process stop error on quit:', err);
+  });
+});
+
 app.on('window-all-closed', () => {
   wsClient.disconnect();
-  // Disconnect from OpenClaw Gateway
-  import('./ipc/openclaw.ipc').then(({ disconnectFromGateway }) => {
-    disconnectFromGateway();
-  });
+  disconnectFromGateway().catch(() => {});
   if (process.platform !== 'darwin') app.quit();
 });

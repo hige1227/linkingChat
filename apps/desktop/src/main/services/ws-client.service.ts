@@ -1,6 +1,7 @@
 import { io, type Socket } from 'socket.io-client';
 import { BrowserWindow } from 'electron';
 import { AuthStore } from './auth-store.service';
+import { openClawClientService } from './openclaw-client.service';
 import { CommandExecutor, type CommandResult } from './command-executor.service';
 import { isDangerousCommand } from '../utils/command-blacklist';
 import { getDeviceId, getDeviceName, getPlatform } from '../utils/platform';
@@ -34,6 +35,7 @@ export class WsClientService {
     'disconnected';
   private executor = new CommandExecutor();
   private connectErrorCount = 0;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
   private deviceId = getDeviceId();
   private deviceName = getDeviceName();
@@ -87,6 +89,7 @@ export class WsClientService {
   }
 
   disconnect(): void {
+    this.stopHeartbeat();
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
@@ -102,10 +105,12 @@ export class WsClientService {
       console.log('[WS] Connected to Cloud Brain');
       this.updateStatus('connected');
       this.registerDevice();
+      this.startHeartbeat();
     });
 
     this.socket.on('disconnect', (reason) => {
       console.log('[WS] Disconnected:', reason);
+      this.stopHeartbeat();
       this.updateStatus('disconnected');
     });
 
@@ -125,6 +130,25 @@ export class WsClientService {
     this.socket.on('system:error', (err) => {
       console.error('[WS] System error:', err.code, err.message);
     });
+  }
+
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      if (this.socket?.connected) {
+        this.socket.emit('device:heartbeat', {
+          deviceId: this.deviceId,
+          openclawConnected: openClawClientService.isClientConnected(),
+        });
+      }
+    }, 30_000);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
   }
 
   private async attemptTokenRefresh(): Promise<void> {

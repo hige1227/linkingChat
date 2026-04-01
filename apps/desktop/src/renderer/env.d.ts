@@ -41,8 +41,35 @@ interface ElectronAPI {
     }>
   >;
 
+  getOpenClawStatus: () => Promise<{
+    connected: boolean;
+    mode?: string;
+    url?: string;
+    process?: {
+      mode: string;
+      running: boolean;
+      pid?: number;
+      restartCount: number;
+      lastError?: string;
+    };
+  }>;
+  connectOpenClaw: () => Promise<{
+    connected: boolean;
+    url?: string;
+    error?: string;
+    mode?: string;
+  }>;
+  disconnectOpenClaw: () => Promise<{ success: boolean }>;
+  restartOpenClaw: () => Promise<{
+    connected: boolean;
+    url?: string;
+    error?: string;
+    mode?: string;
+  }>;
+
   onConnectionStatusChanged: (callback: (status: string) => void) => void;
   onCommandReceived: (callback: (entry: unknown) => void) => void;
+  onOpenClawStatusChanged: (callback: (connected: boolean) => void) => void;
 }
 
 declare module 'zustand';

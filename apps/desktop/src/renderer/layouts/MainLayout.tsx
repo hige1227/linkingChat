@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useChatSocket } from '../hooks/useChatSocket';
 import { useFriendsStore } from '../stores/friendsStore';
@@ -11,6 +12,19 @@ export function MainLayout({ onLogout }: MainLayoutProps) {
   const location = useLocation();
   const { isConnected } = useChatSocket();
   const pendingCount = useFriendsStore((s) => s.receivedRequests.length);
+  const [aiConnected, setAiConnected] = useState(false);
+
+  useEffect(() => {
+    // Fetch initial OpenClaw status
+    window.electronAPI.getOpenClawStatus().then((status) => {
+      setAiConnected(status.connected);
+    }).catch(() => {});
+
+    // Listen for status changes
+    window.electronAPI.onOpenClawStatusChanged((connected) => {
+      setAiConnected(connected);
+    });
+  }, []);
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
@@ -56,6 +70,7 @@ export function MainLayout({ onLogout }: MainLayoutProps) {
         </div>
         <div className="sidebar-bottom">
           <div className={`connection-dot ${isConnected ? 'online' : 'offline'}`} title={isConnected ? 'Connected' : 'Disconnected'} />
+          <div className={`connection-dot ${aiConnected ? 'online' : 'offline'}`} title={aiConnected ? 'AI Agent Connected' : 'AI Agent Offline'} />
           <button
             className="sidebar-btn logout-btn"
             onClick={async () => {

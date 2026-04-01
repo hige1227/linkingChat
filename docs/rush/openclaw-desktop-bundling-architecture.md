@@ -1,7 +1,7 @@
 # OpenClaw + Desktop 封装架构方案
 
 > **创建日期**: 2026-03-31
-> **修订日期**: 2026-04-01 (Step 0 技术修正 + Review 补充)
+> **修订日期**: 2026-04-01 (Phase 1 运行时代码完成 + 暂缓打包决策)
 >
 > **核心原则**: 封装 ≠ 耦合。一个安装包是为用户便利，运行时是两个独立进程。
 >
@@ -400,37 +400,59 @@ openclaw:
 
 ---
 
-## 十、开发计划
+## 十、开发计划与进度
 
-> 实施顺序已调整：先做运行时验证可行性，再做构建打包。
+> 实施顺序：先做运行时验证可行性，再做构建打包。
+> **Phase 2-4 暂缓**，原因见 §十二。
 
-### Phase 1: 运行时集成（核心，优先）
+### Phase 1: 运行时集成 ✅ (2026-04-01)
+
+| # | 任务 | 产出 | 状态 |
+|---|------|------|------|
+| 1.1 | 实现 `openclaw-process.service.ts` | 进程管理器 (spawn/stop/restart, 健康检查, token, 日志, 崩溃恢复) | ✅ |
+| 1.2 | 改造 `openclaw.ipc.ts` 为模式分发 | local/docker 双模式, openclaw:restart handler, 状态广播 | ✅ |
+| 1.3 | 补充 Desktop 心跳发送 | ws-client 30s 心跳 + openclawConnected 字段 | ✅ |
+| 1.4 | UI 状态指示 + 启动/关闭集成 | sidebar AI 状态点, login/register 后自动连, before-quit 清理 | ✅ |
+
+**实施决策记录**:
+- 原计划有 `external` 模式 (用户自定义 URL+Token)，**已删除** — 没有明确用户场景，简化为 `local` + `docker` 两模式
+- `openclaw-client.service.ts` **未改动** — 其 `connect({ url, token })` 接口已通用，改造在 IPC 层完成
+- `resolvePaths()` 中的路径解析目前匹配 §4.3 的目录结构，但 **local 模式还无法运行**（缺少构建脚本和 extraResources 配置）
+- 当前开发环境 **默认走 docker 模式**，行为与改造前完全一致
+
+**代码变更清单**:
+
+| 文件 | 操作 |
+|------|------|
+| `apps/desktop/src/main/services/openclaw-process.service.ts` | 新建 |
+| `apps/desktop/src/main/ipc/openclaw.ipc.ts` | 重写 |
+| `apps/desktop/src/main/services/ws-client.service.ts` | 增加心跳 |
+| `apps/desktop/src/main/index.ts` | before-quit + mode 日志 |
+| `apps/desktop/src/main/ipc/auth.ipc.ts` | login/register/logout 集成 OpenClaw |
+| `apps/desktop/src/preload/index.ts` | 新增 IPC bridge |
+| `apps/desktop/src/renderer/env.d.ts` | 新增类型 |
+| `apps/desktop/src/renderer/layouts/MainLayout.tsx` | AI 状态点 |
+| `packages/ws-protocol/src/payloads/device.payloads.ts` | 增加字段 |
+| `apps/server/src/gateway/device.gateway.ts` | heartbeat 类型 |
+
+### Phase 2: 构建管线 ⏸️ 暂缓
 
 | # | 任务 | 产出 | 前置依赖 |
 |---|------|------|---------|
-| 1.1 | 实现 `openclaw-process.service.ts` | 进程管理器 | — |
-| 1.2 | 修改 `openclaw-client.service.ts` 为本地连接 | 客户端改造 | 1.1 |
-| 1.3 | 补充 Desktop 心跳发送 | WS 客户端增强 | — |
-| 1.4 | 添加 UI 状态指示（托盘/状态栏: "AI Agent ✓"） | UX | 1.1 |
-
-### Phase 2: 构建管线
-
-| # | 任务 | 产出 | 前置依赖 |
-|---|------|------|---------|
-| 2.1 | 编写 `prepare-openclaw-sidecar` 脚本 | 构建脚本 (bash + ps1) | — |
+| 2.1 | 编写 `prepare-openclaw-sidecar` 脚本 | 构建脚本 (bash + ps1) | 确认 OpenClaw 定制需求 |
 | 2.2 | 配置 electron-builder extraResources | electron-builder.yaml 更新 | 2.1 |
 | 2.3 | 验证打包后 OpenClaw 可启动 | 手动测试 | 1.1, 2.2 |
 
-### Phase 3: Server 瘦身
+### Phase 3: Server 瘦身 ⏸️ 暂缓
 
 | # | 任务 | 产出 | 前置依赖 |
 |---|------|------|---------|
-| 3.1 | 移除 `GET /openclaw/gateway/connect` | Controller 简化 | 1.2 (Desktop 不再调用) |
+| 3.1 | 移除 `GET /openclaw/gateway/connect` | Controller 简化 | Phase 2 完成后 |
 | 3.2 | 简化 `GatewayManagerService` | 保留接口，去掉实现 | 3.1 |
 | 3.3 | 更新/移除 `gateway-manager.service.spec.ts` | 测试同步 | 3.2 |
-| 3.4 | 心跳上报 OpenClaw 状态 | 设备状态增强 | 1.3 |
+| 3.4 | 心跳上报 OpenClaw 状态 | 设备状态增强 | ✅ 已在 Phase 1 完成 |
 
-### Phase 4: CI/CD + 签名
+### Phase 4: CI/CD + 签名 ⏸️ 暂缓
 
 | # | 任务 | 产出 | 前置依赖 |
 |---|------|------|---------|
@@ -457,3 +479,56 @@ openclaw:
 | **Windows 进程关闭** | **OpenClaw 无法优雅退出** | **IPC channel / HTTP shutdown 端点替代 SIGTERM（§5.2）** |
 | **macOS Gatekeeper 拦截** | **spawn node 被阻止** | **Hardened Runtime + Notarization；bundled node 也需签名** |
 | **OpenClaw 日志膨胀** | **磁盘空间** | **按日期轮转，保留 7 天，自动清理（§8.1）** |
+| **Node.js ABI 版本不匹配** | **原生模块 (sharp) 加载失败** | **锁定 Node.js 大版本，CI 验证原生模块加载（§十二.2）** |
+
+---
+
+## 十二、暂缓决策与待定事项 (2026-04-01)
+
+### 12.1 Phase 2-4 暂缓原因
+
+Phase 1 运行时代码已完成，但 **构建打包 (Phase 2-4) 暂不实施**，原因：
+
+1. **OpenClaw 定制需求未明确** — 是否需要 fork OpenClaw 直接影响构建流程：
+   - 不 fork → `npm install openclaw@x.x.x`
+   - fork → `npm install @linkingchat/openclaw@x.x.x` 或 git URL
+   - 放进 monorepo → `npm install ../../packages/openclaw`
+
+   在实际使用中确认定制需求后再决定。
+
+2. **当前 docker 模式完全可用** — 开发阶段继续使用 Server 管理的 Docker 容器，不影响功能开发。
+
+3. **避免过早优化** — 构建脚本 + CI + 代码签名是一次性投入大但收益延后的工作，适合在接近发布时做。
+
+**恢复条件**: 满足以下任一条件时启动 Phase 2：
+- 确认了 OpenClaw 的定制方案（fork / 插件 / 原版）
+- 需要给外部用户分发安装包
+- 需要在没有 Docker 的环境中运行
+
+### 12.2 Node.js 版本兼容性分析
+
+**结论: 目前无兼容问题，但需要关注 Node.js 大版本锁定。**
+
+#### 当前版本矩阵
+
+| 组件 | Node.js 版本 | 说明 |
+|------|-------------|------|
+| OpenClaw (v2026.3.13) | 要求 ≥22 | 使用 ESM, jiti, worker_threads |
+| Electron 35 内置 Node | 22.15.0 | 仅供 Electron 自身使用，不用于 sidecar |
+| 计划捆绑的独立 Node | 22 LTS | 用于运行 sidecar 的 OpenClaw 进程 |
+| NestJS Server | ≥20 | 独立于 Desktop，不受影响 |
+
+#### 潜在风险场景
+
+| 场景 | 风险 | 缓解 |
+|------|------|------|
+| OpenClaw 未来要求 Node 24+ | 需更新捆绑的 Node 二进制 | 构建脚本改 `NODE_VERSION` 即可，低成本 |
+| `sharp` 原生模块 ABI 不匹配 | 加载 .node 文件失败 | sharp 提供按平台+Node大版本的预编译二进制 (通过 `@img/sharp-*` 可选依赖自动匹配)，只要 Node 大版本对齐就没问题 |
+| Node.js 22 LTS 到期 (2027-04) | 不再有安全更新 | 届时升级到 Node 24 LTS 或更新版本 |
+| OpenClaw 使用了 Node.js 实验性 API | 大版本升级后 API 变更 | 锁定 OpenClaw + Node.js 版本对，升级前回归测试 |
+
+#### 不存在的问题
+
+- **Electron 内置 Node 与 sidecar Node 冲突** — 不冲突。两个是完全独立的进程，各用各的 Node 运行时
+- **Node.js 小版本差异** — Node LTS 的小版本升级 (22.15 → 22.16) 保持 ABI 兼容，原生模块无需重编译
+- **跨平台 Node.js 行为差异** — Node.js 官方保证跨平台行为一致（文件路径分隔符除外），OpenClaw 自身已处理

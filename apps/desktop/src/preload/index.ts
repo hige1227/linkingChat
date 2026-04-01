@@ -15,6 +15,12 @@ const electronAPI = {
   getDeviceInfo: () => ipcRenderer.invoke('device:get-info'),
   getCommandLog: () => ipcRenderer.invoke('device:get-command-log'),
 
+  // OpenClaw
+  getOpenClawStatus: () => ipcRenderer.invoke('openclaw:status'),
+  connectOpenClaw: () => ipcRenderer.invoke('openclaw:connect'),
+  disconnectOpenClaw: () => ipcRenderer.invoke('openclaw:disconnect'),
+  restartOpenClaw: () => ipcRenderer.invoke('openclaw:restart'),
+
   // Event listeners (main → renderer)
   onConnectionStatusChanged: (callback: (status: string) => void) => {
     ipcRenderer.on('device:status-changed', (_event, status) =>
@@ -24,6 +30,11 @@ const electronAPI = {
   onCommandReceived: (callback: (entry: unknown) => void) => {
     ipcRenderer.on('device:command-received', (_event, entry) =>
       callback(entry),
+    );
+  },
+  onOpenClawStatusChanged: (callback: (connected: boolean) => void) => {
+    ipcRenderer.on('openclaw:status-changed', (_event, connected) =>
+      callback(connected),
     );
   },
 };

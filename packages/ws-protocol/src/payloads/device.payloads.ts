@@ -9,6 +9,7 @@ export interface DeviceHeartbeatPayload {
   deviceId: string;
   cpuUsage?: number;
   memoryUsage?: number;
+  openclawConnected?: boolean;
 }
 
 export interface DeviceCommandPayload {
