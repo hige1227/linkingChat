@@ -42,7 +42,7 @@ export class OpenclawController {
   @Get('gateway/connect')
   async getConnectInfo(@Req() req: any) {
     // JwtAuthGuard already verified the token and populated req.user
-    const userId = req.user?.sub;
+    const userId = req.user?.userId || req.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Invalid user token');
     }

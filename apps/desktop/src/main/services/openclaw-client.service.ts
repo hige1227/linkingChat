@@ -1,4 +1,6 @@
 import { OpenClawClient } from 'openclaw-node';
+import { app } from 'electron';
+import { join } from 'path';
 
 /**
  * OpenClaw Gateway 连接配置
@@ -34,22 +36,34 @@ export class OpenClawClientService {
 
     this.connectionConfig = config;
 
-    console.log(`[OpenClaw] Connecting to Gateway at ${config.url}`);
+    console.log(`[OpenClaw] Connecting to Gateway at ${config.url} (token: ${config.token.slice(0, 8)}...)`);
 
     this.client = new OpenClawClient({
       url: config.url,
       token: config.token,
-      autoReconnect: true,
-      maxReconnectAttempts: this.maxReconnectAttempts,
+      autoReconnect: false,
+      deviceIdentityPath: join(app.getPath('userData'), '.openclaw', 'device-identity.json'),
     });
 
+    // Workaround: openclaw-node's device signature is rejected by Gateway v2026.3.x
+    // with code 1008. Clearing deviceIdentity skips the signed device field in the
+    // connect handshake — token auth alone is sufficient.
+    (this.client as any).deviceIdentity = null;
+
     try {
-      await this.client.connect();
+      // Wrap connect() with a timeout — openclaw-node may hang indefinitely
+      await Promise.race([
+        this.client.connect(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Connection timed out after 10s')), 10_000),
+        ),
+      ]);
       this.isConnected = true;
       this.reconnectAttempts = 0;
       console.log('[OpenClaw] Connected to Gateway successfully');
     } catch (error) {
       this.isConnected = false;
+      this.client = null;
       console.error('[OpenClaw] Failed to connect:', error);
       throw error;
     }

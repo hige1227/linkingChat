@@ -24,8 +24,8 @@ importers:
         specifier: ^10.0.0
         version: 10.1.0
       openclaw-node:
-        specifier: ^0.2.0
-        version: 0.2.1
+        specifier: ^0.3.0
+        version: 0.3.0
       react-router-dom:
         specifier: ^7.13.0
         version: 7.13.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -3499,8 +3499,8 @@ packages:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
     engines: {node: '>=6'}
 
-  openclaw-node@0.2.1:
-    resolution: {integrity: sha512-5hlp9hLMe0apYSxv7Xzd7UVxy8sCbhrDMjTGJDwn20/kC/EiP2vkQOEvDcj4/UxKzcptUqu8ryCu8KmJoFaMtg==}
+  openclaw-node@0.3.0:
+    resolution: {integrity: sha512-eYareytAeRAIWrudcOt+wi1eikKOzhIsW3uBPUHOD1R9C7zAIhViJ5GxGKzOCesZUOEWoKghOuqPlO7acnmLMg==}
     engines: {node: '>=20.0.0'}
 
   optionator@0.9.4:
@@ -8107,7 +8107,7 @@ snapshots:
     dependencies:
       mimic-fn: 2.1.0
 
-  openclaw-node@0.2.1:
+  openclaw-node@0.3.0:
     optionalDependencies:
       ws: 8.18.3
     transitivePeerDependencies:
