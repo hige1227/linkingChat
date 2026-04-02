@@ -295,7 +295,7 @@ Token 生命周期 = OpenClaw 进程生命周期（每次重启重新生成）
 | `source` 字段持久化 | `device.gateway.ts` 已实现，保留 |
 | 危险命令拦截 (Layer 1) | 和 OpenClaw 无关，保留 |
 
-> **注意**: 当前 Desktop WebSocket 客户端**尚未实现**心跳发送。Server 的 `device:heartbeat` handler 已就绪，但 Desktop 从未发送该事件。需要在实施时补充。
+> **已完成**: Desktop 心跳已在 Phase 1 (2026-04-01) 实现，每 30s 发送含 `openclawConnected` 字段的心跳。
 
 ### 7.3 docker-compose.prod.yaml
 
@@ -310,14 +310,54 @@ services:
   # openclaw: ← 移除
 ```
 
-### 7.4 docker-compose.yaml（开发环境）
+### 7.4 docker-compose.yaml（开发环境）— 踩坑记录 (2026-04-02)
+
+**最终可用配置**:
 
 ```yaml
-# 开发环境保留 openclaw 容器，方便开发调试
-# 开发时 Desktop 可以连本地 Docker 容器或本地 sidecar 进程
 openclaw:
   image: ghcr.io/openclaw/openclaw:latest
-  # ... 保持不变
+  container_name: linkingchat-openclaw
+  command: ["node", "openclaw.mjs", "gateway", "--allow-unconfigured", "--bind", "lan"]
+  environment:
+    - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-lc_dev_token_change_me}
+  ports:
+    - "127.0.0.1:18790:18789"
+  volumes:
+    - openclaw_data:/home/node/.openclaw   # 持久化 config + agent 数据
+```
+
+**必须解决的三个问题**:
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| Docker 端口转发空响应 | Gateway 默认 `--bind loopback`，绑定容器内 127.0.0.1，Docker NAT 到不了 | 加 `--bind lan` 让 Gateway 绑 0.0.0.0 |
+| `--bind lan` 启动失败 | 非 loopback 模式要求 Control UI CORS 配置 | 容器内执行 `openclaw config set gateway.controlUi.dangerouslyAllowHostHeaderOriginFallback true`，volume 持久化 |
+| `openclaw-node` 连接被 1008 拒绝 | 库的设备签名 (`buildSignedDevice`) 与 Gateway v2026.3.x 不兼容 | Desktop 代码中 `(client as any).deviceIdentity = null` 跳过签名 |
+
+**首次配置步骤**（volume 创建后只需一次）:
+
+```bash
+# 1. 先用默认 loopback 启动，让容器能运行
+docker compose up -d openclaw
+
+# 2. 修复 volume 权限 + 写入 config
+docker exec -u root linkingchat-openclaw sh -c 'chown -R node:node /home/node/.openclaw'
+docker exec linkingchat-openclaw sh -c 'node openclaw.mjs config set gateway.controlUi.dangerouslyAllowHostHeaderOriginFallback true'
+
+# 3. 切到 --bind lan 并重建
+# (修改 docker-compose.yaml 的 command 加 --bind lan)
+docker compose up -d openclaw
+```
+
+**验证连通**:
+
+```bash
+# HTTP 健康检查（应返回 {"ok":true,"status":"live"}）
+curl http://127.0.0.1:18790/health
+
+# 容器日志应显示 "listening on ws://0.0.0.0:18789"
+docker logs linkingchat-openclaw --tail 5
 ```
 
 ---
