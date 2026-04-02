@@ -329,15 +329,6 @@ export class ChatGateway
     try {
       await this.conversesService.verifyMembership(data.converseId, userId);
 
-      // 群聊不支持 whisper，静默忽略
-      const converse = await this.prisma.converse.findUnique({
-        where: { id: data.converseId },
-        select: { type: true },
-      });
-      if (converse?.type === 'GROUP') {
-        return { success: true };
-      }
-
       this.whisperService
         .handleWhisperRequest(userId, data.converseId, data.prompt)
         .catch((err) =>

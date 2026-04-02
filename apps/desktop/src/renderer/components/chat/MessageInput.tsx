@@ -29,7 +29,7 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { emitWhisperRequest } = useChatSocket();
   const whisper = useAiStore((s) => s.whisper[converseId]);
-  const showAiButton = !isGroup;
+  const showAiButton = true;
 
   // Reset text when converseId changes
   useEffect(() => {

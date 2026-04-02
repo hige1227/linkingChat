@@ -167,7 +167,7 @@ export class DeviceGateway
     @MessageBody() data: DeviceHeartbeatPayload,
   ): Promise<void> {
     await this.devicesService.updateLastSeen(data.deviceId);
-    this.logger.debug(
+    this.logger.log(
       `Heartbeat: device=${data.deviceId} openclawConnected=${data.openclawConnected ?? 'N/A'}`,
     );
   }
