@@ -1,6 +1,4 @@
-import { OpenClawClient } from 'openclaw-node';
-import { app } from 'electron';
-import { join } from 'path';
+import { OpenClawWsClient } from './openclaw-ws-client';
 
 /**
  * OpenClaw Gateway 连接配置
@@ -19,11 +17,9 @@ export interface GatewayConnectionConfig {
  * - 自动重连
  */
 export class OpenClawClientService {
-  private client: OpenClawClient | null = null;
+  private client: OpenClawWsClient | null = null;
   private connectionConfig: GatewayConnectionConfig | null = null;
   private isConnected = false;
-  private reconnectAttempts = 0;
-  private readonly maxReconnectAttempts = 10;
 
   /**
    * 连接到 OpenClaw Gateway
@@ -38,30 +34,15 @@ export class OpenClawClientService {
 
     console.log(`[OpenClaw] Connecting to Gateway at ${config.url} (token: ${config.token.slice(0, 8)}...)`);
 
-    this.client = new OpenClawClient({
+    this.client = new OpenClawWsClient({
       url: config.url,
       token: config.token,
-      autoReconnect: false,
-      deviceIdentityPath: join(app.getPath('userData'), '.openclaw', 'device-identity.json'),
-      scopes: ['operator.read', 'operator.write', 'operator.admin'],
     });
 
-    // openclaw-node device identity is rejected by Gateway v2026.3.x–v2026.4.1
-    // (code 1008). Skip device signing — token auth alone is sufficient for connection.
-    // Commands fall back to child_process due to missing operator.write scope.
-    (this.client as any).deviceIdentity = null;
-
     try {
-      // Wrap connect() with a timeout — openclaw-node may hang indefinitely
-      await Promise.race([
-        this.client.connect(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Connection timed out after 10s')), 10_000),
-        ),
-      ]);
+      const helloOk = await this.client.connect();
       this.isConnected = true;
-      this.reconnectAttempts = 0;
-      console.log('[OpenClaw] Connected to Gateway successfully');
+      console.log(`[OpenClaw] Connected to Gateway successfully (v${helloOk.server?.version ?? '?'})`);
     } catch (error) {
       this.isConnected = false;
       this.client = null;
@@ -126,7 +107,7 @@ export class OpenClawClientService {
   /**
    * 获取底层客户端（供高级用例使用）
    */
-  getClient(): OpenClawClient | null {
+  getClient(): OpenClawWsClient | null {
     return this.client;
   }
 }

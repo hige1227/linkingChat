@@ -11,14 +11,15 @@
   "dependencies": {
     "@linkingchat/ws-protocol": "workspace:*",
     "electron-store": "^10.0.0",
-    "openclaw-node": "^0.3.0",
     "react-router-dom": "^7.13.0",
     "socket.io-client": "^4.8.0",
+    "ws": "^8.20.0",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.0.0",
     "electron": "^35.0.0",
     "electron-vite": "^3.0.0",

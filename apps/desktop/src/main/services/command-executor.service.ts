@@ -34,12 +34,7 @@ export class CommandExecutor {
     if (openClawClientService.isClientConnected()) {
       try {
         const result = await this.executeViaOpenClaw(command, timeout);
-        // Fall back to child_process on scope/auth errors
-        if (result.status === 'error' && result.error?.message?.includes('missing scope')) {
-          console.warn('[CommandExecutor] OpenClaw scope error, falling back to child_process');
-        } else {
-          return { ...result, source: 'openclaw' };
-        }
+        return { ...result, source: 'openclaw' };
       } catch (error) {
         console.warn(
           '[CommandExecutor] OpenClaw execution failed, falling back to child_process:',
