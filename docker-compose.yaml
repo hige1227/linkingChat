@@ -58,7 +58,7 @@ services:
       - "1033:1025"
 
   openclaw:
-    image: ghcr.io/openclaw/openclaw:latest
+    image: ghcr.io/openclaw/openclaw:2026.4.1
     container_name: linkingchat-openclaw
     command: ["node", "openclaw.mjs", "gateway", "--allow-unconfigured", "--bind", "lan", "--auth", "token", "--token", "${OPENCLAW_GATEWAY_TOKEN:-lc_dev_token_change_me}"]
     security_opt:

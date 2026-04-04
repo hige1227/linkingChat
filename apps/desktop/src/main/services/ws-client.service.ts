@@ -36,6 +36,7 @@ export class WsClientService {
   private executor = new CommandExecutor();
   private connectErrorCount = 0;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   private deviceId = getDeviceId();
   private deviceName = getDeviceName();
@@ -90,6 +91,7 @@ export class WsClientService {
 
   disconnect(): void {
     this.stopHeartbeat();
+    this.stopRefreshTimer();
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
@@ -106,6 +108,7 @@ export class WsClientService {
       this.updateStatus('connected');
       this.registerDevice();
       this.startHeartbeat();
+      this.scheduleTokenRefresh();
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -148,6 +151,41 @@ export class WsClientService {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
+    }
+  }
+
+  private scheduleTokenRefresh(): void {
+    this.stopRefreshTimer();
+    const tokens = AuthStore.load();
+    if (!tokens?.accessToken) return;
+
+    try {
+      const payload = JSON.parse(
+        Buffer.from(tokens.accessToken.split('.')[1], 'base64').toString(),
+      );
+      const exp = payload.exp as number; // seconds since epoch
+      const msUntilExpiry = exp * 1000 - Date.now();
+      // Refresh 60s before expiry, min 10s
+      const delay = Math.max(msUntilExpiry - 60_000, 10_000);
+
+      this.refreshTimer = setTimeout(async () => {
+        console.log('[WS] Proactive token refresh triggered');
+        await this.attemptTokenRefresh();
+        this.scheduleTokenRefresh(); // reschedule with new token
+      }, delay);
+
+      console.log(
+        `[WS] Token refresh scheduled in ${Math.round(delay / 1000)}s`,
+      );
+    } catch {
+      // Can't decode token — skip scheduling
+    }
+  }
+
+  private stopRefreshTimer(): void {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
     }
   }
 

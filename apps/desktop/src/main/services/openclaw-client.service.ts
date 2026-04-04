@@ -46,9 +46,9 @@ export class OpenClawClientService {
       scopes: ['operator.read', 'operator.write', 'operator.admin'],
     });
 
-    // Workaround: openclaw-node's device signature is rejected by Gateway v2026.3.x
-    // with code 1008. Clearing deviceIdentity skips the signed device field in the
-    // connect handshake — token auth alone is sufficient.
+    // openclaw-node device identity is rejected by Gateway v2026.3.x–v2026.4.1
+    // (code 1008). Skip device signing — token auth alone is sufficient for connection.
+    // Commands fall back to child_process due to missing operator.write scope.
     (this.client as any).deviceIdentity = null;
 
     try {

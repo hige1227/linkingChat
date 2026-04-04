@@ -23,6 +23,46 @@ function notifyStatusChange(connected: boolean): void {
 }
 
 /**
+ * Refresh token and retry the gateway connect (called on 401)
+ */
+async function refreshAndRetry(
+  oldTokens: { accessToken: string; refreshToken: string },
+): Promise<OpenClawConnectionStatus | null> {
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: oldTokens.refreshToken }),
+    });
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as { accessToken: string; refreshToken: string };
+    AuthStore.save(data);
+    console.log('[OpenClaw] Token refreshed, retrying gateway connect');
+
+    // Retry with new token
+    const response = await fetch(`${API_URL}/openclaw/gateway/connect`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${data.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) return null;
+
+    const result = await response.json();
+    if (!result.success || !result.data) return null;
+
+    const { url, token } = result.data;
+    await openClawClientService.connect({ url, token });
+    notifyStatusChange(true);
+    return { connected: true, url, mode: 'docker' };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Connect via Server API (docker mode) — preserves original logic
  */
 async function connectViaDocker(): Promise<OpenClawConnectionStatus> {
@@ -39,6 +79,13 @@ async function connectViaDocker(): Promise<OpenClawConnectionStatus> {
         'Content-Type': 'application/json',
       },
     });
+
+    if (response.status === 401) {
+      // Token expired — refresh and retry once
+      const refreshed = await refreshAndRetry(tokens);
+      if (refreshed) return refreshed;
+      throw new Error('Unauthorized after token refresh');
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
