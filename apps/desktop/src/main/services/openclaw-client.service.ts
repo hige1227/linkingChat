@@ -43,6 +43,7 @@ export class OpenClawClientService {
       token: config.token,
       autoReconnect: false,
       deviceIdentityPath: join(app.getPath('userData'), '.openclaw', 'device-identity.json'),
+      scopes: ['operator.read', 'operator.write', 'operator.admin'],
     });
 
     // Workaround: openclaw-node's device signature is rejected by Gateway v2026.3.x
