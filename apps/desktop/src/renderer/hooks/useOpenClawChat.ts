@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useChatStore, type ChatState } from '../stores/chatStore';
+import { useChatStore } from '../stores/chatStore';
+import type { ChatState } from '../stores/chatStore';
 
 const API_URL = 'http://localhost:3008/api/v1';
 
