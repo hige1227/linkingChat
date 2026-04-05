@@ -34,13 +34,17 @@ export class CommandExecutor {
     if (openClawClientService.isClientConnected()) {
       try {
         const result = await this.executeViaOpenClaw(command, timeout);
-        return { ...result, source: 'openclaw' };
+        if (result.error?.code === 'NO_TOOL_EXECUTION') {
+          // Agent responded with text only (no tool call) — fall back
+          console.log('[CommandExecutor] Agent did not execute tool, falling back to child_process');
+        } else {
+          return { ...result, source: 'openclaw' };
+        }
       } catch (error) {
         console.warn(
           '[CommandExecutor] OpenClaw execution failed, falling back to child_process:',
           error,
         );
-        // 降级到 child_process
       }
     }
 
@@ -66,30 +70,10 @@ export class CommandExecutor {
 
       // Use streaming chat API to discriminate tool_result from text
       const message = `Execute this shell command immediately. Do not ask for approval or confirmation, just run it and return the output:\n\n${command}`;
-      const stream = client.chat(message, { timeout });
 
-      const toolResults: string[] = [];
-      const textParts: string[] = [];
-      let errorText = '';
-
-      for await (const chunk of stream) {
-        switch (chunk.type) {
-          case 'tool_result':
-            // Actual command output from system.run
-            toolResults.push(chunk.text);
-            break;
-          case 'text':
-            // Agent's explanation/commentary
-            textParts.push(chunk.text);
-            break;
-          case 'error':
-            errorText = chunk.text;
-            break;
-          case 'done':
-            break;
-          // tool_use chunks are internal (agent deciding to call a tool)
-        }
-      }
+      const { toolResults, textParts, errorText } = await this.runAgentChat(
+        client, message, timeout,
+      );
 
       const executionTimeMs = Date.now() - startTime;
 
@@ -107,20 +91,21 @@ export class CommandExecutor {
         };
       }
 
-      // Prefer tool_result output (actual command output) over text (agent commentary)
-      const output = toolResults.length > 0
-        ? toolResults.join('\n')
-        : textParts.join('') || '(no output)';
+      // If agent only produced text (no tool calls), signal fallback
+      if (toolResults.length === 0) {
+        return {
+          status: 'error',
+          error: { code: 'NO_TOOL_EXECUTION', message: 'Agent did not call any tools' },
+          executionTimeMs,
+        };
+      }
 
-      // Attempt to infer exit code from tool_result content
-      const exitCode = this.inferExitCode(output, toolResults.length > 0);
+      const output = toolResults.join('\n');
+      const exitCode = this.inferExitCode(output, true);
 
       return {
         status: exitCode === 0 ? 'success' : 'error',
-        data: {
-          output,
-          exitCode,
-        },
+        data: { output, exitCode },
         executionTimeMs,
       };
     } catch (error) {
@@ -224,6 +209,30 @@ export class CommandExecutor {
     }
 
     return 0;
+  }
+
+  /**
+   * Run agent chat and collect streaming results.
+   */
+  private async runAgentChat(
+    client: import('./openclaw-ws-client').OpenClawWsClient,
+    message: string,
+    timeout: number,
+  ): Promise<{ toolResults: string[]; textParts: string[]; errorText: string }> {
+    const toolResults: string[] = [];
+    const textParts: string[] = [];
+    let errorText = '';
+
+    for await (const chunk of client.chat(message, { timeout })) {
+      switch (chunk.type) {
+        case 'tool_result': toolResults.push(chunk.text); break;
+        case 'text': textParts.push(chunk.text); break;
+        case 'error': errorText = chunk.text; break;
+        case 'done': break;
+      }
+    }
+
+    return { toolResults, textParts, errorText };
   }
 }
 
