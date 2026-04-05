@@ -6,6 +6,7 @@ import { FileMessage } from './FileMessage';
 import { VoiceMessage } from './VoiceMessage';
 import { MessageContextMenu } from './MessageContextMenu';
 import type { MessageResponse, ConverseResponse } from '@linkingchat/ws-protocol';
+import type { ChatState, StreamingMessage } from '../../stores/chatStore';
 
 interface ChatThreadProps {
   converseId: string;
@@ -20,11 +21,14 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
   const wasAtBottomRef = useRef(true);
   const loadingRef = useRef(false);
 
-  const converse = useChatStore((s) =>
+  const converse = useChatStore((s: ChatState) =>
     s.converses.find((c) => c.id === converseId),
   );
-  const currentUserId = useChatStore((s) => s.currentUserId);
-  const readReceipts = useChatStore((s) => s.readReceipts);
+  const currentUserId = useChatStore((s: ChatState) => s.currentUserId);
+  const readReceipts = useChatStore((s: ChatState) => s.readReceipts);
+  const streamingMessages: StreamingMessage[] = useChatStore((s: ChatState) =>
+    Object.values(s.streamingMessages).filter((sm) => sm.converseId === converseId),
+  );
   const msgs = messages[converseId] ?? [];
   const typing = typingUsers[converseId] ?? [];
   const lastReadId = readReceipts[converseId];
@@ -74,6 +78,13 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [msgs.length]);
+
+  // Also scroll to bottom when streaming messages appear/change
+  useEffect(() => {
+    if (wasAtBottomRef.current && streamingMessages.length > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [streamingMessages.length]);
 
   // Track scroll position
   const handleScroll = useCallback(() => {
@@ -334,6 +345,33 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
             </span>
           </div>
         )}
+
+        {/* Streaming bot reply bubbles */}
+        {streamingMessages.map((sm) => (
+          <div key={sm.requestId} className="chat-message other with-avatar streaming-message">
+            <div className="chat-message-avatar">AI</div>
+            <div className="chat-message-body">
+              <div className="chat-message-bubble">
+                <div className="chat-message-content">
+                  {sm.toolCalls.length > 0 && (
+                    <div className="tool-call-indicator">
+                      🔧 {sm.toolCalls[sm.toolCalls.length - 1]}...
+                    </div>
+                  )}
+                  <span className="streaming-text">
+                    {sm.text || '\u00a0'}
+                  </span>
+                  {sm.status === 'streaming' && (
+                    <span className="streaming-cursor" aria-hidden="true" />
+                  )}
+                  {sm.status === 'error' && (
+                    <span className="streaming-error">⚠ {sm.errorText}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
 
         <div ref={bottomRef} />
       </div>
