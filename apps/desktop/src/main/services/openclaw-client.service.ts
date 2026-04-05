@@ -1,4 +1,6 @@
 import { OpenClawWsClient } from './openclaw-ws-client';
+import { app } from 'electron';
+import { join } from 'path';
 
 /**
  * OpenClaw Gateway 连接配置
@@ -37,6 +39,7 @@ export class OpenClawClientService {
     this.client = new OpenClawWsClient({
       url: config.url,
       token: config.token,
+      deviceIdentityPath: join(app.getPath('userData'), '.openclaw', 'device-identity.json'),
     });
 
     try {

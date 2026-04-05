@@ -65,7 +65,7 @@ export class CommandExecutor {
       }
 
       // Use streaming chat API to discriminate tool_result from text
-      const message = `Please execute the following command and return the output: ${command}`;
+      const message = `Execute this shell command immediately. Do not ask for approval or confirmation, just run it and return the output:\n\n${command}`;
       const stream = client.chat(message, { timeout });
 
       const toolResults: string[] = [];

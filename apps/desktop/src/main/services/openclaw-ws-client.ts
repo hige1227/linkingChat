@@ -1,4 +1,7 @@
 import WebSocket from 'ws';
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 // ── Types ──
 
@@ -30,6 +33,18 @@ interface PendingRequest {
   reject: (err: Error) => void;
 }
 
+interface DeviceIdentity {
+  deviceId: string;
+  publicKeyRaw: Buffer;
+  privateKey: crypto.KeyObject;
+}
+
+// ── Helpers ──
+
+function base64url(buf: Buffer): string {
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
 // ── Constants ──
 
 const PROTOCOL_VERSION = 3;
@@ -42,13 +57,19 @@ export class OpenClawWsClient {
   private ws: WebSocket | null = null;
   private url: string;
   private token: string;
+  private deviceIdentityPath?: string;
+  private device: DeviceIdentity | null = null;
   private _isConnected = false;
   private pendingRequests = new Map<string, PendingRequest>();
   private eventListeners = new Map<string, Set<(payload: any) => void>>();
 
-  constructor(options: { url: string; token: string }) {
+  constructor(options: { url: string; token: string; deviceIdentityPath?: string }) {
     this.url = options.url;
     this.token = options.token;
+    this.deviceIdentityPath = options.deviceIdentityPath;
+    if (this.deviceIdentityPath) {
+      this.device = this.loadOrCreateDeviceIdentity(this.deviceIdentityPath);
+    }
   }
 
   get isConnected(): boolean {
@@ -80,7 +101,7 @@ export class OpenClawWsClient {
 
         // Challenge → send connect request
         if (msg.type === 'event' && (msg as any).event === 'connect.challenge') {
-          this.sendConnectRequest();
+          this.sendConnectRequest((msg as any).payload.nonce);
           return;
         }
 
@@ -183,7 +204,7 @@ export class OpenClawWsClient {
       params: {
         message,
         sessionKey: options?.sessionKey,
-        agentId: options?.agentId,
+        agentId: options?.agentId || 'main',
         idempotencyKey: id,
         timeout,
       },
@@ -198,6 +219,8 @@ export class OpenClawWsClient {
 
       this.pendingRequests.set(id, {
         resolve: (res: any) => {
+          // Skip the initial "accepted" response — streaming events follow
+          if (res.ok && res.payload?.status === 'accepted') return;
           clearTimeout(timer);
           if (!res.ok && res.error) {
             chunks.push({ type: 'error', text: res.error.message || 'Unknown error' });
@@ -262,7 +285,32 @@ export class OpenClawWsClient {
 
   // ── Internal ──
 
-  private sendConnectRequest(): void {
+  private challengeNonce: string | null = null;
+
+  private sendConnectRequest(nonce: string): void {
+    this.challengeNonce = nonce;
+    const clientId = 'gateway-client';
+    const role = 'operator';
+    const scopes = ['operator.read', 'operator.write'];
+
+    // Build signed device field if we have an identity
+    let device: Record<string, unknown> | undefined;
+    if (this.device) {
+      const signedAt = Date.now();
+      const payload = [
+        'v2', this.device.deviceId, clientId, 'backend', role,
+        scopes.join(','), String(signedAt), this.token, nonce,
+      ].join('|');
+      const signature = crypto.sign(null, Buffer.from(payload, 'utf8'), this.device.privateKey);
+      device = {
+        id: this.device.deviceId,
+        publicKey: base64url(this.device.publicKeyRaw),
+        signature: base64url(signature),
+        signedAt,
+        nonce,
+      };
+    }
+
     this.send({
       type: 'req',
       id: this.generateId(),
@@ -271,13 +319,13 @@ export class OpenClawWsClient {
         minProtocol: PROTOCOL_VERSION,
         maxProtocol: PROTOCOL_VERSION,
         client: {
-          id: 'gateway-client',
+          id: clientId,
           version: '1.0.0',
           platform: process.platform,
           mode: 'backend',
         },
-        role: 'operator',
-        scopes: ['operator.read', 'operator.write'],
+        role,
+        scopes,
         caps: [],
         commands: [],
         permissions: {},
@@ -285,8 +333,54 @@ export class OpenClawWsClient {
         locale:
           Intl.DateTimeFormat().resolvedOptions().locale || 'en-US',
         userAgent: 'linkingchat-desktop/1.0.0',
+        ...(device && { device }),
       },
     });
+  }
+
+  // ── Device Identity ──
+
+  private loadOrCreateDeviceIdentity(filePath: string): DeviceIdentity {
+    try {
+      if (fs.existsSync(filePath)) {
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (data.version === 1 && data.publicKeyPem && data.privateKeyPem) {
+          const publicKey = crypto.createPublicKey(data.publicKeyPem);
+          const privateKey = crypto.createPrivateKey(data.privateKeyPem);
+          const publicKeyRaw = publicKey.export({ type: 'spki', format: 'der' }).slice(-32);
+          return {
+            deviceId: data.deviceId,
+            publicKeyRaw,
+            privateKey,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('[OpenClaw:WS] Failed to load device identity, creating new:', e);
+    }
+
+    // Generate new ED25519 keypair
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+    const publicKeyRaw = publicKey.export({ type: 'spki', format: 'der' }).slice(-32);
+    const deviceId = crypto.createHash('sha256').update(publicKeyRaw).digest('hex');
+
+    const stored = {
+      version: 1,
+      deviceId,
+      publicKeyPem: publicKey.export({ type: 'spki', format: 'pem' }),
+      privateKeyPem: privateKey.export({ type: 'pkcs8', format: 'pem' }),
+      createdAtMs: Date.now(),
+    };
+
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(filePath, JSON.stringify(stored, null, 2), { mode: 0o600 });
+      console.log(`[OpenClaw:WS] Device identity created: ${deviceId.slice(0, 16)}...`);
+    } catch (e) {
+      console.warn('[OpenClaw:WS] Could not persist device identity:', e);
+    }
+
+    return { deviceId, publicKeyRaw, privateKey };
   }
 
   private handleMessage(msg: ProtocolMessage): void {
@@ -304,7 +398,11 @@ export class OpenClawWsClient {
       const id = (msg as any).id as string;
       const pending = this.pendingRequests.get(id);
       if (pending) {
-        this.pendingRequests.delete(id);
+        // Don't delete on "accepted" — streaming events still coming
+        const isAccepted = (msg as any).ok && (msg as any).payload?.status === 'accepted';
+        if (!isAccepted) {
+          this.pendingRequests.delete(id);
+        }
         if ((msg as any).ok) {
           pending.resolve(msg);
         } else {
