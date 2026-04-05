@@ -252,6 +252,12 @@ export function registerOpenClawIpc(): void {
       );
     }
   });
+
+  // Execute command via CommandExecutor (OpenClaw → child_process fallback)
+  ipcMain.handle('openclaw:execute-command', async (_event, command: string) => {
+    const { commandExecutor } = await import('../services/command-executor.service');
+    return commandExecutor.execute(command);
+  });
 }
 
 // Export for use in index.ts and auth.ipc.ts

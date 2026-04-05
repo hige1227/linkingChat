@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'child_process';
+import { spawn, execSync, type ChildProcess } from 'child_process';
 import { createConnection } from 'net';
 import { randomBytes } from 'crypto';
 import { app } from 'electron';
@@ -22,7 +22,7 @@ export interface ProcessStatus {
 const PORT = 18789;
 const BIND_HOST = '127.0.0.1';
 const HEALTH_POLL_INTERVAL = 500;
-const HEALTH_POLL_TIMEOUT = 10_000;
+const HEALTH_POLL_TIMEOUT = 30_000;
 const GRACEFUL_SHUTDOWN_MS = 3_000;
 const MAX_RESTART_ATTEMPTS = 3;
 const LOG_RETENTION_DAYS = 7;
@@ -77,7 +77,11 @@ export class OpenClawProcessService {
       return { url, token };
     }
 
-    // local mode — spawn sidecar
+    // local mode — reuse running process or spawn new
+    if (this.isProcessRunning()) {
+      console.log(`[OpenClaw:Process] Reusing existing process PID=${this.process?.pid}`);
+      return { url: `ws://${BIND_HOST}:${PORT}`, token: this.token };
+    }
     return this.spawnProcess();
   }
 
@@ -120,7 +124,7 @@ export class OpenClawProcessService {
       if (url && token) return { url, token };
       return null;
     }
-    if (this.mode === 'local' && this.token && this.isProcessRunning()) {
+    if (this.mode === 'local' && this.token !== null && this.isProcessRunning()) {
       return { url: `ws://${BIND_HOST}:${PORT}`, token: this.token };
     }
     return null;
@@ -161,8 +165,12 @@ export class OpenClawProcessService {
       return null;
     }
 
-    // No token needed — local mode uses --auth none
+    // No token needed — local loopback is not externally reachable
     this.token = '';
+
+    // Keep device identity across restarts — the Ed25519 keypair is stable.
+    // Signing uses the current token + nonce each time, so old keys work fine.
+    // Deleting identity forces a new deviceId → slow first-pairing path every launch.
 
     // Resolve binary paths
     const { nodePath, cliPath } = this.resolvePaths();
@@ -367,6 +375,22 @@ export class OpenClawProcessService {
     } catch (err) {
       console.error('[OpenClaw:Process] Force kill error:', err);
     }
+  }
+
+  /**
+   * Synchronous kill — called from process.on('exit') to prevent orphan Gateway.
+   * Windows does not auto-kill child processes when parent exits.
+   */
+  killSync(): void {
+    if (!this.process?.pid) return;
+    try {
+      if (process.platform === 'win32') {
+        execSync(`taskkill /PID ${this.process.pid} /F /T`, { stdio: 'ignore', windowsHide: true });
+      } else {
+        this.process.kill('SIGKILL');
+      }
+    } catch { /* process may already be dead */ }
+    this.process = null;
   }
 
   private cleanup(): void {

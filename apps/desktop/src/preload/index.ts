@@ -20,6 +20,8 @@ const electronAPI = {
   connectOpenClaw: () => ipcRenderer.invoke('openclaw:connect'),
   disconnectOpenClaw: () => ipcRenderer.invoke('openclaw:disconnect'),
   restartOpenClaw: () => ipcRenderer.invoke('openclaw:restart'),
+  sendOpenClawMessage: (message: string) => ipcRenderer.invoke('openclaw:send-message', message),
+  executeCommand: (command: string) => ipcRenderer.invoke('openclaw:execute-command', command),
 
   // Event listeners (main → renderer)
   onConnectionStatusChanged: (callback: (status: string) => void) => {

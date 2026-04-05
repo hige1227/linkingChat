@@ -75,6 +75,11 @@ app.on('before-quit', () => {
   });
 });
 
+// Last-resort: synchronously kill Gateway on process exit to prevent orphan (Windows)
+process.on('exit', () => {
+  openClawProcessService.killSync();
+});
+
 app.on('window-all-closed', () => {
   wsClient.disconnect();
   disconnectFromGateway().catch(() => {});

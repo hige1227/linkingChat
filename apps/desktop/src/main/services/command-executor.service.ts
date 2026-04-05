@@ -91,17 +91,20 @@ export class CommandExecutor {
         };
       }
 
-      // If agent only produced text (no tool calls), signal fallback
-      if (toolResults.length === 0) {
+      // Use tool output if available, otherwise use text response
+      const output = toolResults.length > 0
+        ? toolResults.join('\n')
+        : textParts.join('');
+
+      if (!output) {
         return {
           status: 'error',
-          error: { code: 'NO_TOOL_EXECUTION', message: 'Agent did not call any tools' },
+          error: { code: 'NO_OUTPUT', message: 'Agent produced no output' },
           executionTimeMs,
         };
       }
 
-      const output = toolResults.join('\n');
-      const exitCode = this.inferExitCode(output, true);
+      const exitCode = this.inferExitCode(output, toolResults.length > 0);
 
       return {
         status: exitCode === 0 ? 'success' : 'error',

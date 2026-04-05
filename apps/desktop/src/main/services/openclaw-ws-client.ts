@@ -48,7 +48,7 @@ function base64url(buf: Buffer): string {
 // ── Constants ──
 
 const PROTOCOL_VERSION = 3;
-const CONNECT_TIMEOUT = 15_000;
+const CONNECT_TIMEOUT = 10_000;
 const REQUEST_TIMEOUT = 30_000;
 
 // ── Client ──
@@ -95,7 +95,6 @@ export class OpenClawWsClient {
         let msg: ProtocolMessage;
         try {
           const str = typeof raw === 'string' ? raw : Buffer.isBuffer(raw) ? raw.toString('utf8') : raw.toString();
-          console.log('[OpenClaw:WS] RAW:', str.substring(0, 150));
           msg = JSON.parse(str);
         } catch (e) {
           console.error('[OpenClaw:WS] Parse error:', e);
@@ -198,6 +197,12 @@ export class OpenClawWsClient {
             ? data.output
             : JSON.stringify(data.output ?? '');
         chunks.push({ type: 'tool_result', text: `${data.tool}: ${output}` });
+      } else if (stream === 'lifecycle' && (data?.phase === 'end' || data?.phase === 'done' || data?.phase === 'error')) {
+        clearTimeout(timer);
+        if (data.phase === 'error') {
+          chunks.push({ type: 'error', text: data.error || 'Agent error' });
+        }
+        done = true;
       }
 
       waitResolve?.();
@@ -205,47 +210,45 @@ export class OpenClawWsClient {
 
     this.on('agent', onAgentEvent);
 
-    // Send the request
+    // Send the request via chat.send (OpenClaw Gateway protocol)
     this.send({
       type: 'req',
       id,
-      method: 'agent',
+      method: 'chat.send',
       params: {
         message,
-        sessionKey: options?.sessionKey,
-        agentId: options?.agentId || 'main',
+        sessionKey: options?.sessionKey || 'default',
         idempotencyKey: id,
-        timeout,
       },
     });
 
-    // Also track the final response
-    const completionPromise = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
+    // Track responses (errors, timeout) as backup — lifecycle events are the primary signal
+    const timer = setTimeout(() => {
+      if (!done) {
+        chunks.push({ type: 'error', text: `Chat timed out after ${timeout}ms` });
+        done = true;
         this.pendingRequests.delete(id);
-        reject(new Error(`Chat timed out after ${timeout}ms`));
-      }, timeout);
+        waitResolve?.();
+      }
+    }, timeout);
 
-      this.pendingRequests.set(id, {
-        resolve: (res: any) => {
-          // Skip the initial "accepted" response — streaming events follow
-          if (res.ok && res.payload?.status === 'accepted') return;
-          clearTimeout(timer);
-          if (!res.ok && res.error) {
-            chunks.push({ type: 'error', text: res.error.message || 'Unknown error' });
-          }
-          done = true;
-          waitResolve?.();
-          resolve();
-        },
-        reject: (err: Error) => {
-          clearTimeout(timer);
-          chunks.push({ type: 'error', text: err.message });
-          done = true;
-          waitResolve?.();
-          resolve(); // resolve not reject — let the generator yield the error chunk
-        },
-      });
+    this.pendingRequests.set(id, {
+      resolve: (res: any) => {
+        // Skip the initial "started"/"in_flight" response — streaming events follow
+        if (res.ok && (res.payload?.status === 'started' || res.payload?.status === 'accepted' || res.payload?.status === 'in_flight')) return;
+        clearTimeout(timer);
+        if (!res.ok && res.error) {
+          chunks.push({ type: 'error', text: res.error.message || 'Unknown error' });
+        }
+        done = true;
+        waitResolve?.();
+      },
+      reject: (err: Error) => {
+        clearTimeout(timer);
+        chunks.push({ type: 'error', text: err.message });
+        done = true;
+        waitResolve?.();
+      },
     });
 
     // Yield chunks as they arrive
@@ -271,7 +274,8 @@ export class OpenClawWsClient {
     }
 
     this.off('agent', onAgentEvent);
-    await completionPromise.catch(() => {}); // ensure cleanup
+    // Clean up pending request (lifecycle end already signals completion)
+    this.pendingRequests.delete(id);
 
     yield { type: 'done', text: '' };
   }
@@ -302,7 +306,8 @@ export class OpenClawWsClient {
     const role = 'operator';
     const scopes = ['operator.read', 'operator.write'];
 
-    // Build signed device field if we have an identity
+    // Build signed device field if we have an identity.
+    // In --auth none mode (token=''), sign with empty token — Gateway still requires device identity.
     let device: Record<string, unknown> | undefined;
     if (this.device) {
       const signedAt = Date.now();
@@ -338,7 +343,7 @@ export class OpenClawWsClient {
         caps: [],
         commands: [],
         permissions: {},
-        auth: this.token ? { token: this.token } : {},
+        ...(this.token ? { auth: { token: this.token } } : {}),
         locale:
           Intl.DateTimeFormat().resolvedOptions().locale || 'en-US',
         userAgent: 'linkingchat-desktop/1.0.0',
@@ -407,9 +412,10 @@ export class OpenClawWsClient {
       const id = (msg as any).id as string;
       const pending = this.pendingRequests.get(id);
       if (pending) {
-        // Don't delete on "accepted" — streaming events still coming
-        const isAccepted = (msg as any).ok && (msg as any).payload?.status === 'accepted';
-        if (!isAccepted) {
+        // Don't delete on "started"/"accepted"/"in_flight" — streaming events still coming
+        const status = (msg as any).payload?.status;
+        const isStreaming = (msg as any).ok && (status === 'started' || status === 'accepted' || status === 'in_flight');
+        if (!isStreaming) {
           this.pendingRequests.delete(id);
         }
         if ((msg as any).ok) {

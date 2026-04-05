@@ -1,6 +1,7 @@
 import { OpenClawWsClient } from './openclaw-ws-client';
 import { app } from 'electron';
 import { join } from 'path';
+import { execSync } from 'child_process';
 
 /**
  * OpenClaw Gateway 连接配置
@@ -26,7 +27,7 @@ export class OpenClawClientService {
   /**
    * 连接到 OpenClaw Gateway
    */
-  async connect(config: GatewayConnectionConfig): Promise<void> {
+  async connect(config: GatewayConnectionConfig, maxRetries = 5): Promise<void> {
     if (this.client && this.isConnected) {
       console.log('[OpenClaw] Already connected');
       return;
@@ -34,23 +35,45 @@ export class OpenClawClientService {
 
     this.connectionConfig = config;
 
-    console.log(`[OpenClaw] Connecting to Gateway at ${config.url} (token: ${config.token.slice(0, 8)}...)`);
+    console.log(`[OpenClaw] Connecting to Gateway at ${config.url} (auth: ${config.token ? 'token' : 'none'})`);
 
-    this.client = new OpenClawWsClient({
-      url: config.url,
-      token: config.token,
-      deviceIdentityPath: join(app.getPath('userData'), '.openclaw', 'device-identity.json'),
-    });
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      this.client = new OpenClawWsClient({
+        url: config.url,
+        token: config.token,
+        deviceIdentityPath: join(app.getPath('userData'), '.openclaw', 'device-identity.json'),
+      });
 
-    try {
-      const helloOk = await this.client.connect();
-      this.isConnected = true;
-      console.log(`[OpenClaw] Connected to Gateway successfully (v${helloOk.server?.version ?? '?'})`);
-    } catch (error) {
-      this.isConnected = false;
-      this.client = null;
-      console.error('[OpenClaw] Failed to connect:', error);
-      throw error;
+      try {
+        const helloOk = await this.client.connect();
+        this.isConnected = true;
+        console.log(`[OpenClaw] Connected to Gateway successfully (v${helloOk.server?.version ?? '?'})`);
+        return;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+
+        // Auto-approve device pairing on first connection
+        if (msg.includes('pairing required') || msg.includes('NOT_PAIRED')) {
+          console.log('[OpenClaw] Device pairing required, auto-approving...');
+          const approved = await this.autoApproveDevice(config);
+          if (approved) {
+            // Count pairing as an attempt, retry immediately
+            continue;
+          }
+        }
+
+        if (attempt < maxRetries) {
+          const delay = attempt * 2000; // 2s, 4s
+          console.log(`[OpenClaw] Connect attempt ${attempt}/${maxRetries} failed (${msg}), retrying in ${delay}ms...`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+
+        this.isConnected = false;
+        this.client = null;
+        console.error('[OpenClaw] Failed to connect after all retries:', error);
+        throw error;
+      }
     }
   }
 
@@ -104,6 +127,45 @@ export class OpenClawClientService {
     } catch (error) {
       console.error('[OpenClaw] Error sending message:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Auto-approve device pairing via CLI.
+   * Only needed on first connection — pairing persists in ~/.openclaw/
+   */
+  private async autoApproveDevice(config: GatewayConnectionConfig): Promise<boolean> {
+    try {
+      const cliPath = require.resolve('openclaw').replace(/dist[/\\]index\.js$/, '') + 'openclaw.mjs';
+      const wsUrl = config.url.replace(/^http/, 'ws');
+
+      // List pending devices
+      const listOutput = execSync(
+        `node "${cliPath}" devices list --json --url "${wsUrl}" --token "${config.token}"`,
+        { timeout: 10_000, encoding: 'utf8', env: { ...process.env, OPENCLAW_GATEWAY_TOKEN: config.token } },
+      );
+
+      const data = JSON.parse(listOutput);
+      const pending = data?.pending || [];
+      if (pending.length === 0) {
+        console.log('[OpenClaw] No pending devices to approve');
+        return false;
+      }
+
+      // Approve the first pending device (should be ours)
+      const requestId = pending[0].requestId;
+      console.log(`[OpenClaw] Approving device: ${requestId}`);
+
+      execSync(
+        `node "${cliPath}" devices approve "${requestId}" --url "${wsUrl}" --token "${config.token}"`,
+        { timeout: 10_000, encoding: 'utf8', env: { ...process.env, OPENCLAW_GATEWAY_TOKEN: config.token } },
+      );
+
+      console.log('[OpenClaw] Device approved successfully');
+      return true;
+    } catch (err) {
+      console.error('[OpenClaw] Auto-approve failed:', err instanceof Error ? err.message : err);
+      return false;
     }
   }
 
