@@ -1,6 +1,16 @@
 import { create } from 'zustand';
 import type { ConverseResponse, MessageResponse } from '@linkingchat/ws-protocol';
 
+export interface StreamingMessage {
+  requestId: string;
+  converseId: string;
+  text: string;          // Accumulated full text
+  toolCalls: string[];   // Currently active tool names
+  status: 'streaming' | 'done' | 'error';
+  errorText?: string;
+  createdAt: string;     // ISO timestamp when streaming began
+}
+
 interface ChatState {
   currentUserId: string | null;
   converses: ConverseResponse[];
@@ -10,6 +20,7 @@ interface ChatState {
   hasMore: Record<string, boolean>;
   cursors: Record<string, string | null>;
   readReceipts: Record<string, string>; // converseId → lastSeenMessageId by peer
+  streamingMessages: Record<string, StreamingMessage>; // keyed by requestId
 
   // Actions
   setCurrentUserId: (id: string | null) => void;
@@ -31,6 +42,9 @@ interface ChatState {
   markConverseRead: (converseId: string) => void;
   setReadReceipt: (converseId: string, lastSeenMessageId: string) => void;
   updateLastMessage: (converseId: string, msg: MessageResponse, incrementUnread?: boolean) => void;
+  addStreamingMessage: (converseId: string, requestId: string) => void;
+  appendStreamChunk: (requestId: string, chunk: { type: string; text: string }) => void;
+  removeStreamingMessage: (requestId: string) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -42,6 +56,7 @@ export const useChatStore = create<ChatState>((set) => ({
   hasMore: {},
   cursors: {},
   readReceipts: {},
+  streamingMessages: {},
 
   setCurrentUserId: (id) => set({ currentUserId: id }),
 
@@ -186,4 +201,54 @@ export const useChatStore = create<ChatState>((set) => ({
           : c,
       ),
     })),
+
+  addStreamingMessage: (converseId, requestId) =>
+    set((state) => ({
+      streamingMessages: {
+        ...state.streamingMessages,
+        [requestId]: {
+          requestId,
+          converseId,
+          text: '',
+          toolCalls: [],
+          status: 'streaming',
+          createdAt: new Date().toISOString(),
+        },
+      },
+    })),
+
+  appendStreamChunk: (requestId, chunk) =>
+    set((state) => {
+      const sm = state.streamingMessages[requestId];
+      if (!sm) return state;
+
+      let updated: StreamingMessage;
+
+      if (chunk.type === 'text') {
+        updated = { ...sm, text: sm.text + chunk.text };
+      } else if (chunk.type === 'tool_use') {
+        updated = { ...sm, toolCalls: [...sm.toolCalls, chunk.text] };
+      } else if (chunk.type === 'tool_result') {
+        updated = {
+          ...sm,
+          toolCalls: sm.toolCalls.filter((t) => t !== chunk.text),
+        };
+      } else if (chunk.type === 'done') {
+        updated = { ...sm, status: 'done' };
+      } else if (chunk.type === 'error') {
+        updated = { ...sm, status: 'error', errorText: chunk.text };
+      } else {
+        return state;
+      }
+
+      return {
+        streamingMessages: { ...state.streamingMessages, [requestId]: updated },
+      };
+    }),
+
+  removeStreamingMessage: (requestId) =>
+    set((state) => {
+      const { [requestId]: _removed, ...rest } = state.streamingMessages;
+      return { streamingMessages: rest };
+    }),
 }));
