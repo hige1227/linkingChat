@@ -39,6 +39,22 @@ const electronAPI = {
       callback(connected),
     );
   },
+
+  // OpenClaw streaming chat (for Bot conversations)
+  openClawStartStream: (message: string, sessionKey: string) =>
+    ipcRenderer.invoke('openclaw:stream-start', message, sessionKey),
+  openClawCancelStream: (requestId: string) =>
+    ipcRenderer.invoke('openclaw:stream-cancel', requestId),
+  onOpenClawStreamChunk: (
+    callback: (data: { requestId: string; chunk: { type: string; text: string } }) => void,
+  ) => {
+    ipcRenderer.on('openclaw:stream-chunk', (_event, data) => callback(data));
+  },
+  offOpenClawStreamChunk: (
+    callback: (data: { requestId: string; chunk: { type: string; text: string } }) => void,
+  ) => {
+    ipcRenderer.removeListener('openclaw:stream-chunk', callback as never);
+  },
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

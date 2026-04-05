@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BotsService } from './bots.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { BroadcastService } from '../gateway/broadcast.service';
+import { ConversesService } from '../converses/converses.service';
 import {
   NotFoundException,
   ForbiddenException,
@@ -68,7 +70,18 @@ const mockPrisma: any = {
     create: jest.fn(),
     update: jest.fn(),
   },
+  message: {
+    create: jest.fn(),
+  },
   $transaction: jest.fn(),
+};
+
+const mockBroadcastService = {
+  toRoom: jest.fn(),
+};
+
+const mockConversesService = {
+  verifyMembership: jest.fn().mockResolvedValue(undefined),
 };
 
 // ── 测试套件 ────────────────────────────
@@ -81,6 +94,8 @@ describe('BotsService', () => {
       providers: [
         BotsService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: BroadcastService, useValue: mockBroadcastService },
+        { provide: ConversesService, useValue: mockConversesService },
       ],
     }).compile();
 
@@ -347,5 +362,88 @@ describe('BotsService', () => {
         service.delete('bot-001', 'other-owner'),
       ).rejects.toThrow(NotFoundException);
     });
+  });
+
+  // ── saveBotReply() ────────────────────────────
+
+  describe('saveBotReply()', () => {
+    const replyDto = { converseId: 'converse-001', content: 'Bot reply text' };
+
+    const mockSavedMessage = {
+      id: 'msg-999',
+      content: 'Bot reply text',
+      converseId: 'converse-001',
+      authorId: 'bot-user-001',
+      author: { id: 'bot-user-001', username: 'bot_test', displayName: 'Test Bot', avatarUrl: null },
+      type: 'TEXT',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    beforeEach(() => {
+      mockPrisma.bot.findFirst.mockResolvedValue(mockBot);
+      mockPrisma.message.create.mockResolvedValue(mockSavedMessage);
+      mockConversesService.verifyMembership.mockResolvedValue(undefined);
+      mockBroadcastService.toRoom.mockReset();
+    });
+
+    it('should persist bot reply message and broadcast it', async () => {
+      const result = await service.saveBotReply(mockOwnerId, 'bot-001', replyDto);
+
+      expect(mockPrisma.bot.findFirst).toHaveBeenCalledWith({
+        where: { id: 'bot-001', ownerId: mockOwnerId },
+      });
+      expect(mockConversesService.verifyMembership).toHaveBeenCalledWith(
+        'converse-001', mockOwnerId,
+      );
+      expect(mockPrisma.message.create).toHaveBeenCalledWith({
+        data: {
+          content: 'Bot reply text',
+          converseId: 'converse-001',
+          authorId: 'bot-user-001',
+        },
+        include: {
+          author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+        },
+      });
+      expect(mockBroadcastService.toRoom).toHaveBeenCalledWith(
+        'converse-001', 'message:new', mockSavedMessage,
+      );
+      expect(result).toEqual(mockSavedMessage);
+    });
+
+    it('should throw NotFoundException when bot does not belong to user', async () => {
+      mockPrisma.bot.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.saveBotReply(mockOwnerId, 'bad-bot', replyDto),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+});
+
+describe('BotsController - POST :botId/reply (routing wire-up)', () => {
+  it('delegates to botsService.saveBotReply with userId, botId, and body', async () => {
+    const mockBotsService = {
+      saveBotReply: jest.fn().mockResolvedValue({ id: 'msg-001' }),
+    };
+    const mockBotCommService = { sendBotMessage: jest.fn(), routeViaSupervisor: jest.fn() };
+
+    const { BotsController } = await import('./bots.controller');
+    const ctrl = new BotsController(
+      mockBotsService as any,
+      mockBotCommService as any,
+    );
+
+    const result = await (ctrl as any).saveBotReply(
+      'user-001',
+      'bot-001',
+      { converseId: 'conv-001', content: 'hello' },
+    );
+
+    expect(mockBotsService.saveBotReply).toHaveBeenCalledWith(
+      'user-001', 'bot-001', { converseId: 'conv-001', content: 'hello' },
+    );
+    expect(result).toEqual({ id: 'msg-001' });
   });
 });

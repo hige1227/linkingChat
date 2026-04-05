@@ -258,6 +258,61 @@ export function registerOpenClawIpc(): void {
     const { commandExecutor } = await import('../services/command-executor.service');
     return commandExecutor.execute(command);
   });
+
+  // ── Streaming chat (for Bot conversations) ──
+  const activeStreams = new Map<string, { cancelled: boolean }>();
+
+  ipcMain.handle(
+    'openclaw:stream-start',
+    async (event, message: string, sessionKey: string): Promise<{ requestId: string }> => {
+      if (!openClawClientService.isClientConnected()) {
+        throw new Error('Not connected to OpenClaw Gateway');
+      }
+      const client = openClawClientService.getClient();
+      if (!client) throw new Error('No OpenClaw client available');
+
+      const requestId = `str-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const control = { cancelled: false };
+      activeStreams.set(requestId, control);
+      const win = BrowserWindow.fromWebContents(event.sender);
+
+      // Fire-and-forget: runs in background, pushes chunks to renderer
+      (async () => {
+        try {
+          for await (const chunk of client.chat(message, { sessionKey })) {
+            if (control.cancelled) break;
+            win?.webContents.send('openclaw:stream-chunk', { requestId, chunk });
+          }
+        } catch (err) {
+          if (!control.cancelled) {
+            win?.webContents.send('openclaw:stream-chunk', {
+              requestId,
+              chunk: {
+                type: 'error',
+                text: err instanceof Error ? err.message : 'Stream error',
+              },
+            });
+          }
+        } finally {
+          activeStreams.delete(requestId);
+        }
+      })();
+
+      return { requestId };
+    },
+  );
+
+  ipcMain.handle(
+    'openclaw:stream-cancel',
+    (_event, requestId: string): { cancelled: boolean } => {
+      const ctrl = activeStreams.get(requestId);
+      if (ctrl) {
+        ctrl.cancelled = true;
+        activeStreams.delete(requestId);
+      }
+      return { cancelled: true };
+    },
+  );
 }
 
 // Export for use in index.ts and auth.ipc.ts

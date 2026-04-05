@@ -4,9 +4,10 @@ import { BotsService } from './bots.service';
 import { BotInitService } from './bot-init.service';
 import { BotCommunicationService } from './bot-communication.service';
 import { AiModule } from '../ai/ai.module';
+import { ConversesModule } from '../converses/converses.module';
 
 @Module({
-  imports: [AiModule],
+  imports: [AiModule, ConversesModule],
   controllers: [BotsController],
   providers: [BotsService, BotInitService, BotCommunicationService],
   exports: [BotsService, BotInitService, BotCommunicationService],

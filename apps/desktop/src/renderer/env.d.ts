@@ -70,6 +70,15 @@ interface ElectronAPI {
   onConnectionStatusChanged: (callback: (status: string) => void) => void;
   onCommandReceived: (callback: (entry: unknown) => void) => void;
   onOpenClawStatusChanged: (callback: (connected: boolean) => void) => void;
+
+  openClawStartStream: (message: string, sessionKey: string) => Promise<{ requestId: string }>;
+  openClawCancelStream: (requestId: string) => Promise<{ cancelled: boolean }>;
+  onOpenClawStreamChunk: (
+    callback: (data: { requestId: string; chunk: { type: string; text: string } }) => void,
+  ) => void;
+  offOpenClawStreamChunk: (
+    callback: (data: { requestId: string; chunk: { type: string; text: string } }) => void,
+  ) => void;
 }
 
 declare module 'zustand';
