@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useChatStore } from '../../stores/chatStore';
+import type { ChatState } from '../../stores/chatStore';
 import { useAiStore } from '../../stores/aiStore';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import { useOpenClawChat } from '../../hooks/useOpenClawChat';
@@ -34,7 +35,7 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
   const showAiButton = true;
 
   // Bot converse detection
-  const converse = useChatStore((s) => s.converses.find((c) => c.id === converseId));
+  const converse = useChatStore((s: ChatState) => s.converses.find((c) => c.id === converseId));
   const isBotConverse = Boolean((converse as any)?.isBot);
   const botId: string | undefined = (converse as any)?.botInfo?.id;
 
