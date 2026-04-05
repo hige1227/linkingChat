@@ -11,7 +11,7 @@ export interface StreamingMessage {
   createdAt: string;     // ISO timestamp when streaming began
 }
 
-interface ChatState {
+export interface ChatState {
   currentUserId: string | null;
   converses: ConverseResponse[];
   activeConverseId: string | null;
