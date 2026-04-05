@@ -49,8 +49,9 @@ export class OpenClawProcessService {
     if (envMode && ['local', 'docker', 'external'].includes(envMode)) {
       return envMode;
     }
-    // Dev = docker (Server API), production = local sidecar
-    return process.env.ELECTRON_RENDERER_URL ? 'docker' : 'local';
+    // Default to local mode — spawn OpenClaw as sidecar process
+    // Use OPENCLAW_MODE=docker to explicitly use Server API (Docker container)
+    return 'local';
   }
 
   /**
@@ -120,7 +121,7 @@ export class OpenClawProcessService {
       return null;
     }
     if (this.mode === 'local' && this.token && this.isProcessRunning()) {
-      return { url: `http://${BIND_HOST}:${PORT}`, token: this.token };
+      return { url: `ws://${BIND_HOST}:${PORT}`, token: this.token };
     }
     return null;
   }
@@ -160,8 +161,8 @@ export class OpenClawProcessService {
       return null;
     }
 
-    // Generate token
-    this.token = randomBytes(32).toString('hex');
+    // No token needed — local mode uses --auth none
+    this.token = '';
 
     // Resolve binary paths
     const { nodePath, cliPath } = this.resolvePaths();
@@ -174,16 +175,15 @@ export class OpenClawProcessService {
     // Set up log stream
     this.setupLogStream();
 
-    console.log(`[OpenClaw:Process] Spawning: ${nodePath} ${cliPath} gateway run --port ${PORT} --bind loopback`);
+    console.log(`[OpenClaw:Process] Spawning: ${nodePath} ${cliPath} gateway run --allow-unconfigured --port ${PORT} --bind loopback`);
 
     try {
       this.process = spawn(
         nodePath,
-        [cliPath, 'gateway', 'run', '--port', String(PORT), '--bind', 'loopback'],
+        [cliPath, 'gateway', 'run', '--allow-unconfigured', '--dev', '--port', String(PORT), '--bind', 'loopback', '--auth', 'none'],
         {
           env: {
             ...process.env,
-            OPENCLAW_GATEWAY_TOKEN: this.token,
           },
           stdio: ['pipe', 'pipe', 'pipe'],
           detached: false,
@@ -241,7 +241,7 @@ export class OpenClawProcessService {
       }
 
       this.restartCount = 0;
-      const config = { url: `http://${BIND_HOST}:${PORT}`, token: this.token };
+      const config = { url: `ws://${BIND_HOST}:${PORT}`, token: this.token };
       console.log(`[OpenClaw:Process] Ready at ${config.url}`);
       return config;
     } catch (err) {
@@ -260,8 +260,17 @@ export class OpenClawProcessService {
       if (sidecarPath) {
         return { nodePath: process.execPath.includes('electron') ? 'node' : process.execPath, cliPath: sidecarPath };
       }
-      // Fallback: assume openclaw is in PATH as a node module
-      return { nodePath: 'node', cliPath: 'node_modules/.bin/openclaw' };
+      // Fallback: resolve openclaw.mjs from node_modules
+      try {
+        const openclawDir = require.resolve('openclaw').replace(/dist[/\\]index\.js$/, '');
+        return { nodePath: 'node', cliPath: join(openclawDir, 'openclaw.mjs') };
+      } catch {
+        // Last resort: try .cmd on Windows
+        return {
+          nodePath: process.platform === 'win32' ? 'node_modules\\.bin\\openclaw.CMD' : 'node_modules/.bin/openclaw',
+          cliPath: '',
+        };
+      }
     }
 
     // Production: bundled sidecar

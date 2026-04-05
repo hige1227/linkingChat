@@ -94,8 +94,11 @@ export class OpenClawWsClient {
       this.ws.on('message', (raw: WebSocket.Data) => {
         let msg: ProtocolMessage;
         try {
-          msg = JSON.parse(raw.toString());
-        } catch {
+          const str = typeof raw === 'string' ? raw : Buffer.isBuffer(raw) ? raw.toString('utf8') : raw.toString();
+          console.log('[OpenClaw:WS] RAW:', str.substring(0, 150));
+          msg = JSON.parse(str);
+        } catch (e) {
+          console.error('[OpenClaw:WS] Parse error:', e);
           return;
         }
 
@@ -134,7 +137,13 @@ export class OpenClawWsClient {
       });
 
       this.ws.on('close', (code, reason) => {
+        const reasonStr = reason?.toString() || 'n/a';
+        console.log(`[OpenClaw:WS] Closed: code=${code} reason=${reasonStr}`);
         this._isConnected = false;
+        if (!this._isConnected && code === 1008) {
+          clearTimeout(timeout);
+          reject(new Error(reasonStr || 'pairing required'));
+        }
         // Reject all pending requests
         for (const [id, req] of this.pendingRequests) {
           req.reject(new Error(`WebSocket closed (code=${code})`));
@@ -329,7 +338,7 @@ export class OpenClawWsClient {
         caps: [],
         commands: [],
         permissions: {},
-        auth: { token: this.token },
+        auth: this.token ? { token: this.token } : {},
         locale:
           Intl.DateTimeFormat().resolvedOptions().locale || 'en-US',
         userAgent: 'linkingchat-desktop/1.0.0',
@@ -443,7 +452,11 @@ export class OpenClawWsClient {
 
   private send(msg: Record<string, unknown>): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(msg));
+      const data = JSON.stringify(msg);
+      console.log('[OpenClaw:WS] SEND:', data.substring(0, 200));
+      this.ws.send(data);
+    } else {
+      console.error('[OpenClaw:WS] Cannot send, ws not open. readyState:', this.ws?.readyState);
     }
   }
 

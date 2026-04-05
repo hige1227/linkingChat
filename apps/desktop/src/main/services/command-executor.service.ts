@@ -34,12 +34,12 @@ export class CommandExecutor {
     if (openClawClientService.isClientConnected()) {
       try {
         const result = await this.executeViaOpenClaw(command, timeout);
-        if (result.error?.code === 'NO_TOOL_EXECUTION') {
-          // Agent responded with text only (no tool call) — fall back
-          console.log('[CommandExecutor] Agent did not execute tool, falling back to child_process');
-        } else {
+        // Only return OpenClaw result if it actually executed successfully with tool output
+        if (result.status === 'success' && !result.error) {
           return { ...result, source: 'openclaw' };
         }
+        // Any error (scope, no tool execution, agent error) → fall back
+        console.log(`[CommandExecutor] OpenClaw returned ${result.error?.code || 'error'}, falling back to child_process`);
       } catch (error) {
         console.warn(
           '[CommandExecutor] OpenClaw execution failed, falling back to child_process:',
