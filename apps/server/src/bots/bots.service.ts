@@ -4,6 +4,8 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,12 +14,19 @@ import { UpdateBotDto } from './dto/update-bot.dto';
 import { randomBytes } from 'crypto';
 import * as argon2 from 'argon2';
 import { agentConfigSchema } from '@linkingchat/shared';
+import { BroadcastService } from '../gateway/broadcast.service';
+import { ConversesService } from '../converses/converses.service';
 
 @Injectable()
 export class BotsService {
   private readonly logger = new Logger(BotsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly broadcastService: BroadcastService,
+    @Inject(forwardRef(() => ConversesService))
+    private readonly conversesService: ConversesService,
+  ) {}
 
   /**
    * 创建 Bot + 关联 User（事务）
@@ -297,5 +306,44 @@ export class BotsService {
         },
       },
     });
+  }
+
+  /**
+   * 保存 Bot 回复消息并广播到会话房间
+   *
+   * 流程：
+   * 1. 验证 Bot 归属（只有 owner 可以用此 Bot）
+   * 2. 验证用户是该会话的成员
+   * 3. 以 Bot User 身份创建消息记录
+   * 4. 广播 message:new 到会话房间
+   */
+  async saveBotReply(
+    userId: string,
+    botId: string,
+    dto: { converseId: string; content: string },
+  ) {
+    const bot = await this.prisma.bot.findFirst({
+      where: { id: botId, ownerId: userId },
+    });
+    if (!bot) throw new NotFoundException('Bot not found');
+
+    await this.conversesService.verifyMembership(dto.converseId, userId);
+
+    const message = await this.prisma.message.create({
+      data: {
+        content: dto.content,
+        converseId: dto.converseId,
+        authorId: bot.userId,
+      },
+      include: {
+        author: {
+          select: { id: true, username: true, displayName: true, avatarUrl: true },
+        },
+      },
+    });
+
+    this.broadcastService.toRoom(dto.converseId, 'message:new', message);
+
+    return message;
   }
 }
