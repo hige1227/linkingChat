@@ -2,11 +2,13 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useChatStore } from '../../stores/chatStore';
 import { useAiStore } from '../../stores/aiStore';
 import { useChatSocket } from '../../hooks/useChatSocket';
+import { useOpenClawChat } from '../../hooks/useOpenClawChat';
 import { uploadFile } from '../../services/uploadService';
 import { VoiceRecorder } from './VoiceRecorder';
 import type { MessageResponse } from '@linkingchat/ws-protocol';
 
 const AI_MENTION_RE = /(?<!\w)@ai\b/i;
+const API_URL = 'http://localhost:3008/api/v1';
 
 interface MessageInputProps {
   converseId: string;
@@ -30,6 +32,17 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
   const { emitWhisperRequest } = useChatSocket();
   const whisper = useAiStore((s) => s.whisper[converseId]);
   const showAiButton = true;
+
+  // Bot converse detection
+  const converse = useChatStore((s) => s.converses.find((c) => c.id === converseId));
+  const isBotConverse = Boolean((converse as any)?.isBot);
+  const botId: string | undefined = (converse as any)?.botInfo?.id;
+
+  // OpenClaw connection state (for offline hint)
+  const [openClawConnected, setOpenClawConnected] = useState(false);
+
+  // Streaming send hook
+  const { sendMessage: sendOpenClawMessage } = useOpenClawChat(converseId);
 
   // Reset text when converseId changes
   useEffect(() => {
@@ -76,6 +89,14 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
       }
     }
   }, [whisper, aiLoading]);
+
+  // Track OpenClaw connection state for offline hint
+  useEffect(() => {
+    window.electronAPI.getOpenClawStatus().then((s) => {
+      setOpenClawConnected(s.connected);
+    });
+    window.electronAPI.onOpenClawStatusChanged(setOpenClawConnected);
+  }, []);
 
   const handleAiRequest = (userPrompt?: string) => {
     if (aiLoading) return;
@@ -135,6 +156,37 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
       return;
     }
 
+    // Bot converse: route to local OpenClaw Gateway
+    if (isBotConverse && botId) {
+      setText('');
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+
+      const token = await window.electronAPI.getToken();
+      if (!token) return;
+
+      // Persist user message via normal REST (echoes back via socket)
+      try {
+        await fetch(`${API_URL}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ converseId, content }),
+        });
+      } catch (err) {
+        console.error('[Bot] Failed to persist user message:', err);
+      }
+
+      // Fire OpenClaw stream non-blocking
+      sendOpenClawMessage(content, botId, token).catch((err) => {
+        console.error('[Bot] OpenClaw chat failed:', err);
+      });
+
+      textareaRef.current?.focus();
+      return;
+    }
+
     setText('');
     setSending(true);
     if (textareaRef.current) {
@@ -146,7 +198,7 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
       if (!token) return;
 
       const res = await fetch(
-        'http://localhost:3008/api/v1/messages',
+        `${API_URL}/messages`,
         {
           method: 'POST',
           headers: {
@@ -192,7 +244,7 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
         const token = await window.electronAPI.getToken();
         if (!token) continue;
 
-        const res = await fetch('http://localhost:3008/api/v1/messages', {
+        const res = await fetch(`${API_URL}/messages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -245,6 +297,11 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
           </svg>
           <span>Contains @ai — sending will request AI suggestions, message won't be sent</span>
+        </div>
+      )}
+      {isBotConverse && !openClawConnected && (
+        <div className="bot-offline-hint">
+          ⚠ AI assistant offline — restart Desktop to reconnect
         </div>
       )}
       <div className="message-input-wrapper">
@@ -333,7 +390,7 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
                 const token = await window.electronAPI.getToken();
                 if (!token) return;
 
-                const res = await fetch('http://localhost:3008/api/v1/messages', {
+                const res = await fetch(`${API_URL}/messages`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
