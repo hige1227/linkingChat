@@ -279,7 +279,7 @@ yield { type: 'done', text: '' };
 **现象**: Gateway 连接成功，`chat.send` 发出，收到 lifecycle start 事件，然后 lifecycle error: `HTTP 401 authentication_error: The API Key appears to be invalid`
 
 **排查**: 
-- 用户的 API key 是 `api.moonshot.cn/v1` 平台的（`sk-pEkZ...`）
+- 用户的 API key 是 `api.moonshot.cn/v1` 平台的
 - OpenClaw 内置的 `kimi-coding` provider 用的是 `https://api.kimi.com/coding`（Kimi Coding API）
 - 两个是不同的 API 端点，key 不通用
 
@@ -453,10 +453,27 @@ Desktop 的 Supervisor Bot / Coding Bot 聊天窗口发消息时，消息路由�
 
 ---
 
-## 八、给接手人的注意事项
+## 八、与 bundling 架构文档的差异
+
+`openclaw-desktop-bundling-architecture.md` 是早期架构设计，以下内容已被本次实战修正：
+
+| bundling 文档描述 | 实际情况 | 说明 |
+|-------------------|----------|------|
+| Token: 每次启动生成随机 token | `--auth none`，不用 token | 本地回环不需要认证 |
+| `openclaw-node` 客户端 | 自定义 WS 客户端 | `openclaw-node` 有签名兼容问题 |
+| Docker 模式为默认开发模式 | Local 模式为默认 | 不再依赖 Docker 容器 |
+| 健康检查 HTTP `/health` | TCP 端口探测 | 更轻量，不依赖 HTTP 服务就绪 |
+| Windows 退出: IPC channel / HTTP shutdown | `process.on('exit')` + `execSync(taskkill)` | 最可靠的方式 |
+
+bundling 文档的 Phase 2-4（构建打包、CI/CD、签名）仍然有效，待接近发布时实施。
+
+---
+
+## 九、给接手人的注意事项
 
 1. **每次关闭 Desktop 后检查端口** — 如果 `netstat -ano | grep 18789` 有残留进程，手动 kill。`killSync` 已实现但不是 100% 可靠（比如 Desktop crash）
 2. **不要改 `--auth none`** — 除非有明确的安全需求。本地回环 + bind loopback 已经足够安全
 3. **LLM API 调用有成本** — 每次 `sendOpenClawMessage` / `executeCommand` 都会调 LLM API，调试时注意
 4. **OpenClaw 源码是压缩的** — `node_modules/openclaw/dist/gateway-cli-CWpalJNJ.js` 有 2.6 万行，但可以 grep 关键字定位。关键函数：`evaluateMissingDeviceIdentity`、`resolveConnectAuthState`、`resolveSignatureToken`、`buildDeviceAuthPayload`
 5. **Device identity 持久化** — 存在 `%APPDATA%/linkingchat-desktop/.openclaw/device-identity.json`，不要删除，否则每次启动都要走首次配对流程
+6. **OpenClaw 版本** — 当前使用 `openclaw@2026.4.2`，通过 `pnpm add -w openclaw` 安装在项目根目录。Desktop 通过 `require.resolve('openclaw')` 动态定位 `openclaw.mjs` 入口
