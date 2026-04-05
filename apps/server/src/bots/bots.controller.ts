@@ -70,6 +70,17 @@ export class BotsController {
     return this.botsService.delete(id, userId);
   }
 
+  /** POST /api/v1/bots/:botId/reply — Desktop persists OpenClaw Bot reply */
+  @Post(':botId/reply')
+  @HttpCode(HttpStatus.CREATED)
+  saveBotReply(
+    @CurrentUser('userId') userId: string,
+    @Param('botId') botId: string,
+    @Body() dto: { converseId: string; content: string },
+  ) {
+    return this.botsService.saveBotReply(userId, botId, dto);
+  }
+
   // ──────────────────────────────────────
   // Test-only endpoints (dev environment)
   // ──────────────────────────────────────

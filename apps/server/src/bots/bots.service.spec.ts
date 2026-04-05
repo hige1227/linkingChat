@@ -421,3 +421,29 @@ describe('BotsService', () => {
     });
   });
 });
+
+describe('BotsController - POST :botId/reply (routing wire-up)', () => {
+  it('delegates to botsService.saveBotReply with userId, botId, and body', async () => {
+    const mockBotsService = {
+      saveBotReply: jest.fn().mockResolvedValue({ id: 'msg-001' }),
+    };
+    const mockBotCommService = { sendBotMessage: jest.fn(), routeViaSupervisor: jest.fn() };
+
+    const { BotsController } = await import('./bots.controller');
+    const ctrl = new BotsController(
+      mockBotsService as any,
+      mockBotCommService as any,
+    );
+
+    const result = await (ctrl as any).saveBotReply(
+      'user-001',
+      'bot-001',
+      { converseId: 'conv-001', content: 'hello' },
+    );
+
+    expect(mockBotsService.saveBotReply).toHaveBeenCalledWith(
+      'user-001', 'bot-001', { converseId: 'conv-001', content: 'hello' },
+    );
+    expect(result).toEqual({ id: 'msg-001' });
+  });
+});
