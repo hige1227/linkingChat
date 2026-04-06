@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MessagesService } from './messages.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BroadcastService } from '../gateway/broadcast.service';
@@ -100,6 +101,7 @@ describe('MessagesService', () => {
         { provide: UploadService, useValue: mockUpload },
         { provide: MetricsService, useValue: mockMetricsService },
         { provide: I18nService, useValue: mockI18nService },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
       ],
     }).compile();
 
@@ -658,6 +660,106 @@ describe('MessagesService', () => {
 
       // Verify $queryRaw was called (we can't easily check Prisma.sql internals)
       expect(mockPrisma.$queryRaw).toHaveBeenCalled();
+    });
+  });
+
+  describe('detectBotRecipient', () => {
+    const mockEventEmitter = { emit: jest.fn() };
+
+    beforeEach(() => {
+      mockEventEmitter.emit.mockClear();
+    });
+
+    it('should emit agent.dispatch with supervisor-bot sentinel when recipient is Supervisor', async () => {
+      // Rebuild service with EventEmitter2 injected
+      const { MessagesService: Svc } = await import('./messages.service');
+      const { EventEmitter2 } = await import('@nestjs/event-emitter');
+      const module = await Test.createTestingModule({
+        providers: [
+          Svc,
+          { provide: PrismaService, useValue: mockPrisma },
+          { provide: BroadcastService, useValue: mockBroadcast },
+          { provide: ConversesService, useValue: mockConverses },
+          { provide: WhisperService, useValue: mockWhisper },
+          { provide: MentionService, useValue: mockMention },
+          { provide: UploadService, useValue: mockUpload },
+          { provide: MetricsService, useValue: mockMetricsService },
+          { provide: I18nService, useValue: mockI18nService },
+          { provide: EventEmitter2, useValue: mockEventEmitter },
+        ],
+      }).compile();
+      const svc = module.get<MessagesService>(Svc);
+
+      // Stub: one other member who is a Supervisor bot
+      mockPrisma.converseMember.findMany.mockResolvedValueOnce([
+        { userId: 'bot-user-1' },
+      ]);
+      mockPrisma.bot.findUnique.mockResolvedValueOnce({
+        id: 'bot-db-uuid-1',
+        userId: 'bot-user-1',
+        name: 'Supervisor',
+      });
+
+      // Call the private method via type cast
+      await (svc as any).detectBotRecipient('user-1', 'conv-1', {
+        id: 'msg-1',
+        content: 'Hello bot',
+        type: 'TEXT',
+      });
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('agent.dispatch', {
+        botId: 'supervisor-bot',
+        events: [
+          expect.objectContaining({
+            type: 'USER_MESSAGE',
+            payload: expect.objectContaining({
+              userId: 'user-1',
+              content: 'Hello bot',
+              converseId: 'conv-1',
+            }),
+          }),
+        ],
+      });
+    });
+
+    it('should emit agent.dispatch with bot db id for non-supervisor bots', async () => {
+      const { MessagesService: Svc } = await import('./messages.service');
+      const { EventEmitter2 } = await import('@nestjs/event-emitter');
+      const module = await Test.createTestingModule({
+        providers: [
+          Svc,
+          { provide: PrismaService, useValue: mockPrisma },
+          { provide: BroadcastService, useValue: mockBroadcast },
+          { provide: ConversesService, useValue: mockConverses },
+          { provide: WhisperService, useValue: mockWhisper },
+          { provide: MentionService, useValue: mockMention },
+          { provide: UploadService, useValue: mockUpload },
+          { provide: MetricsService, useValue: mockMetricsService },
+          { provide: I18nService, useValue: mockI18nService },
+          { provide: EventEmitter2, useValue: mockEventEmitter },
+        ],
+      }).compile();
+      const svc = module.get<MessagesService>(Svc);
+
+      mockPrisma.converseMember.findMany.mockResolvedValueOnce([
+        { userId: 'coding-user-1' },
+      ]);
+      mockPrisma.bot.findUnique.mockResolvedValueOnce({
+        id: 'coding-bot-uuid',
+        userId: 'coding-user-1',
+        name: 'Coding',
+      });
+
+      await (svc as any).detectBotRecipient('user-1', 'conv-2', {
+        id: 'msg-2',
+        content: 'Fix this bug',
+        type: 'TEXT',
+      });
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith('agent.dispatch', {
+        botId: 'coding-bot-uuid',
+        events: [expect.objectContaining({ type: 'USER_MESSAGE' })],
+      });
     });
   });
 });

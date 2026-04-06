@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BroadcastService } from '../gateway/broadcast.service';
@@ -41,6 +42,7 @@ export class MessagesService {
     private readonly uploadService: UploadService,
     private readonly metricsService: MetricsService,
     private readonly i18n: I18nService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -630,8 +632,29 @@ export class MessagesService {
             `type=${message.type}, content="${(message.content ?? '').substring(0, 100)}"`,
         );
 
-        // Sprint 3 TODO: 将消息路由到 AI pipeline
-        // await this.botPipelineService.processMessage(bot, message);
+        // Supervisor uses a well-known sentinel botId; other bots use their DB id
+        const agentBotId =
+          bot.name === 'Supervisor' ? 'supervisor-bot' : bot.id;
+
+        const event = {
+          type: 'USER_MESSAGE' as const,
+          payload: {
+            userId: senderId,
+            content: message.content ?? '',
+            converseId,
+          },
+          timestamp: new Date(),
+          source: { userId: senderId, botId: bot.id },
+        };
+
+        this.eventEmitter.emit('agent.dispatch', {
+          botId: agentBotId,
+          events: [event],
+        });
+
+        this.logger.log(
+          `[Bot] Dispatched USER_MESSAGE to agent ${agentBotId}`,
+        );
       }
     }
   }
