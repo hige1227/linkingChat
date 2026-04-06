@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-LinkingChat (codename: Ghost Mate) has completed **Sprint 0–5**. The platform has a working NestJS server with auth, device control, friends, 1-on-1 & group chat, bots framework, AI modules, email verification, password reset, voice messages, i18n, plus full Flutter mobile UI and Electron desktop UI.
+LinkingChat (codename: Ghost Mate) has completed **Sprint 0–5**. The platform has a working NestJS server with auth, device control, friends, 1-on-1 & group chat, bots framework, AI modules (AgentOrchestrator + SupervisorAgent + LLM routing), email verification, password reset, voice messages, i18n, plus full Flutter mobile UI and Electron desktop UI.
 
 ### What's working:
 - `pnpm install` — Turborepo v2 + pnpm 10 workspace (5 packages)
@@ -13,7 +13,8 @@ LinkingChat (codename: Ghost Mate) has completed **Sprint 0–5**. The platform 
 - `pnpm dev:desktop` — Electron + electron-vite + React (full chat UI with group info panel)
 - `pnpm dev:mobile` — Flutter mobile app (full chat UI, friends, groups, device control)
 - `pnpm build` — All 4 packages compile (server, desktop, shared, ws-protocol)
-- `pnpm test` — 30 suites, 373 tests passing (auth, friends, messages, presence, converses, bots, bot-init, mail, email-verify, password-reset, etc.)
+- `pnpm test` — Run all tests; use `pnpm --filter @linkingchat/server test` to run server tests only
+- `pnpm check-ws-coverage` — Verify WS event type coverage (tsx scripts/check-ws-coverage.ts)
 - `pnpm lint` / `pnpm type-check` — Code quality checks
 - `pnpm db:migrate` / `pnpm db:seed` — Prisma migrations and seeding
 - Prisma schema: 12 models (User, Device, Command, RefreshToken, FriendRequest, Friendship, UserBlock, Converse, ConverseMember, Message, Attachment, Bot)
@@ -29,8 +30,12 @@ Required `.env` in `apps/server/`:
 - **Sprint 0** ✅ — Infrastructure setup (monorepo, Docker, Prisma, CI)
 - **Sprint 1** ✅ — Auth (JWT RS256) + device registration + WS gateway + shell exec + full chain PoC
 - **Sprint 2** ✅ — Friends, 1-on-1 chat, presence, read receipts, Bot framework (Bot-as-User), group chat CRUD + permissions, Flutter + Desktop full chat UI (~90 new files, ~8,500+ lines)
-- **Sprint 3** 🔧 — AI module (LLM Router, Whisper, Draft & Verify, Predictive Actions) + OpenClaw Gateway + Supervisor notifications
-  - **Phase 5** ✅ — OpenClaw Gateway 云端集成已完成 (2026-02-28)
+- **Sprint 3** 🔧 — AI module + OpenClaw Gateway + Supervisor notifications
+  - **Phase 5** ✅ — OpenClaw Gateway 云端集成 (2026-02-28)
+  - **Phase 6** ✅ — Agent framework: AgentOrchestrator + SupervisorAgent + BotEventListener
+  - **Phase 7** ✅ — Mention routing (@ai) + profile enhancements
+  - **Phase 8** ✅ — Desktop streaming bot chat (OpenClaw → ChatThread)
+  - **Active** 🔧 — Bot→AI pipeline routing (see `docs/superpowers/plans/`)
 - **Sprint 5** ✅ — 账号安全 + 基础功能补全 (2026-03-07)
   - Phase 1 ✅ — 邮箱验证 (MailModule + 验证码 + Guard + Flutter/Desktop UI)
   - Phase 2 ✅ — 忘记密码/重置密码 (防枚举 + token 失效 + Flutter/Desktop UI)
@@ -42,6 +47,12 @@ Required `.env` in `apps/server/`:
 - Supervisor notification aggregation (Sprint 3 Phase 6)
 
 Technical decisions are in `docs/decisions/decision-checklist.md` and `docs/decisions/tech-decisions-v2.md`.
+
+## Active Work (2026-04-06)
+
+In-progress plans in `docs/superpowers/plans/`:
+- `2026-04-06-bot-ai-pipeline-routing.md` — Wire Bot DM → EventEmitter2 → AgentOrchestrator (server-side)
+- `2026-04-06-openclaw-bot-chat-integration.md` — Desktop: OpenClaw streaming chat UI (largely done per recent commits)
 
 ## What This Project IS
 
@@ -225,9 +236,15 @@ docs/
 │       ├── phase8_performance.md       — P8: Performance optimization
 │       └── phase7_horizontal_scaling.md — P9: Horizontal scaling + load testing
 │
-├── plans/                              # Phase-specific design documents
-│   ├── 2026-02-28-phase5-openclaw-design.md        — Phase 5 OpenClaw 架构设计
-│   └── 2026-02-28-phase5-implementation.md         — Phase 5 实施计划
+├── plans/                              # Phase-specific design documents (Sprint 3)
+│   ├── 2026-02-28-phase5-*.md          — OpenClaw Gateway
+│   ├── 2026-02-28-phase6-*.md          — Agent framework + Supervisor
+│   ├── 2026-03-01-phase7-*.md          — Mention routing + profile
+│   └── 2026-03-01-phase8-*.md          — Desktop profile UI
+│
+├── superpowers/plans/                  # Active sprint plans
+│   ├── 2026-04-06-bot-ai-pipeline-routing.md       — Bot DM → agent dispatch wiring
+│   └── 2026-04-06-openclaw-bot-chat-integration.md — Desktop streaming bot chat
 │
 └── _archive/                           # Superseded documents
     ├── architecture.md                 — Old "parasitic Desktop Bridge" direction
@@ -237,13 +254,7 @@ docs/
 
 ## Open Questions
 
-Most blocking questions have been resolved in `docs/decisions/tech-decisions-v2.md`.
-
-- ~~**F1**: Scope of Desktop Bridge~~ → Resolved: OpenClaw Node as independent process
-- ~~**F2**: What is OpenClaw?~~ → Resolved: Open-source AI Agent Gateway (TypeScript, MIT), see tech-decisions-v2.md §2
-- ~~**F3**: "Control own desktop" vs "control friend's desktop"~~ → MVP: control own desktop
-- ~~**F4**: MVP social feature boundary~~ → Resolved: All features except voice/video calls, see tech-decisions-v2.md §1.2
-- ~~**F7**: Electron desktop app positioning~~ → Resolved: Social client + OpenClaw executor (confirmed by Sprint 1-2 implementation)
+All major questions resolved — see `docs/decisions/tech-decisions-v2.md`.
 
 ## Key File Locations (Phase 5+)
 
@@ -253,5 +264,26 @@ Most blocking questions have been resolved in `docs/decisions/tech-decisions-v2.
 - Desktop: `apps/desktop/src/main/services/command-executor.service.ts` — 双模式命令执行器
 - Tests: `apps/server/src/openclaw/__tests__/gateway-manager.service.spec.ts`
 
+### AI / Agent Module
+- `apps/server/src/agents/` — Agent framework
+  - `orchestrator/agent-orchestrator.service.ts` — Routes events to registered agents
+  - `impl/supervisor.agent.ts` — Supervisor Bot agent (sentinel `botId: 'supervisor-bot'`)
+  - `impl/batch-trigger.service.ts` — Batch event triggering
+  - `events/bot-event.listener.ts` — EventEmitter2 → orchestrator bridge
+  - `core/` — BaseAgent, AgentMemoryService, AgentWorkspaceService
+  - `interfaces/` — AgentEvent, AgentResponse, ConversationContext types
+- `apps/server/src/ai/` — LLM providers + AI services
+  - `services/llm-router.service.ts` — Multi-provider LLM routing (DeepSeek cheap / Kimi complex)
+  - `services/whisper.service.ts` — @ai reply suggestions
+  - `services/draft.service.ts` — Draft & Verify state machine
+  - `services/predictive.service.ts` — Predictive Actions
+  - `providers/` — deepseek.provider.ts, kimi.provider.ts
+
+### Desktop IPC Pattern
+- Renderer calls `window.api.xxx()` → preload bridge → Main IPC handler → service/OpenClaw
+- Preload: `apps/desktop/src/preload/index.ts` — exposes typed `window.api`
+- IPC handlers: `apps/desktop/src/main/ipc/` (auth.ipc.ts, device.ipc.ts, openclaw.ipc.ts)
+
 ### Test Files Location
 - Server tests: `apps/server/src/<module>/__tests__/` (colocated with source)
+- Exception: `messages.service.spec.ts` lives directly in `messages/` (not in `__tests__/`)
