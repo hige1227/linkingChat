@@ -114,4 +114,54 @@ describe('SupervisorAgent', () => {
       expect(response.content).toBe('任务已完成');
     });
   });
+
+  describe('handleEvent — USER_MESSAGE', () => {
+    it('should call llmRouter and create a reply message in the source converse', async () => {
+      const events: AgentEvent[] = [
+        {
+          type: 'USER_MESSAGE',
+          payload: {
+            userId: 'u1',
+            content: 'Hello Supervisor',
+            converseId: 'conv-dm-1',
+          },
+          timestamp: new Date(),
+          source: { userId: 'u1' },
+        },
+      ];
+
+      await agent.handleEvent(events);
+
+      expect(mockLlmRouter.complete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskType: 'chat',
+          messages: [{ role: 'user', content: 'Hello Supervisor' }],
+        }),
+      );
+      expect(mockMessagesService.create).toHaveBeenCalledWith(
+        'user-supervisor-1', // supervisorBot.userId
+        expect.objectContaining({
+          converseId: 'conv-dm-1',
+          content: '任务已完成',
+        }),
+      );
+    });
+
+    it('should skip when no supervisorBot found for user', async () => {
+      mockBotsService.findSupervisorByUserId.mockResolvedValueOnce(null);
+
+      const events: AgentEvent[] = [
+        {
+          type: 'USER_MESSAGE',
+          payload: { userId: 'u-unknown', content: 'hi', converseId: 'conv-x' },
+          timestamp: new Date(),
+          source: { userId: 'u-unknown' },
+        },
+      ];
+
+      await agent.handleEvent(events);
+
+      expect(mockMessagesService.create).not.toHaveBeenCalled();
+    });
+  });
 });

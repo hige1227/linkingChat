@@ -13,6 +13,8 @@ import {
   AgentAction,
   ConversationContext,
   DeviceResultPayload,
+  UserMessagePayload,
+  CrossBotNotifyPayload,
   CommandResult,
 } from '../interfaces';
 
@@ -39,33 +41,85 @@ export class SupervisorAgent extends BaseAgent {
 
     const userId = events[0]?.source.userId;
     if (!userId) {
-      this.logger.warn('No userId in events, skipping notification');
+      this.logger.warn('No userId in events, skipping');
       return;
     }
 
-    // Resolve the real Supervisor Bot for this user from DB
-    const supervisorBot = await this.botsService.findSupervisorByUserId(userId);
-    if (!supervisorBot) {
-      this.logger.warn(`No Supervisor Bot found for user ${userId}`);
-      return;
-    }
+    const deviceResults: AgentEvent[] = [];
 
-    // Update working memory with command results
     for (const event of events) {
-      if (event.type === 'DEVICE_RESULT') {
-        const payload = event.payload as DeviceResultPayload;
-        await this.memoryService.addCommandResult(supervisorBot.id, {
-          commandId: payload.commandId,
-          command: payload.command,
-          status: payload.status,
-          output: payload.output,
-          error: payload.error,
-          completedAt: event.timestamp,
-        } as CommandResult);
+      try {
+        switch (event.type) {
+          case 'USER_MESSAGE':
+            await this.handleUserMessage(event, userId);
+            break;
+          case 'CROSS_BOT_NOTIFY':
+            await this.handleCrossBotNotify(event, userId);
+            break;
+          case 'DEVICE_RESULT':
+            deviceResults.push(event);
+            break;
+          default:
+            this.logger.debug(`Unhandled event type: ${event.type}`);
+        }
+      } catch (err) {
+        this.logger.error(`Failed to handle ${event.type}:`, err);
       }
     }
 
-    // Generate response
+    // Batch DEVICE_RESULT processing (preserves original single-call behavior)
+    if (deviceResults.length > 0) {
+      await this.handleDeviceResults(deviceResults, userId);
+    }
+  }
+
+  private async handleUserMessage(event: AgentEvent, userId: string): Promise<void> {
+    const payload = event.payload as UserMessagePayload;
+
+    const supervisorBot = await this.botsService.findSupervisorByUserId(userId);
+    if (!supervisorBot) {
+      this.logger.warn(`No Supervisor Bot for user ${userId}`);
+      return;
+    }
+
+    const llmResponse = await this.llmRouter.complete({
+      taskType: 'chat',
+      systemPrompt:
+        '你是 Supervisor，用户的 AI 助手。请简洁、友好地回答用户的问题，回复不超过 150 字。',
+      messages: [{ role: 'user', content: payload.content }],
+      maxTokens: 300,
+    });
+
+    await this.messagesService.create(supervisorBot.userId, {
+      converseId: payload.converseId,
+      content: llmResponse.content,
+      type: MessageType.TEXT,
+    });
+
+    this.logger.log(`Replied to USER_MESSAGE in converse ${payload.converseId}`);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private async handleCrossBotNotify(_event: AgentEvent, _userId: string): Promise<void> {
+    // Task 3: Implementation pending
+  }
+
+  private async handleDeviceResults(events: AgentEvent[], userId: string): Promise<void> {
+    const supervisorBot = await this.botsService.findSupervisorByUserId(userId);
+    if (!supervisorBot) return;
+
+    for (const event of events) {
+      const payload = event.payload as DeviceResultPayload;
+      await this.memoryService.addCommandResult(supervisorBot.id, {
+        commandId: payload.commandId,
+        command: payload.command,
+        status: payload.status,
+        output: payload.output,
+        error: payload.error,
+        completedAt: event.timestamp,
+      } as CommandResult);
+    }
+
     const response = await this.generateResponse({ events, userId });
     await this.sendNotification(response, userId, supervisorBot);
   }
