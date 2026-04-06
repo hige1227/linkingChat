@@ -141,7 +141,12 @@ export class MentionService {
             await this.routeToBot(mention, message, senderId, converseId);
             break;
           case 'ai':
-            await this.routeToSupervisor(senderId, converseId, message.id);
+            await this.routeToSupervisor(
+              senderId,
+              converseId,
+              message.id,
+              message.content ?? '',
+            );
             break;
         }
       } catch (error) {
@@ -189,20 +194,45 @@ export class MentionService {
 
   /**
    * 路由到 Supervisor (@ai)
+   *
+   * - GROUP 群聊：派发 USER_MESSAGE 到 SupervisorAgent，由 Agent 生成回复发回群里
+   * - DIRECT / BOT：调用 WhisperService 生成智能回复建议
    */
   private async routeToSupervisor(
     senderId: string,
     converseId: string,
     messageId: string,
+    content: string,
   ): Promise<void> {
-    await this.whisperService.handleWhisperTrigger(
-      senderId,
-      converseId,
-      messageId,
-    );
+    const converse = await this.prisma.converse.findUnique({
+      where: { id: converseId },
+      select: { type: true },
+    });
 
-    this.logger.log(
-      `Routed @ai to WhisperService for message ${messageId}`,
-    );
+    if (converse?.type === 'GROUP') {
+      const event = {
+        type: 'USER_MESSAGE' as const,
+        payload: { userId: senderId, content, converseId },
+        timestamp: new Date(),
+        source: { userId: senderId },
+      };
+      // 'supervisor-bot' is the well-known sentinel botId for SupervisorAgent
+      this.eventEmitter.emit('agent.dispatch', {
+        botId: 'supervisor-bot',
+        events: [event],
+      });
+      this.logger.log(
+        `Routed @ai in group ${converseId} to SupervisorAgent`,
+      );
+    } else {
+      await this.whisperService.handleWhisperTrigger(
+        senderId,
+        converseId,
+        messageId,
+      );
+      this.logger.log(
+        `Routed @ai to WhisperService for message ${messageId}`,
+      );
+    }
   }
 }

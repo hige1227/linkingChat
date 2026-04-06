@@ -188,7 +188,13 @@ describe('MentionService', () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           MentionService,
-          { provide: PrismaService, useValue: { bot: { findMany: jest.fn() } } },
+          {
+            provide: PrismaService,
+            useValue: {
+              bot: { findMany: jest.fn() },
+              converse: { findUnique: jest.fn().mockResolvedValue({ type: 'BOT' }) },
+            },
+          },
           { provide: WhisperService, useValue: mockWhisper },
           { provide: EventEmitter2, useValue: { emit: jest.fn() } },
         ],
@@ -260,6 +266,99 @@ describe('MentionService', () => {
           ]),
         }),
       );
+    });
+  });
+
+  describe('routeToSupervisor', () => {
+    const mockEmit = jest.fn();
+
+    beforeEach(() => {
+      mockEmit.mockClear();
+    });
+
+    it('should emit agent.dispatch to supervisor-bot for GROUP converse', async () => {
+      // Rebuild with prisma that returns GROUP type
+      const mockPrismaLocal = {
+        bot: { findMany: jest.fn().mockResolvedValue([]) },
+        converseMember: { findMany: jest.fn().mockResolvedValue([]) },
+        converse: {
+          findUnique: jest.fn().mockResolvedValue({ type: 'GROUP' }),
+        },
+      };
+      const { MentionService: MS } = await import('../mentions.service');
+      const { EventEmitter2 } = await import('@nestjs/event-emitter');
+      const { PrismaService } = await import('../../prisma/prisma.service');
+      const { WhisperService } = await import('../../ai/services/whisper.service');
+      const module = await Test.createTestingModule({
+        providers: [
+          MS,
+          { provide: PrismaService, useValue: mockPrismaLocal },
+          { provide: WhisperService, useValue: { handleWhisperTrigger: jest.fn() } },
+          { provide: EventEmitter2, useValue: { emit: mockEmit } },
+        ],
+      }).compile();
+      const svc = module.get<MentionService>(MS);
+
+      const mentions = [{ type: 'ai' as const, name: 'ai', fullMatch: '@ai' }];
+      await svc.route(
+        mentions,
+        { id: 'msg-1', content: 'Hey @ai help me', converseId: 'group-1' },
+        'sender-1',
+        'group-1',
+      );
+
+      expect(mockEmit).toHaveBeenCalledWith('agent.dispatch', {
+        botId: 'supervisor-bot',
+        events: [
+          expect.objectContaining({
+            type: 'USER_MESSAGE',
+            payload: expect.objectContaining({
+              userId: 'sender-1',
+              content: 'Hey @ai help me',
+              converseId: 'group-1',
+            }),
+          }),
+        ],
+      });
+    });
+
+    it('should call WhisperService for non-GROUP converse', async () => {
+      const mockWhisperLocal = { handleWhisperTrigger: jest.fn().mockResolvedValue(undefined) };
+      const mockPrismaLocal = {
+        bot: { findMany: jest.fn().mockResolvedValue([]) },
+        converseMember: { findMany: jest.fn().mockResolvedValue([]) },
+        converse: {
+          findUnique: jest.fn().mockResolvedValue({ type: 'BOT' }),
+        },
+      };
+      const { MentionService: MS } = await import('../mentions.service');
+      const { EventEmitter2 } = await import('@nestjs/event-emitter');
+      const { PrismaService } = await import('../../prisma/prisma.service');
+      const { WhisperService } = await import('../../ai/services/whisper.service');
+      const module = await Test.createTestingModule({
+        providers: [
+          MS,
+          { provide: PrismaService, useValue: mockPrismaLocal },
+          { provide: WhisperService, useValue: mockWhisperLocal },
+          { provide: EventEmitter2, useValue: { emit: mockEmit } },
+        ],
+      }).compile();
+      const svc = module.get<MentionService>(MS);
+
+      const mentions = [{ type: 'ai' as const, name: 'ai', fullMatch: '@ai' }];
+      await svc.route(
+        mentions,
+        { id: 'msg-2', content: 'Hey @ai', converseId: 'dm-1' },
+        'sender-1',
+        'dm-1',
+      );
+
+      expect(mockWhisperLocal.handleWhisperTrigger).toHaveBeenCalledWith(
+        'sender-1',
+        'dm-1',
+        'msg-2',
+      );
+      expect(mockEmit).not.toHaveBeenCalled();
     });
   });
 });
