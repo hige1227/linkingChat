@@ -99,9 +99,47 @@ export class SupervisorAgent extends BaseAgent {
     this.logger.log(`Replied to USER_MESSAGE in converse ${payload.converseId}`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async handleCrossBotNotify(_event: AgentEvent, _userId: string): Promise<void> {
-    // Task 3: Implementation pending
+  private async handleCrossBotNotify(event: AgentEvent, userId: string): Promise<void> {
+    const payload = event.payload as CrossBotNotifyPayload;
+
+    const supervisorBot = await this.botsService.findSupervisorByUserId(userId);
+    if (!supervisorBot) {
+      this.logger.warn(`No Supervisor Bot for user ${userId}`);
+      return;
+    }
+
+    const converse = await this.botsService.getOrCreateSupervisorConverse(userId);
+    const contentSuffix = payload.data?.content
+      ? String(payload.data.content)
+      : payload.event;
+    const content = `[From ${payload.fromBotName}]: ${contentSuffix}`;
+
+    const metadata: Record<string, unknown> = {
+      cardType: 'cross_bot_notify',
+      title: content,
+      sourceBotName: payload.fromBotName,
+      sourceEvent: payload.event,
+    };
+
+    const message = await this.messagesService.create(supervisorBot.userId, {
+      converseId: converse.id,
+      content,
+      type: MessageType.BOT_NOTIFICATION,
+      metadata,
+    });
+
+    this.broadcastService.toRoom(`u-${userId}`, 'bot:notification', {
+      messageId: message.id,
+      converseId: converse.id,
+      fromBotId: supervisorBot.id,
+      fromBotName: payload.fromBotName,
+      content,
+      createdAt: message.createdAt.toISOString(),
+    });
+
+    this.logger.log(
+      `CROSS_BOT_NOTIFY from ${payload.fromBotName} forwarded to user ${userId}`,
+    );
   }
 
   private async handleDeviceResults(events: AgentEvent[], userId: string): Promise<void> {

@@ -164,4 +164,75 @@ describe('SupervisorAgent', () => {
       expect(mockMessagesService.create).not.toHaveBeenCalled();
     });
   });
+
+  describe('handleEvent — CROSS_BOT_NOTIFY', () => {
+    it('should create BOT_NOTIFICATION message with [From X] attribution', async () => {
+      mockMemoryService.getWorkingMemory.mockResolvedValue({
+        pendingActions: [],
+        recentResults: [],
+      });
+
+      const events: AgentEvent[] = [
+        {
+          type: 'CROSS_BOT_NOTIFY',
+          payload: {
+            fromBotId: 'coding-bot-id',
+            fromBotName: 'Coding Bot',
+            event: 'task_complete',
+            data: { content: '已完成代码审查' },
+          },
+          timestamp: new Date(),
+          source: { userId: 'u1' },
+        },
+      ];
+
+      await agent.handleEvent(events);
+
+      expect(mockMessagesService.create).toHaveBeenCalledWith(
+        'user-supervisor-1',
+        expect.objectContaining({
+          content: '[From Coding Bot]: 已完成代码审查',
+          type: 'BOT_NOTIFICATION',
+          metadata: expect.objectContaining({
+            cardType: 'cross_bot_notify',
+            sourceBotName: 'Coding Bot',
+          }),
+        }),
+      );
+
+      expect(mockBroadcastService.toRoom).toHaveBeenCalledWith(
+        'u-u1',
+        'bot:notification',
+        expect.objectContaining({
+          fromBotName: 'Coding Bot',
+          content: '[From Coding Bot]: 已完成代码审查',
+        }),
+      );
+    });
+
+    it('should fall back to event name when data.content is absent', async () => {
+      const events: AgentEvent[] = [
+        {
+          type: 'CROSS_BOT_NOTIFY',
+          payload: {
+            fromBotId: 'coding-bot-id',
+            fromBotName: 'Coding Bot',
+            event: 'file_created',
+            data: {},
+          },
+          timestamp: new Date(),
+          source: { userId: 'u1' },
+        },
+      ];
+
+      await agent.handleEvent(events);
+
+      expect(mockMessagesService.create).toHaveBeenCalledWith(
+        'user-supervisor-1',
+        expect.objectContaining({
+          content: '[From Coding Bot]: file_created',
+        }),
+      );
+    });
+  });
 });
