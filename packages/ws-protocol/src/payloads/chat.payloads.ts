@@ -53,14 +53,14 @@ export interface MessageResponse {
     id: string;
     username: string;
     displayName: string;
-    avatarUrl?: string;
+    avatarUrl?: string | null;
   };
-  metadata?: Record<string, unknown>;
-  replyToId?: string;
+  metadata?: Record<string, unknown> | null;
+  replyToId?: string | null;
   attachments?: AttachmentPayload[];
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
-  deletedAt?: string; // ISO 8601, null if not deleted
+  deletedAt?: string | null; // ISO 8601, null if not deleted
 }
 
 // ========== 会话相关 ==========
@@ -89,7 +89,7 @@ export interface ConverseResponse {
     userId: string;
     username: string;
     displayName: string;
-    avatarUrl?: string;
+    avatarUrl?: string | null;
     role?: string; // GroupRole
   }>;
   lastMessage?: MessageResponse;
@@ -142,7 +142,7 @@ export interface GroupCreatedPayload {
     userId: string;
     username: string;
     displayName: string;
-    avatarUrl?: string;
+    avatarUrl?: string | null;
     role: string; // GroupRole
   }>;
   createdAt: string; // ISO 8601
@@ -170,7 +170,7 @@ export interface GroupMemberAddedPayload {
     userId: string;
     username: string;
     displayName: string;
-    avatarUrl?: string;
+    avatarUrl?: string | null;
     role: string; // GroupRole
   }>;
 }

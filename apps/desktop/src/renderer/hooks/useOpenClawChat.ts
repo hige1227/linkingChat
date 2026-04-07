@@ -9,14 +9,10 @@ export function useOpenClawChat(converseId: string) {
 
   // Register global chunk listener once per mount
   useEffect(() => {
-    const handler = (data: {
-      requestId: string;
-      chunk: { type: string; text: string };
-    }) => {
+    const cleanup = window.electronAPI.onOpenClawStreamChunk((data) => {
       useChatStore.getState().appendStreamChunk(data.requestId, data.chunk);
-    };
-    window.electronAPI.onOpenClawStreamChunk(handler);
-    return () => window.electronAPI.offOpenClawStreamChunk(handler);
+    });
+    return cleanup;
   }, []);
 
   const sendMessage = useCallback(

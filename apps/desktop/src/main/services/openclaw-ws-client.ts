@@ -251,17 +251,25 @@ export class OpenClawWsClient {
       },
     });
 
-    // Yield chunks as they arrive
+    // Yield chunks as they arrive (delta-encode accumulated text from Gateway)
     let cursor = 0;
     let lastText = '';
     while (!done || cursor < chunks.length) {
       if (cursor < chunks.length) {
         const chunk = chunks[cursor++];
-        // Delta-encode text (server sends accumulated text)
         if (chunk.type === 'text') {
-          const delta = chunk.text.slice(lastText.length);
-          lastText = chunk.text;
-          if (delta) yield { type: 'text', text: delta };
+          // Gateway sends accumulated text per segment; detect segment reset
+          // when new text doesn't start with previous accumulated text
+          if (chunk.text.startsWith(lastText)) {
+            // Normal accumulation: yield only the new delta
+            const delta = chunk.text.slice(lastText.length);
+            lastText = chunk.text;
+            if (delta) yield { type: 'text', text: delta };
+          } else {
+            // Segment reset (e.g., after a tool call): yield full new text
+            lastText = chunk.text;
+            if (chunk.text) yield { type: 'text', text: chunk.text };
+          }
         } else {
           yield chunk;
         }

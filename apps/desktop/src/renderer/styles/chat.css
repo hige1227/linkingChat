@@ -395,6 +395,41 @@
   line-height: 1.45;
 }
 
+/* Markdown inside chat bubbles */
+.chat-message-content p {
+  margin: 0 0 0.4em;
+}
+.chat-message-content p:last-child {
+  margin-bottom: 0;
+}
+.chat-message-content code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+.chat-message-content pre {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 0.4em 0;
+}
+.chat-message-content pre code {
+  background: none;
+  padding: 0;
+}
+.chat-message-content ul, .chat-message-content ol {
+  margin: 0.3em 0;
+  padding-left: 1.5em;
+}
+.chat-message-content blockquote {
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+  margin: 0.4em 0;
+  padding-left: 10px;
+  color: #a0a0a0;
+}
+
 .chat-message-meta {
   display: flex;
   align-items: center;

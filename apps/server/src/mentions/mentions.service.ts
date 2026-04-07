@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
-import { WhisperService } from '../ai/services/whisper.service';
 import type { ParsedMention, ValidMention } from './interfaces/mention.interface';
 
 /**
@@ -17,7 +16,6 @@ export class MentionService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly whisperService: WhisperService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -195,44 +193,28 @@ export class MentionService {
   /**
    * 路由到 Supervisor (@ai)
    *
-   * - GROUP 群聊：派发 USER_MESSAGE 到 SupervisorAgent，由 Agent 生成回复发回群里
-   * - DIRECT / BOT：调用 WhisperService 生成智能回复建议
+   * 统一行为：所有会话类型均派发 USER_MESSAGE 到 SupervisorAgent，由 Agent 直接回复。
+   * Whisper 建议由独立的星号按钮触发，与 @ai 无关。
    */
   private async routeToSupervisor(
     senderId: string,
     converseId: string,
-    messageId: string,
+    _messageId: string,
     content: string,
   ): Promise<void> {
-    const converse = await this.prisma.converse.findUnique({
-      where: { id: converseId },
-      select: { type: true },
+    const event = {
+      type: 'USER_MESSAGE' as const,
+      payload: { userId: senderId, content, converseId },
+      timestamp: new Date(),
+      source: { userId: senderId },
+    };
+    // 'supervisor-bot' is the well-known sentinel botId for SupervisorAgent
+    this.eventEmitter.emit('agent.dispatch', {
+      botId: 'supervisor-bot',
+      events: [event],
     });
-
-    if (converse?.type === 'GROUP') {
-      const event = {
-        type: 'USER_MESSAGE' as const,
-        payload: { userId: senderId, content, converseId },
-        timestamp: new Date(),
-        source: { userId: senderId },
-      };
-      // 'supervisor-bot' is the well-known sentinel botId for SupervisorAgent
-      this.eventEmitter.emit('agent.dispatch', {
-        botId: 'supervisor-bot',
-        events: [event],
-      });
-      this.logger.log(
-        `Routed @ai in group ${converseId} to SupervisorAgent`,
-      );
-    } else {
-      await this.whisperService.handleWhisperTrigger(
-        senderId,
-        converseId,
-        messageId,
-      );
-      this.logger.log(
-        `Routed @ai to WhisperService for message ${messageId}`,
-      );
-    }
+    this.logger.log(
+      `Routed @ai in converse ${converseId} to SupervisorAgent`,
+    );
   }
 }

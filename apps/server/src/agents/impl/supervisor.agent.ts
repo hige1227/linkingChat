@@ -7,6 +7,7 @@ import { MessagesService } from '../../messages/messages.service';
 import { BroadcastService } from '../../gateway/broadcast.service';
 import { BotsService } from '../../bots/bots.service';
 import { MessageType } from '../../messages/dto/create-message.dto';
+import { PrismaService } from '../../prisma/prisma.service';
 import {
   AgentEvent,
   AgentResponse,
@@ -32,6 +33,7 @@ export class SupervisorAgent extends BaseAgent {
     private readonly messagesService: MessagesService,
     private readonly broadcastService: BroadcastService,
     private readonly botsService: BotsService,
+    private readonly prisma: PrismaService,
   ) {
     super(memoryService, workspaceService);
   }
@@ -82,19 +84,48 @@ export class SupervisorAgent extends BaseAgent {
       return;
     }
 
+    // Fetch recent conversation history for context (up to 20 messages, excluding the @ai message itself)
+    const recentMessages = await this.prisma.message.findMany({
+      where: { converseId: payload.converseId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      take: 21, // extra 1 in case the @ai message is included
+      include: { author: { select: { id: true, displayName: true } } },
+    });
+
+    // Build LLM context from history (oldest first, exclude the trigger @ai message)
+    const contextMessages = recentMessages
+      .reverse()
+      .filter((m) => m.content && !m.content.match(/(?<!\w)@ai\b/i))
+      .slice(-20)
+      .map((m) => {
+        const name = m.author?.displayName ?? 'Unknown';
+        return `${name}: ${m.content}`;
+      });
+
+    const conversationContext = contextMessages.length > 0
+      ? `以下是最近的对话记录：\n${contextMessages.join('\n')}\n\n`
+      : '';
+
     const llmResponse = await this.llmRouter.complete({
       taskType: 'chat',
       systemPrompt:
-        '你是 Supervisor，用户的 AI 助手。请简洁、友好地回答用户的问题，回复不超过 150 字。',
-      messages: [{ role: 'user', content: payload.content }],
+        '你是 Supervisor，用户的 AI 助手。用户在对话中 @ai 向你提问，请根据对话上下文回答。简洁、友好，回复不超过 150 字。',
+      messages: [{
+        role: 'user',
+        content: `${conversationContext}用户的请求：${payload.content.replace(/(?<!\w)@ai\b/i, '').trim()}`,
+      }],
       maxTokens: 300,
     });
 
-    await this.messagesService.create(supervisorBot.userId, {
-      converseId: payload.converseId,
-      content: llmResponse.content,
-      type: MessageType.TEXT,
-    });
+    await this.messagesService.create(
+      supervisorBot.userId,
+      {
+        converseId: payload.converseId,
+        content: llmResponse.content,
+        type: MessageType.TEXT,
+      },
+      { skipMembershipCheck: true }, // Bot may not be a member of group chats
+    );
 
     this.logger.log(`Replied to USER_MESSAGE in converse ${payload.converseId}`);
   }

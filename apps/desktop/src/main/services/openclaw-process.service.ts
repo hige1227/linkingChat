@@ -183,12 +183,16 @@ export class OpenClawProcessService {
     // Set up log stream
     this.setupLogStream();
 
-    console.log(`[OpenClaw:Process] Spawning: ${nodePath} ${cliPath} gateway run --allow-unconfigured --port ${PORT} --bind loopback`);
+    const spawnArgs = [
+      ...(cliPath ? [cliPath] : []),
+      'gateway', 'run', '--allow-unconfigured', '--dev', '--port', String(PORT), '--bind', 'loopback', '--auth', 'none',
+    ];
+    console.log(`[OpenClaw:Process] Spawning: ${nodePath} ${spawnArgs.join(' ')}`);
 
     try {
       this.process = spawn(
         nodePath,
-        [cliPath, 'gateway', 'run', '--allow-unconfigured', '--dev', '--port', String(PORT), '--bind', 'loopback', '--auth', 'none'],
+        spawnArgs,
         {
           env: {
             ...process.env,
@@ -268,17 +272,29 @@ export class OpenClawProcessService {
       if (sidecarPath) {
         return { nodePath: process.execPath.includes('electron') ? 'node' : process.execPath, cliPath: sidecarPath };
       }
-      // Fallback: resolve openclaw.mjs from node_modules
+      // Fallback: resolve openclaw.mjs from node_modules (local or global)
+      const candidates: string[] = [];
+      // 1. Local node_modules
       try {
-        const openclawDir = require.resolve('openclaw').replace(/dist[/\\]index\.js$/, '');
-        return { nodePath: 'node', cliPath: join(openclawDir, 'openclaw.mjs') };
-      } catch {
-        // Last resort: try .cmd on Windows
-        return {
-          nodePath: process.platform === 'win32' ? 'node_modules\\.bin\\openclaw.CMD' : 'node_modules/.bin/openclaw',
-          cliPath: '',
-        };
+        const localDir = require.resolve('openclaw').replace(/dist[/\\]index\.js$/, '');
+        candidates.push(join(localDir, 'openclaw.mjs'));
+      } catch { /* not installed locally */ }
+      // 2. Global npm node_modules
+      try {
+        const { execSync } = require('child_process');
+        const globalRoot = execSync('npm root -g', { encoding: 'utf8' }).trim();
+        candidates.push(join(globalRoot, 'openclaw', 'openclaw.mjs'));
+      } catch { /* npm not available */ }
+      // 3. Check which candidate exists
+      for (const candidate of candidates) {
+        try {
+          require('fs').accessSync(candidate);
+          console.log(`[OpenClaw:Process] Resolved openclaw.mjs at: ${candidate}`);
+          return { nodePath: 'node', cliPath: candidate };
+        } catch { /* not found, try next */ }
       }
+      console.error('[OpenClaw:Process] Could not find openclaw.mjs in any location:', candidates);
+      return { nodePath: null, cliPath: null };
     }
 
     // Production: bundled sidecar

@@ -4,7 +4,6 @@ import { MessagesService } from './messages.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BroadcastService } from '../gateway/broadcast.service';
 import { ConversesService } from '../converses/converses.service';
-import { WhisperService } from '../ai/services/whisper.service';
 import { MentionService } from '../mentions/mentions.service';
 import { UploadService } from '../upload/upload.service';
 import { MetricsService } from '../metrics/metrics.service';
@@ -57,10 +56,7 @@ describe('MessagesService', () => {
     checkMuted: jest.fn().mockResolvedValue(null), // Phase 9: 默认未禁言
   };
 
-  const mockWhisper = {
-    isWhisperTrigger: jest.fn().mockReturnValue(false),
-    handleWhisperTrigger: jest.fn().mockResolvedValue(undefined),
-  };
+
 
   const mockMention = {
     parse: jest.fn().mockReturnValue([]),
@@ -96,7 +92,6 @@ describe('MessagesService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BroadcastService, useValue: mockBroadcast },
         { provide: ConversesService, useValue: mockConverses },
-        { provide: WhisperService, useValue: mockWhisper },
         { provide: MentionService, useValue: mockMention },
         { provide: UploadService, useValue: mockUpload },
         { provide: MetricsService, useValue: mockMetricsService },
@@ -680,8 +675,7 @@ describe('MessagesService', () => {
           { provide: PrismaService, useValue: mockPrisma },
           { provide: BroadcastService, useValue: mockBroadcast },
           { provide: ConversesService, useValue: mockConverses },
-          { provide: WhisperService, useValue: mockWhisper },
-          { provide: MentionService, useValue: mockMention },
+            { provide: MentionService, useValue: mockMention },
           { provide: UploadService, useValue: mockUpload },
           { provide: MetricsService, useValue: mockMetricsService },
           { provide: I18nService, useValue: mockI18nService },
@@ -731,8 +725,7 @@ describe('MessagesService', () => {
           { provide: PrismaService, useValue: mockPrisma },
           { provide: BroadcastService, useValue: mockBroadcast },
           { provide: ConversesService, useValue: mockConverses },
-          { provide: WhisperService, useValue: mockWhisper },
-          { provide: MentionService, useValue: mockMention },
+            { provide: MentionService, useValue: mockMention },
           { provide: UploadService, useValue: mockUpload },
           { provide: MetricsService, useValue: mockMetricsService },
           { provide: I18nService, useValue: mockI18nService },

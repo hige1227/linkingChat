@@ -6,6 +6,7 @@ import { LlmRouterService } from '../../ai/services/llm-router.service';
 import { MessagesService } from '../../messages/messages.service';
 import { BroadcastService } from '../../gateway/broadcast.service';
 import { BotsService } from '../../bots/bots.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { AgentEvent } from '../interfaces';
 
 describe('SupervisorAgent', () => {
@@ -16,6 +17,7 @@ describe('SupervisorAgent', () => {
   let mockMessagesService: any;
   let mockBroadcastService: any;
   let mockBotsService: any;
+  let mockPrisma: any;
 
   beforeEach(async () => {
     mockMemoryService = {
@@ -44,6 +46,11 @@ describe('SupervisorAgent', () => {
       }),
       getOrCreateSupervisorConverse: jest.fn().mockResolvedValue({ id: 'converse-1', type: 'DM' }),
     };
+    mockPrisma = {
+      message: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -54,6 +61,7 @@ describe('SupervisorAgent', () => {
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: BroadcastService, useValue: mockBroadcastService },
         { provide: BotsService, useValue: mockBotsService },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
@@ -135,7 +143,7 @@ describe('SupervisorAgent', () => {
       expect(mockLlmRouter.complete).toHaveBeenCalledWith(
         expect.objectContaining({
           taskType: 'chat',
-          messages: [{ role: 'user', content: 'Hello Supervisor' }],
+          messages: [{ role: 'user', content: expect.stringContaining('Hello Supervisor') }],
         }),
       );
       expect(mockMessagesService.create).toHaveBeenCalledWith(
@@ -144,6 +152,7 @@ describe('SupervisorAgent', () => {
           converseId: 'conv-dm-1',
           content: '任务已完成',
         }),
+        { skipMembershipCheck: true },
       );
     });
 

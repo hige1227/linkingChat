@@ -83,4 +83,9 @@ export class CreateMessageDto {
   @Type(() => AttachmentInput)
   @IsOptional()
   attachments?: AttachmentInput[];
+
+  /** When true, skip server-side bot AI dispatch (Desktop handles it locally via OpenClaw) */
+  @IsOptional()
+  skipBotDispatch?: boolean;
+
 }

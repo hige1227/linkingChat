@@ -1,5 +1,6 @@
 import { Module, OnModuleInit, forwardRef } from '@nestjs/common';
 import { RedisModule } from '../redis/redis.module';
+import { PrismaModule } from '../prisma/prisma.module';
 import { AiModule } from '../ai/ai.module';
 import { BotsModule } from '../bots/bots.module';
 import { MessagesModule } from '../messages/messages.module';
@@ -22,6 +23,7 @@ import { SupervisorAgent } from './impl/supervisor.agent';
 @Module({
   imports: [
     RedisModule,
+    PrismaModule,
     AiModule,
     BotsModule,
     forwardRef(() => MessagesModule),

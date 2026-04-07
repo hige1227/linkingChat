@@ -47,13 +47,11 @@ const electronAPI = {
     ipcRenderer.invoke('openclaw:stream-cancel', requestId),
   onOpenClawStreamChunk: (
     callback: (data: { requestId: string; chunk: { type: string; text: string } }) => void,
-  ) => {
-    ipcRenderer.on('openclaw:stream-chunk', (_event, data) => callback(data));
-  },
-  offOpenClawStreamChunk: (
-    callback: (data: { requestId: string; chunk: { type: string; text: string } }) => void,
-  ) => {
-    ipcRenderer.removeListener('openclaw:stream-chunk', callback as never);
+  ): (() => void) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, data: any) => callback(data);
+    ipcRenderer.on('openclaw:stream-chunk', wrapped);
+    // Return a cleanup function that removes the exact wrapped listener
+    return () => ipcRenderer.removeListener('openclaw:stream-chunk', wrapped);
   },
 };
 

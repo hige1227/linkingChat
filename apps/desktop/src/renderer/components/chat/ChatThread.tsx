@@ -1,4 +1,5 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import Markdown from 'react-markdown';
 import { useChatStore } from '../../stores/chatStore';
 import { NotificationCard } from '../NotificationCard';
 import { ImageMessage } from './ImageMessage';
@@ -26,8 +27,10 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
   );
   const currentUserId = useChatStore((s: ChatState) => s.currentUserId);
   const readReceipts = useChatStore((s: ChatState) => s.readReceipts);
-  const streamingMessages: StreamingMessage[] = useChatStore((s: ChatState) =>
-    Object.values(s.streamingMessages).filter((sm) => sm.converseId === converseId),
+  const streamingMessagesMap = useChatStore((s: ChatState) => s.streamingMessages);
+  const streamingMessages: StreamingMessage[] = useMemo(
+    () => Object.values(streamingMessagesMap).filter((sm) => sm.converseId === converseId),
+    [streamingMessagesMap, converseId],
   );
   const msgs = messages[converseId] ?? [];
   const typing = typingUsers[converseId] ?? [];
@@ -359,7 +362,7 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
                     </div>
                   )}
                   <span className="streaming-text">
-                    {sm.text || '\u00a0'}
+                    {sm.text ? <Markdown>{sm.text}</Markdown> : '\u00a0'}
                   </span>
                   {sm.status === 'streaming' && (
                     <span className="streaming-cursor" aria-hidden="true" />
@@ -432,6 +435,11 @@ function renderMessageContent(msg: MessageResponse, isOwn: boolean) {
     );
   }
 
+  if (!msg.content) return null;
+  // Render markdown for bot/AI messages; plain text for own messages
+  if (!isOwn) {
+    return <Markdown>{msg.content}</Markdown>;
+  }
   return <>{msg.content}</>;
 }
 

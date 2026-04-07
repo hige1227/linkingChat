@@ -23,7 +23,6 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [showAiHint, setShowAiHint] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,9 +72,8 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
     el.style.height = Math.min(el.scrollHeight, 144) + 'px';
   }, []);
 
-  // Reset AI hint when converseId changes
+  // Reset AI state when converseId changes
   useEffect(() => {
-    setShowAiHint(false);
     setAiLoading(false);
     if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current);
   }, [converseId]);
@@ -117,10 +115,6 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
     setText(value);
     adjustHeight();
     emitTyping();
-    // Real-time @ai detection
-    if (showAiButton) {
-      setShowAiHint(AI_MENTION_RE.test(value));
-    }
   };
 
   const emitTyping = useCallback(() => {
@@ -146,17 +140,6 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
     const content = text.trim();
     if (!content || sending) return;
 
-    // @ai 拦截：仅当提示条可见时拦截（用户已有预期）
-    if (showAiHint) {
-      // Extract user's text minus @ai as prompt context
-      const prompt = content.replace(AI_MENTION_RE, '').trim() || undefined;
-      handleAiRequest(prompt);
-      setText('');
-      setShowAiHint(false);
-      if (textareaRef.current) textareaRef.current.style.height = 'auto';
-      return;
-    }
-
     // Bot converse: route to local OpenClaw Gateway
     if (isBotConverse && botId) {
       setText('');
@@ -173,7 +156,7 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ converseId, content }),
+          body: JSON.stringify({ converseId, content, skipBotDispatch: true }),
         });
       } catch (err) {
         console.error('[Bot] Failed to persist user message:', err);
@@ -292,14 +275,6 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
 
   return (
     <div className="message-input-container">
-      {showAiHint && (
-        <div className="ai-hint-bar">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
-          </svg>
-          <span>Contains @ai — sending will request AI suggestions, message won't be sent</span>
-        </div>
-      )}
       {isBotConverse && !openClawConnected && (
         <div className="bot-offline-hint">
           ⚠ AI assistant offline — restart Desktop to reconnect

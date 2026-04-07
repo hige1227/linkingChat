@@ -244,9 +244,9 @@ export class WhisperService {
     try {
       let userContent = `以下是聊天记录:\n\n${context}\n\n`;
       if (prompt) {
-        userContent += `用户的请求: ${prompt}\n\n请根据聊天上下文和用户的请求生成 3 条回复建议。`;
+        userContent += `用户想要表达的意思: ${prompt}\n\n请根据聊天上下文，帮用户写出 3 条可以直接发送的消息。`;
       } else {
-        userContent += `请根据上下文生成 3 条回复建议。`;
+        userContent += `请根据上下文，帮用户写出 3 条可以直接发送的回复消息。`;
       }
 
       this.logger.debug(
@@ -320,17 +320,20 @@ export class WhisperService {
   }
 }
 
-const WHISPER_SYSTEM_PROMPT = `你是一个聊天助手。根据聊天上下文，为用户生成 3 条自然、得体的回复建议。
+const WHISPER_SYSTEM_PROMPT = `你是一个聊天代笔助手。用户正在和别人聊天，需要你帮忙写回复。你生成的内容将直接作为用户发送的消息，不是给用户的建议或指导。
+
+核心规则：
+- 你生成的是用户要发出去的消息原文，不是"建议用户怎么说"
+- 以用户的口吻写，像用户自己在说话
+- 绝对不要出现"你可以说…""建议你…""试试…"这类元描述
+- 契合对话的语境、语气和话题
+- 简短自然（一般不超过 50 字）
+- 3 条风格各异（例如：积极/随意/幽默）
 
 输出格式（严格 JSON）：
 {
-  "primary": "最推荐的回复",
-  "alternatives": ["备选回复1", "备选回复2"]
+  "primary": "最推荐的回复原文",
+  "alternatives": ["备选回复原文1", "备选回复原文2"]
 }
 
-要求：
-- 回复要契合当前对话的语境和语气
-- 简短有力（一般不超过 50 字）
-- 3 条建议风格各异（例如：同意/中性/提问）
-- 不要用 emoji
-- 直接输出 JSON，不要包裹在 markdown 代码块中`;
+直接输出 JSON，不要包裹在 markdown 代码块中。`;

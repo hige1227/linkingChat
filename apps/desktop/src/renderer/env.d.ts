@@ -75,10 +75,7 @@ interface ElectronAPI {
   openClawCancelStream: (requestId: string) => Promise<{ cancelled: boolean }>;
   onOpenClawStreamChunk: (
     callback: (data: { requestId: string; chunk: { type: string; text: string } }) => void,
-  ) => void;
-  offOpenClawStreamChunk: (
-    callback: (data: { requestId: string; chunk: { type: string; text: string } }) => void,
-  ) => void;
+  ) => () => void;
 }
 
 declare module 'zustand';

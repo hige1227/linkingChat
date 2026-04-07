@@ -10,7 +10,6 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BroadcastService } from '../gateway/broadcast.service';
 import { ConversesService } from '../converses/converses.service';
-import { WhisperService } from '../ai/services/whisper.service';
 import { MentionService } from '../mentions/mentions.service';
 import { UploadService } from '../upload/upload.service';
 import { MetricsService } from '../metrics/metrics.service';
@@ -37,7 +36,6 @@ export class MessagesService {
     private readonly prisma: PrismaService,
     private readonly broadcastService: BroadcastService,
     private readonly conversesService: ConversesService,
-    private readonly whisperService: WhisperService,
     private readonly mentionService: MentionService,
     private readonly uploadService: UploadService,
     private readonly metricsService: MetricsService,
@@ -55,9 +53,15 @@ export class MessagesService {
    * 4. 广播 message:new 到 {converseId} 房间
    * 5. 对不在房间的成员广播 notification:new 到 u-{userId}
    */
-  async create(userId: string, dto: CreateMessageDto) {
-    // 1. 校验成员身份
-    await this.conversesService.verifyMembership(dto.converseId, userId);
+  async create(
+    userId: string,
+    dto: CreateMessageDto,
+    options?: { skipMembershipCheck?: boolean },
+  ) {
+    // 1. 校验成员身份（internal agent calls can skip this）
+    if (!options?.skipMembershipCheck) {
+      await this.conversesService.verifyMembership(dto.converseId, userId);
+    }
 
     // 2. 检查群组禁言状态（Phase 9）
     const mutedUntil = await this.conversesService.checkMuted(
@@ -176,33 +180,17 @@ export class MessagesService {
       `Message created: ${message.id} in converse ${dto.converseId} by ${userId}`,
     );
 
-    // 7. 群聊 @mention 路由（fire-and-forget）
-    this.handleGroupMentions(userId, dto.converseId, message)
+    // 7. @mention 路由（fire-and-forget）— @ai dispatches to SupervisorAgent in all chat types
+    this.handleMentions(userId, dto.converseId, message)
       .catch((err) =>
-        this.logger.error(`handleGroupMentions failed: ${err.message}`, err.stack),
+        this.logger.error(`handleMentions failed: ${err.message}`, err.stack),
       );
 
-    // 8. 私信 Bot 检测（保留原有逻辑，仅记录日志）
-    this.detectBotRecipient(userId, dto.converseId, message).catch((err) =>
-      this.logger.error(`detectBotRecipient failed: ${err.message}`, err.stack),
-    );
-
-    // 9. 检测 @ai 触发词 — only for DIRECT/BOT convos (GROUP handled by mentionService.route)
-    const converse = await this.prisma.converse.findUnique({
-      where: { id: dto.converseId },
-      select: { type: true },
-    });
-    // TODO: 已有发送前触发（ai:whisper:request），此处保留作为兜底，后续可移除
-    if (
-      converse &&
-      converse.type !== 'GROUP' &&
-      this.whisperService.isWhisperTrigger(message.content)
-    ) {
-      this.whisperService
-        .handleWhisperTrigger(userId, dto.converseId, message.id)
-        .catch((err) =>
-          this.logger.error(`whisper trigger failed: ${err.message}`, err.stack),
-        );
+    // 8. 私信 Bot 检测 — skip if Desktop already handles via local OpenClaw
+    if (!dto.skipBotDispatch) {
+      this.detectBotRecipient(userId, dto.converseId, message).catch((err) =>
+        this.logger.error(`detectBotRecipient failed: ${err.message}`, err.stack),
+      );
     }
 
     return message;
@@ -215,19 +203,11 @@ export class MessagesService {
    * @param converseId - 会话 ID
    * @param message - 消息对象
    */
-  private async handleGroupMentions(
+  private async handleMentions(
     userId: string,
     converseId: string,
     message: { id: string; content: string | null; type: string },
   ): Promise<void> {
-    // 获取会话类型
-    const converse = await this.prisma.converse.findUnique({
-      where: { id: converseId },
-      select: { type: true },
-    });
-
-    if (!converse || converse.type !== 'GROUP') return;
-
     // 解析 @mentions
     const mentions = this.mentionService.parse(message.content);
     if (mentions.length === 0) return;
