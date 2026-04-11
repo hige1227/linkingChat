@@ -288,7 +288,7 @@ export function registerOpenClawIpc(): void {
 
           const runStream = async (): Promise<void> => {
             hasContent = false;
-            for await (const chunk of client.chat(message, { sessionKey, timeout: 120_000 })) {
+            for await (const chunk of client.chat(message, { sessionKey, timeout: 300_000 })) {
               if (control.cancelled) break;
 
               // Track whether we got any real content

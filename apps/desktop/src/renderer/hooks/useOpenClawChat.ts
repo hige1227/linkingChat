@@ -32,7 +32,7 @@ export function useOpenClawChat(converseId: string) {
 
       // 3. Wait for streaming to complete (done or error), with safety timeout
       await new Promise<void>((resolve) => {
-        const STREAM_TIMEOUT = 120_000; // 2 min max for any stream
+        const STREAM_TIMEOUT = 300_000; // 5 min max for any stream (agent tool calls can be slow)
         const timeout = setTimeout(() => {
           unsubscribe();
           // Force-finish stale streaming bubble
