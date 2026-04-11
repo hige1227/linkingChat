@@ -74,7 +74,7 @@ interface ElectronAPI {
   openClawStartStream: (message: string, sessionKey: string) => Promise<{ requestId: string }>;
   openClawCancelStream: (requestId: string) => Promise<{ cancelled: boolean }>;
   onOpenClawStreamChunk: (
-    callback: (data: { requestId: string; chunk: { type: string; text: string } }) => void,
+    callback: (data: { requestId: string; chunk: { type: string; text: string; tool?: string; input?: string; output?: string } }) => void,
   ) => () => void;
 }
 

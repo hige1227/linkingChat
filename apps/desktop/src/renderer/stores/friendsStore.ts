@@ -4,8 +4,9 @@ import type {
   FriendRequestPayload,
   FriendAcceptedPayload,
 } from '@linkingchat/ws-protocol';
+import { API_BASE_URL } from '@renderer/config';
 
-const API_BASE = 'http://localhost:3008/api/v1';
+const API_BASE = API_BASE_URL + '/api/v1';
 
 // ─── Response types ───
 

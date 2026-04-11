@@ -76,7 +76,7 @@ export class BotsController {
   saveBotReply(
     @CurrentUser('userId') userId: string,
     @Param('botId') botId: string,
-    @Body() dto: { converseId: string; content: string },
+    @Body() dto: { converseId: string; content: string; metadata?: Record<string, unknown> },
   ) {
     return this.botsService.saveBotReply(userId, botId, dto);
   }

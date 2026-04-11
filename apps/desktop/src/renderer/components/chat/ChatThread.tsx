@@ -1,13 +1,15 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import Markdown from 'react-markdown';
 import { useChatStore } from '../../stores/chatStore';
+import { API_BASE_URL } from '@renderer/config';
 import { NotificationCard } from '../NotificationCard';
 import { ImageMessage } from './ImageMessage';
 import { FileMessage } from './FileMessage';
 import { VoiceMessage } from './VoiceMessage';
 import { MessageContextMenu } from './MessageContextMenu';
+import { ToolCallBlock } from './ToolCallBlock';
 import type { MessageResponse, ConverseResponse } from '@linkingchat/ws-protocol';
-import type { ChatState, StreamingMessage } from '../../stores/chatStore';
+import type { ChatState, StreamingMessage, ToolRecord } from '../../stores/chatStore';
 
 interface ChatThreadProps {
   converseId: string;
@@ -52,7 +54,7 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
         if (!token) return;
 
         const res = await fetch(
-          `http://localhost:3008/api/v1/messages?converseId=${converseId}&limit=50`,
+          `${API_BASE_URL}/api/v1/messages?converseId=${converseId}&limit=50`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
         if (res.ok) {
@@ -117,7 +119,7 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
       if (!token) return;
 
       const cursor = cursors[converseId];
-      let url = `http://localhost:3008/api/v1/messages?converseId=${converseId}&limit=50`;
+      let url = `${API_BASE_URL}/api/v1/messages?converseId=${converseId}&limit=50`;
       if (cursor) url += `&cursor=${cursor}`;
 
       const res = await fetch(url, {
@@ -169,7 +171,7 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
     try {
       const token = await window.electronAPI.getToken();
       if (!token) return;
-      await fetch(`http://localhost:3008/api/v1/messages/${contextMenu.msg.id}`, {
+      await fetch(`${API_BASE_URL}/api/v1/messages/${contextMenu.msg.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -313,6 +315,20 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
                   )}
                   <div className="chat-message-bubble">
                     <div className="chat-message-content">
+                      {(() => {
+                        const meta = (msg as any).metadata;
+                        const records = meta?.toolRecords as ToolRecord[] | undefined;
+                        if (records?.length) {
+                          return (
+                            <div className="tool-call-records">
+                              {records.map((rec, idx) => (
+                                <ToolCallBlock key={`${msg.id}-tr-${idx}`} record={rec} />
+                              ))}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       {renderMessageContent(msg, isOwn)}
                     </div>
                     <div className="chat-message-meta">
@@ -356,9 +372,11 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
             <div className="chat-message-body">
               <div className="chat-message-bubble">
                 <div className="chat-message-content">
-                  {sm.toolCalls.length > 0 && (
-                    <div className="tool-call-indicator">
-                      🔧 {sm.toolCalls[sm.toolCalls.length - 1]}...
+                  {sm.toolRecords?.length > 0 && (
+                    <div className="tool-call-records">
+                      {sm.toolRecords.map((rec) => (
+                        <ToolCallBlock key={rec.id} record={rec} />
+                      ))}
                     </div>
                   )}
                   <span className="streaming-text">

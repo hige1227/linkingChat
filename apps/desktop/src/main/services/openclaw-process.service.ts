@@ -196,6 +196,10 @@ export class OpenClawProcessService {
         {
           env: {
             ...process.env,
+            // Encourage UTF-8 output from child processes on Windows
+            PYTHONUTF8: '1',
+            PYTHONIOENCODING: 'utf-8',
+            LANG: 'en_US.UTF-8',
           },
           stdio: ['pipe', 'pipe', 'pipe'],
           detached: false,
@@ -243,7 +247,7 @@ export class OpenClawProcessService {
 
       console.log(`[OpenClaw:Process] Spawned PID=${this.process.pid}`);
 
-      // Wait for healthy
+      // Wait for healthy (HTTP health endpoint)
       const healthy = await this.waitForHealth();
       if (!healthy) {
         this.lastError = 'Process started but health check timed out';
@@ -251,6 +255,8 @@ export class OpenClawProcessService {
         await this.stop();
         return null;
       }
+      // Wait for WS to be ready (health HTTP may be up before WS accepts connections)
+      await this.waitForWsReady();
 
       this.restartCount = 0;
       const config = { url: `ws://${BIND_HOST}:${PORT}`, token: this.token };
@@ -345,6 +351,27 @@ export class OpenClawProcessService {
       await new Promise((r) => setTimeout(r, HEALTH_POLL_INTERVAL));
     }
     return false;
+  }
+
+  /** Probe WS port with a raw TCP connect to confirm the WS server is accepting connections */
+  private async waitForWsReady(): Promise<void> {
+    const maxWait = 10_000;
+    const interval = 500;
+    const start = Date.now();
+    while (Date.now() - start < maxWait) {
+      const ok = await new Promise<boolean>((resolve) => {
+        const ws = new (require('ws') as typeof import('ws'))(`ws://${BIND_HOST}:${PORT}`);
+        const timer = setTimeout(() => { ws.close(); resolve(false); }, 2000);
+        ws.on('open', () => { clearTimeout(timer); ws.close(); resolve(true); });
+        ws.on('error', () => { clearTimeout(timer); resolve(false); });
+      });
+      if (ok) {
+        console.log('[OpenClaw:Process] WS server ready');
+        return;
+      }
+      await new Promise((r) => setTimeout(r, interval));
+    }
+    console.warn('[OpenClaw:Process] WS ready check timed out, proceeding anyway');
   }
 
   // ── Private: Shutdown ──

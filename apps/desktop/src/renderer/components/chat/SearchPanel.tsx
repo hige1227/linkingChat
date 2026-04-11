@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { API_BASE_URL } from '@renderer/config';
 
 interface SearchResult {
   id: string;
@@ -47,7 +48,7 @@ export function SearchPanel({ converseId, onClose, onResultClick }: SearchPanelP
       const token = await window.electronAPI.getToken();
       if (!token) return;
 
-      let url = `http://localhost:3008/api/v1/messages/search?query=${encodeURIComponent(q)}&limit=20&offset=0`;
+      let url = `${API_BASE_URL}/api/v1/messages/search?query=${encodeURIComponent(q)}&limit=20&offset=0`;
       if (converseId) url += `&converseId=${converseId}`;
 
       const res = await fetch(url, {

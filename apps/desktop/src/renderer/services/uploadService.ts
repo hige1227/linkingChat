@@ -1,6 +1,7 @@
 /**
  * Upload service: presign → PUT → confirm flow
  */
+import { API_BASE_URL } from '@renderer/config';
 
 export interface UploadResult {
   url: string;
@@ -40,7 +41,7 @@ export async function uploadFile(
 
   // Step 1: Presign
   const presignRes = await fetch(
-    `http://localhost:3008/api/v1/upload/presign?filename=${encodeURIComponent(file.name)}&mimeType=${encodeURIComponent(mimeType)}&category=${category}`,
+    `${API_BASE_URL}/api/v1/upload/presign?filename=${encodeURIComponent(file.name)}&mimeType=${encodeURIComponent(mimeType)}&category=${category}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   if (!presignRes.ok) {
@@ -77,7 +78,7 @@ export async function uploadFile(
 
   // Step 3: Confirm
   const confirmRes = await fetch(
-    'http://localhost:3008/api/v1/upload/confirm',
+    `${API_BASE_URL}/api/v1/upload/confirm`,
     {
       method: 'POST',
       headers: {

@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react';
+import { API_BASE_URL } from '@renderer/config';
 
 interface ForgotPasswordProps {
   onBack: () => void;
   onCodeSent: (email: string) => void;
 }
 
-const API_BASE = 'http://localhost:3008';
+const API_BASE = API_BASE_URL;
 
 export function ForgotPassword({ onBack, onCodeSent }: ForgotPasswordProps) {
   const [email, setEmail] = useState('');

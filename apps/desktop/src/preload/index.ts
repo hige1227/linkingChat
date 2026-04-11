@@ -46,7 +46,7 @@ const electronAPI = {
   openClawCancelStream: (requestId: string) =>
     ipcRenderer.invoke('openclaw:stream-cancel', requestId),
   onOpenClawStreamChunk: (
-    callback: (data: { requestId: string; chunk: { type: string; text: string } }) => void,
+    callback: (data: { requestId: string; chunk: { type: string; text: string; tool?: string; input?: string; output?: string } }) => void,
   ): (() => void) => {
     const wrapped = (_event: Electron.IpcRendererEvent, data: any) => callback(data);
     ipcRenderer.on('openclaw:stream-chunk', wrapped);

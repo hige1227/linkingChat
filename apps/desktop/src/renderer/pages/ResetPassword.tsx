@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { API_BASE_URL } from '@renderer/config';
 
 interface ResetPasswordProps {
   email: string;
@@ -6,7 +7,7 @@ interface ResetPasswordProps {
   onResetSuccess: () => void;
 }
 
-const API_BASE = 'http://localhost:3008';
+const API_BASE = API_BASE_URL;
 
 export function ResetPassword({ email, onBack, onResetSuccess }: ResetPasswordProps) {
   const [code, setCode] = useState('');

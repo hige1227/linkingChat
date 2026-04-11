@@ -6,10 +6,11 @@ import { useChatSocket } from '../../hooks/useChatSocket';
 import { useOpenClawChat } from '../../hooks/useOpenClawChat';
 import { uploadFile } from '../../services/uploadService';
 import { VoiceRecorder } from './VoiceRecorder';
+import { API_BASE_URL } from '@renderer/config';
 import type { MessageResponse } from '@linkingchat/ws-protocol';
 
 const AI_MENTION_RE = /(?<!\w)@ai\b/i;
-const API_URL = 'http://localhost:3008/api/v1';
+const API_URL = API_BASE_URL + '/api/v1';
 
 interface MessageInputProps {
   converseId: string;

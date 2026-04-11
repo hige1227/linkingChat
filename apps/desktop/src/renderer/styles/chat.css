@@ -2126,7 +2126,76 @@
   50% { opacity: 0; }
 }
 
-/* Tool call indicator — subtle italic inside bubble */
+/* ── Tool Call Blocks (collapsible tool invocation records) ── */
+
+.tool-call-records {
+  margin-bottom: 6px;
+}
+
+.tool-call-block {
+  background: rgba(0, 0, 0, 0.04);
+  border-left: 3px solid #4FC3F7;
+  border-radius: 4px;
+  padding: 5px 10px;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+}
+
+.tool-call-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #5a7a9a;
+}
+
+.tool-call-name {
+  font-weight: 500;
+}
+
+.tool-input {
+  color: #888;
+  font-family: monospace;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
+}
+
+.tool-expand {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: #999;
+}
+
+.tool-call-output {
+  margin-top: 6px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #444;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.tool-call-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #4FC3F7;
+  border-radius: 50%;
+  animation: tool-spin 0.8s linear infinite;
+}
+
+@keyframes tool-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Legacy indicator (kept for backward compat, may remove later) */
 .tool-call-indicator {
   font-size: 11px;
   color: #aaa;

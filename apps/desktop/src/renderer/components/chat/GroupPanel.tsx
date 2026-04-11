@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../../stores/chatStore';
+import { API_BASE_URL } from '@renderer/config';
 import type { ConverseResponse } from '@linkingchat/ws-protocol';
 
 interface FriendItem {
@@ -62,7 +63,7 @@ export function GroupPanel({ converseId, onClose }: GroupPanelProps) {
   async function refreshConverses() {
     const token = await getToken();
     if (!token) return;
-    const res = await fetch('http://localhost:3008/api/v1/converses', {
+    const res = await fetch(`${API_BASE_URL}/api/v1/converses`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
@@ -76,7 +77,7 @@ export function GroupPanel({ converseId, onClose }: GroupPanelProps) {
       const token = await getToken();
       if (!token) return;
       const res = await fetch(
-        `http://localhost:3008/api/v1/converses/groups/${converseId}`,
+        `${API_BASE_URL}/api/v1/converses/groups/${converseId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -97,7 +98,7 @@ export function GroupPanel({ converseId, onClose }: GroupPanelProps) {
     const token = await getToken();
     if (!token) return;
     await fetch(
-      `http://localhost:3008/api/v1/converses/groups/${converseId}/members/${memberId}`,
+      `${API_BASE_URL}/api/v1/converses/groups/${converseId}/members/${memberId}`,
       { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
     );
     await refreshConverses();
@@ -107,7 +108,7 @@ export function GroupPanel({ converseId, onClose }: GroupPanelProps) {
     const token = await getToken();
     if (!token) return;
     await fetch(
-      `http://localhost:3008/api/v1/converses/groups/${converseId}/members/${memberId}/role`,
+      `${API_BASE_URL}/api/v1/converses/groups/${converseId}/members/${memberId}/role`,
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -121,7 +122,7 @@ export function GroupPanel({ converseId, onClose }: GroupPanelProps) {
     const token = await getToken();
     if (!token) return;
     await fetch(
-      `http://localhost:3008/api/v1/converses/groups/${converseId}/leave`,
+      `${API_BASE_URL}/api/v1/converses/groups/${converseId}/leave`,
       { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
     );
     await refreshConverses();
@@ -134,7 +135,7 @@ export function GroupPanel({ converseId, onClose }: GroupPanelProps) {
       const token = await getToken();
       if (!token) return;
       await fetch(
-        `http://localhost:3008/api/v1/converses/groups/${converseId}`,
+        `${API_BASE_URL}/api/v1/converses/groups/${converseId}`,
         { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
       );
       await refreshConverses();
@@ -168,7 +169,7 @@ export function GroupPanel({ converseId, onClose }: GroupPanelProps) {
       const token = await getToken();
       if (!token) return;
       await fetch(
-        `http://localhost:3008/api/v1/converses/groups/${converseId}/members/${muteTarget.userId}/mute`,
+        `${API_BASE_URL}/api/v1/converses/groups/${converseId}/members/${muteTarget.userId}/mute`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -188,7 +189,7 @@ export function GroupPanel({ converseId, onClose }: GroupPanelProps) {
     const token = await getToken();
     if (!token) return;
     await fetch(
-      `http://localhost:3008/api/v1/converses/groups/${converseId}/members/${memberId}/mute`,
+      `${API_BASE_URL}/api/v1/converses/groups/${converseId}/members/${memberId}/mute`,
       { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
     );
     await refreshConverses();
@@ -201,7 +202,7 @@ export function GroupPanel({ converseId, onClose }: GroupPanelProps) {
       const token = await getToken();
       if (!token) return;
       await fetch(
-        `http://localhost:3008/api/v1/converses/groups/${converseId}/bans/${banTarget.userId}`,
+        `${API_BASE_URL}/api/v1/converses/groups/${converseId}/bans/${banTarget.userId}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -223,7 +224,7 @@ export function GroupPanel({ converseId, onClose }: GroupPanelProps) {
     try {
       const token = await getToken();
       if (!token) return;
-      const res = await fetch('http://localhost:3008/api/v1/friends', {
+      const res = await fetch(`${API_BASE_URL}/api/v1/friends`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -258,7 +259,7 @@ export function GroupPanel({ converseId, onClose }: GroupPanelProps) {
       const token = await getToken();
       if (!token) return;
       const res = await fetch(
-        `http://localhost:3008/api/v1/converses/groups/${converseId}/members`,
+        `${API_BASE_URL}/api/v1/converses/groups/${converseId}/members`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

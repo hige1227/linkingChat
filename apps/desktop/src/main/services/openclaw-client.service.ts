@@ -23,6 +23,13 @@ export class OpenClawClientService {
   private client: OpenClawWsClient | null = null;
   private connectionConfig: GatewayConnectionConfig | null = null;
   private isConnected = false;
+  private reconnecting = false;
+  private onStatusChange: ((connected: boolean) => void) | null = null;
+
+  /** Register a callback for connection status changes (used by IPC layer) */
+  setStatusChangeHandler(handler: (connected: boolean) => void): void {
+    this.onStatusChange = handler;
+  }
 
   /**
    * 连接到 OpenClaw Gateway
@@ -42,6 +49,7 @@ export class OpenClawClientService {
         url: config.url,
         token: config.token,
         deviceIdentityPath: join(app.getPath('userData'), '.openclaw', 'device-identity.json'),
+        onClose: () => this.handleUnexpectedClose(),
       });
 
       try {
@@ -78,9 +86,10 @@ export class OpenClawClientService {
   }
 
   /**
-   * 断开连接
+   * 断开连接（用户主动断开，不触发重连）
    */
   async disconnect(): Promise<void> {
+    this.reconnecting = false; // prevent auto-reconnect
     if (this.client) {
       try {
         await this.client.disconnect();
@@ -91,6 +100,40 @@ export class OpenClawClientService {
       this.isConnected = false;
       console.log('[OpenClaw] Disconnected from Gateway');
     }
+  }
+
+  /**
+   * Handle unexpected WS close — auto-reconnect with backoff
+   */
+  private async handleUnexpectedClose(): Promise<void> {
+    if (this.reconnecting || !this.connectionConfig) return;
+    this.isConnected = false;
+    this.client = null;
+    this.onStatusChange?.(false);
+    console.log('[OpenClaw] Connection lost, will auto-reconnect...');
+
+    this.reconnecting = true;
+    const delays = [2000, 5000, 10000, 20000, 30000]; // backoff
+
+    for (let i = 0; i < delays.length; i++) {
+      if (!this.reconnecting) return; // disconnect() was called
+      console.log(`[OpenClaw] Reconnect attempt ${i + 1}/${delays.length} in ${delays[i] / 1000}s...`);
+      await new Promise((r) => setTimeout(r, delays[i]));
+      if (!this.reconnecting) return;
+
+      try {
+        await this.connect(this.connectionConfig!, 1);
+        this.reconnecting = false;
+        this.onStatusChange?.(true);
+        console.log('[OpenClaw] Reconnected successfully');
+        return;
+      } catch {
+        // continue to next attempt
+      }
+    }
+
+    this.reconnecting = false;
+    console.error('[OpenClaw] Auto-reconnect failed after all attempts');
   }
 
   /**

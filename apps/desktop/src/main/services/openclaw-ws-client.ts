@@ -8,6 +8,9 @@ import path from 'path';
 export interface ChatChunk {
   type: 'text' | 'tool_use' | 'tool_result' | 'done' | 'error';
   text: string;
+  tool?: string;    // Tool name (for tool_use / tool_result)
+  input?: string;   // Tool input/command (for tool_use)
+  output?: string;  // Tool output (for tool_result)
 }
 
 export interface ChatOptions {
@@ -62,11 +65,14 @@ export class OpenClawWsClient {
   private _isConnected = false;
   private pendingRequests = new Map<string, PendingRequest>();
   private eventListeners = new Map<string, Set<(payload: any) => void>>();
+  private onCloseCallback?: () => void;
+  private intentionalClose = false;
 
-  constructor(options: { url: string; token: string; deviceIdentityPath?: string }) {
+  constructor(options: { url: string; token: string; deviceIdentityPath?: string; onClose?: () => void }) {
     this.url = options.url;
     this.token = options.token;
     this.deviceIdentityPath = options.deviceIdentityPath;
+    this.onCloseCallback = options.onClose;
     if (this.deviceIdentityPath) {
       this.device = this.loadOrCreateDeviceIdentity(this.deviceIdentityPath);
     }
@@ -138,8 +144,9 @@ export class OpenClawWsClient {
       this.ws.on('close', (code, reason) => {
         const reasonStr = reason?.toString() || 'n/a';
         console.log(`[OpenClaw:WS] Closed: code=${code} reason=${reasonStr}`);
+        const wasConnected = this._isConnected;
         this._isConnected = false;
-        if (!this._isConnected && code === 1008) {
+        if (code === 1008) {
           clearTimeout(timeout);
           reject(new Error(reasonStr || 'pairing required'));
         }
@@ -147,6 +154,10 @@ export class OpenClawWsClient {
         for (const [id, req] of this.pendingRequests) {
           req.reject(new Error(`WebSocket closed (code=${code})`));
           this.pendingRequests.delete(id);
+        }
+        // Notify auto-reconnect handler for unexpected closes
+        if (wasConnected && !this.intentionalClose) {
+          this.onCloseCallback?.();
         }
       });
 
@@ -160,6 +171,7 @@ export class OpenClawWsClient {
   // ── Disconnect ──
 
   async disconnect(): Promise<void> {
+    this.intentionalClose = true;
     if (this.ws) {
       this.ws.close(1000);
       this.ws = null;
@@ -182,32 +194,83 @@ export class OpenClawWsClient {
     let waitResolve: (() => void) | null = null;
 
     const onAgentEvent = (payload: any) => {
-      if (payload.runId !== id) return;
+      // Only process events with stream field (agent-stream events)
+      // Chat events have different structure ({state, message}) — skip them
+      if (!payload.stream) return;
+
+      // Match by runId (agent events) or idempotencyKey (chat events) or accept if no runId
+      const evtRunId = payload.runId || payload.idempotencyKey;
+      if (evtRunId && evtRunId !== id) return;
 
       const stream = payload.stream as string;
       const data = payload.data as any;
 
+      // Debug: log all non-text events to understand OpenClaw's protocol
+      if (stream !== 'assistant') {
+        const dataStr = data ? JSON.stringify(data) : '';
+        console.log('[OpenClaw:WS] EVENT stream=%s phase=%s data=%s', stream, data?.phase, dataStr.slice(0, 500));
+      }
+
       if (stream === 'assistant' && data?.text != null) {
         chunks.push({ type: 'text', text: data.text });
-      } else if (stream === 'tool' && data?.phase === 'start') {
-        chunks.push({ type: 'tool_use', text: data.tool || '' });
-      } else if (stream === 'tool' && data?.phase === 'end') {
-        const output =
-          typeof data.output === 'string'
-            ? data.output
-            : JSON.stringify(data.output ?? '');
-        chunks.push({ type: 'tool_result', text: `${data.tool}: ${output}` });
-      } else if (stream === 'lifecycle' && (data?.phase === 'end' || data?.phase === 'done' || data?.phase === 'error')) {
-        clearTimeout(timer);
-        if (data.phase === 'error') {
-          chunks.push({ type: 'error', text: data.error || 'Agent error' });
+      } else if (stream === 'tool' && (data?.phase === 'start' || data?.phase === 'begin')) {
+        const toolName = data.name || data.tool || '';
+        const toolInput = typeof data.input === 'string'
+          ? data.input
+          : data.args?.command ?? data.args?.cmd ?? JSON.stringify(data.args ?? '');
+        chunks.push({ type: 'tool_use', text: toolName, tool: toolName, input: toolInput || undefined });
+      } else if (stream === 'tool' && (data?.phase === 'result' || data?.phase === 'end')) {
+        const toolName = data.name || data.tool || '';
+        // Extract output from OpenClaw's result structure: result.details.aggregated or result.content[0].text
+        let output: string;
+        if (data.result?.details?.aggregated != null) {
+          output = String(data.result.details.aggregated);
+        } else if (data.result?.content?.[0]?.text != null) {
+          output = String(data.result.content[0].text);
+        } else if (typeof data.output === 'string') {
+          output = data.output;
+        } else if (data.result?.stdout != null) {
+          output = String(data.result.stdout);
+        } else {
+          output = JSON.stringify(data.result ?? data.output ?? '');
         }
-        done = true;
+        chunks.push({ type: 'tool_result', text: toolName, tool: toolName, output });
+      } else if (stream === 'lifecycle' && (data?.phase === 'end' || data?.phase === 'done' || data?.phase === 'error')) {
+        if (data.phase === 'error') {
+          clearTimeout(timer);
+          chunks.push({ type: 'error', text: data.error || 'Agent error' });
+          done = true;
+        } else {
+          // Normal end: check if we already received text
+          const hasText = chunks.some((c) => c.type === 'text');
+          if (hasText) {
+            // Text already received — finalize immediately
+            clearTimeout(timer);
+            done = true;
+          } else {
+            // No text yet — lifecycle end arrived before assistant text.
+            // Delay finalization to let remaining text events arrive.
+            console.log('[OpenClaw:WS] Lifecycle end received with no text — waiting 3s for late text events');
+            clearTimeout(timer);
+            setTimeout(() => {
+              if (!done) {
+                const hasContent = chunks.some((c) => c.type === 'text' || c.type === 'tool_use');
+                if (!hasContent) {
+                  chunks.push({ type: 'error', text: 'Agent returned empty response. Session context may be too large — try sending a new message.' });
+                }
+                done = true;
+                waitResolve?.();
+              }
+            }, 3000);
+            return; // Don't call waitResolve yet
+          }
+        }
       }
 
       waitResolve?.();
     };
 
+    // Agent events (lifecycle, tool, assistant) all come under 'agent' event name
     this.on('agent', onAgentEvent);
 
     // Send the request via chat.send (OpenClaw Gateway protocol)
@@ -304,6 +367,18 @@ export class OpenClawWsClient {
     return this.request('health', {}, 5_000);
   }
 
+  // ── Session Management ──
+
+  /**
+   * Reset (clear) a session, starting a fresh conversation.
+   * The Gateway creates a new session transcript and returns immediately.
+   */
+  async resetSession(sessionKey: string): Promise<void> {
+    console.log(`[OpenClaw:WS] Resetting session: ${sessionKey}`);
+    await this.request('sessions.reset', { key: `agent:main:${sessionKey}`, reason: 'new' }, 10_000);
+    console.log(`[OpenClaw:WS] Session reset complete: ${sessionKey}`);
+  }
+
   // ── Internal ──
 
   private challengeNonce: string | null = null;
@@ -348,7 +423,7 @@ export class OpenClawWsClient {
         },
         role,
         scopes,
-        caps: [],
+        caps: ['tool-events'],
         commands: [],
         permissions: {},
         ...(this.token ? { auth: { token: this.token } } : {}),
@@ -409,6 +484,9 @@ export class OpenClawWsClient {
     if (msg.type === 'event') {
       const event = (msg as any).event as string;
       const payload = (msg as any).payload;
+      // Debug: log ALL events to discover tool event format
+      const payloadStr = JSON.stringify(payload) ?? '';
+      console.log('[OpenClaw:WS] RAW EVENT name=%s payload=%s', event, payloadStr.slice(0, 600));
       const listeners = this.eventListeners.get(event);
       if (listeners) {
         for (const fn of listeners) fn(payload);

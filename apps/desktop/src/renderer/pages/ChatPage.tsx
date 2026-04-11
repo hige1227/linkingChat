@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChatStore } from '../stores/chatStore';
 import { useAiStore } from '../stores/aiStore';
+import { API_BASE_URL } from '@renderer/config';
 import { ConversationList } from '../components/chat/ConversationList';
 import { ChatThread } from '../components/chat/ChatThread';
 import { MessageInput } from '../components/chat/MessageInput';
@@ -67,7 +68,7 @@ export function ChatPage() {
         const result = await uploadFile(file, category as 'image' | 'file');
         const token = await window.electronAPI.getToken();
         if (!token) continue;
-        const res = await fetch('http://localhost:3008/api/v1/messages', {
+        const res = await fetch(`${API_BASE_URL}/api/v1/messages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -120,7 +121,7 @@ export function ChatPage() {
       if (useChatStore.getState().converses.length > 0) return;
 
       try {
-        const res = await fetch('http://localhost:3008/api/v1/converses', {
+        const res = await fetch(`${API_BASE_URL}/api/v1/converses`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {

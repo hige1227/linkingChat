@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../../stores/chatStore';
+import { API_BASE_URL } from '@renderer/config';
 
 interface Friend {
   id: string;
@@ -39,7 +40,7 @@ export function CreateGroupDialog({ open, onClose }: CreateGroupDialogProps) {
     try {
       const token = await window.electronAPI.getToken();
       if (!token) return;
-      const res = await fetch('http://localhost:3008/api/v1/friends', {
+      const res = await fetch(`${API_BASE_URL}/api/v1/friends`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -80,7 +81,7 @@ export function CreateGroupDialog({ open, onClose }: CreateGroupDialogProps) {
     try {
       const token = await window.electronAPI.getToken();
       if (!token) return;
-      const res = await fetch('http://localhost:3008/api/v1/converses/groups', {
+      const res = await fetch(`${API_BASE_URL}/api/v1/converses/groups`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +102,7 @@ export function CreateGroupDialog({ open, onClose }: CreateGroupDialogProps) {
           navigate(`/chat/${data.id}`);
         }
         // Refresh converses list
-        const listRes = await fetch('http://localhost:3008/api/v1/converses', {
+        const listRes = await fetch(`${API_BASE_URL}/api/v1/converses`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (listRes.ok) {

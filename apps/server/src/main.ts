@@ -58,14 +58,16 @@ async function bootstrap() {
   await redisIoAdapter.connectToRedis();
   app.useWebSocketAdapter(redisIoAdapter);
 
-  const config = new DocumentBuilder()
-    .setTitle('LinkingChat API')
-    .setDescription('LinkingChat Cloud Brain REST API')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  if (!isProduction) {
+    const config = new DocumentBuilder()
+      .setTitle('LinkingChat API')
+      .setDescription('LinkingChat Cloud Brain REST API')
+      .setVersion('0.1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.APP_PORT || 3008;
   await app.listen(port);

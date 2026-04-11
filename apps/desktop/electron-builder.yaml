@@ -8,9 +8,16 @@ files:
   - '!electron.vite.config.*'
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+extraResources:
+  - from: sidecar/${os}-${arch}
+    to: openclaw-sidecar
+    filter:
+      - '**/*'
 win:
   target: nsis
+  icon: build/icon.ico
 mac:
   target: dmg
+  icon: build/icon.icns
 linux:
   target: AppImage

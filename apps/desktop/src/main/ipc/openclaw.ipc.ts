@@ -1,9 +1,10 @@
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow, app } from 'electron';
 import { openClawClientService } from '../services/openclaw-client.service';
 import { openClawProcessService, type ProcessStatus } from '../services/openclaw-process.service';
 import { AuthStore } from '../services/auth-store.service';
 
-const API_URL = process.env.API_URL || 'http://localhost:3008/api/v1';
+const PROD_API = 'https://linkchat-api.matrix-ai.com.cn';
+const API_URL = process.env.API_URL || (process.env.VITE_API_URL ? `${process.env.VITE_API_URL}/api/v1` : '') || (app.isPackaged ? `${PROD_API}/api/v1` : 'http://localhost:3008/api/v1');
 
 export interface OpenClawConnectionStatus {
   connected: boolean;
@@ -210,6 +211,9 @@ async function restartGateway(): Promise<OpenClawConnectionStatus> {
  * Register OpenClaw IPC handlers
  */
 export function registerOpenClawIpc(): void {
+  // Wire auto-reconnect status notifications to renderer
+  openClawClientService.setStatusChangeHandler(notifyStatusChange);
+
   // Connect to Gateway
   ipcMain.handle('openclaw:connect', async (): Promise<OpenClawConnectionStatus> => {
     return connectToGateway();
@@ -279,10 +283,47 @@ export function registerOpenClawIpc(): void {
       // Fire-and-forget: runs in background, pushes chunks to renderer
       (async () => {
         try {
-          for await (const chunk of client.chat(message, { sessionKey })) {
-            if (control.cancelled) break;
-            win?.webContents.send('openclaw:stream-chunk', { requestId, chunk });
-          }
+          let hasContent = false;
+          let emptyRetried = false;
+
+          const runStream = async (): Promise<void> => {
+            hasContent = false;
+            for await (const chunk of client.chat(message, { sessionKey, timeout: 120_000 })) {
+              if (control.cancelled) break;
+
+              // Track whether we got any real content
+              if (chunk.type === 'text' || chunk.type === 'tool_use') {
+                hasContent = true;
+              }
+
+              // Intercept empty-response error for auto-retry
+              if (
+                chunk.type === 'error' &&
+                !hasContent &&
+                !emptyRetried &&
+                chunk.text.includes('empty response')
+              ) {
+                emptyRetried = true;
+                console.log('[OpenClaw:Stream] Empty response detected, resetting session and retrying...');
+                try {
+                  await client.resetSession(sessionKey);
+                } catch (resetErr) {
+                  console.warn('[OpenClaw:Stream] Session reset failed:', resetErr);
+                }
+                // Notify renderer that we're retrying
+                win?.webContents.send('openclaw:stream-chunk', {
+                  requestId,
+                  chunk: { type: 'text', text: '' },
+                });
+                await runStream();
+                return;
+              }
+
+              win?.webContents.send('openclaw:stream-chunk', { requestId, chunk });
+            }
+          };
+
+          await runStream();
         } catch (err) {
           if (!control.cancelled) {
             win?.webContents.send('openclaw:stream-chunk', {

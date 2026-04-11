@@ -1,14 +1,25 @@
 import { create } from 'zustand';
 import type { ConverseResponse, MessageResponse } from '@linkingchat/ws-protocol';
 
+export interface ToolRecord {
+  id: string;             // Unique ID for pairing tool_use → tool_result
+  tool: string;           // Tool name, e.g. "system.run"
+  input?: string;         // Input/command
+  output?: string;        // Tool output
+  status: 'running' | 'done' | 'error';
+  startedAt: string;      // ISO timestamp
+  completedAt?: string;
+}
+
 export interface StreamingMessage {
   requestId: string;
   converseId: string;
-  text: string;          // Accumulated full text
-  toolCalls: string[];   // Currently active tool names
+  text: string;              // Accumulated full text
+  toolCalls: string[];       // Currently active tool names (for spinner display)
+  toolRecords: ToolRecord[]; // Complete tool call history
   status: 'streaming' | 'done' | 'error';
   errorText?: string;
-  createdAt: string;     // ISO timestamp when streaming began
+  createdAt: string;         // ISO timestamp when streaming began
 }
 
 export interface ChatState {
@@ -43,7 +54,7 @@ export interface ChatState {
   setReadReceipt: (converseId: string, lastSeenMessageId: string) => void;
   updateLastMessage: (converseId: string, msg: MessageResponse, incrementUnread?: boolean) => void;
   addStreamingMessage: (converseId: string, requestId: string) => void;
-  appendStreamChunk: (requestId: string, chunk: { type: string; text: string }) => void;
+  appendStreamChunk: (requestId: string, chunk: { type: string; text: string; tool?: string; input?: string; output?: string }) => void;
   removeStreamingMessage: (requestId: string) => void;
 }
 
@@ -211,6 +222,7 @@ export const useChatStore = create<ChatState>((set) => ({
           converseId,
           text: '',
           toolCalls: [],
+          toolRecords: [],
           status: 'streaming',
           createdAt: new Date().toISOString(),
         },
@@ -222,16 +234,48 @@ export const useChatStore = create<ChatState>((set) => ({
       const sm = state.streamingMessages[requestId];
       if (!sm) return state;
 
+      // Debug: log non-text chunks to verify tool data arrives at renderer
+      if (chunk.type !== 'text') {
+        console.log('[ChatStore] chunk:', chunk.type, 'text=', chunk.text?.slice(0, 200), 'tool=', chunk.tool, 'input=', chunk.input?.slice(0, 100), 'output=', chunk.output?.slice(0, 100));
+      }
+
       let updated: StreamingMessage;
 
       if (chunk.type === 'text') {
         updated = { ...sm, text: sm.text + chunk.text };
       } else if (chunk.type === 'tool_use') {
-        updated = { ...sm, toolCalls: [...sm.toolCalls, chunk.text] };
-      } else if (chunk.type === 'tool_result') {
+        const toolName = chunk.tool ?? chunk.text;
+        const newRecord: ToolRecord = {
+          id: `tr-${Date.now()}-${sm.toolRecords.length}`,
+          tool: toolName,
+          input: chunk.input,
+          status: 'running',
+          startedAt: new Date().toISOString(),
+        };
         updated = {
           ...sm,
-          toolCalls: sm.toolCalls.filter((t) => t !== chunk.text),
+          toolCalls: [...sm.toolCalls, toolName],
+          toolRecords: [...sm.toolRecords, newRecord],
+        };
+      } else if (chunk.type === 'tool_result') {
+        const toolName = chunk.tool ?? chunk.text.split(':')[0];
+        // Update last running record with matching tool name
+        const records = [...sm.toolRecords];
+        for (let i = records.length - 1; i >= 0; i--) {
+          if (records[i].tool === toolName && records[i].status === 'running') {
+            records[i] = {
+              ...records[i],
+              output: chunk.output ?? chunk.text,
+              status: 'done',
+              completedAt: new Date().toISOString(),
+            };
+            break;
+          }
+        }
+        updated = {
+          ...sm,
+          toolCalls: sm.toolCalls.filter((t) => t !== toolName),
+          toolRecords: records,
         };
       } else if (chunk.type === 'done') {
         updated = { ...sm, status: 'done' };

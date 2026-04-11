@@ -50,17 +50,29 @@ app.whenReady().then(() => {
   const tokens = AuthStore.load();
   if (tokens) {
     wsClient.connect();
-    // Connect to OpenClaw Gateway after WebSocket is ready
+    // Connect to OpenClaw Gateway with retry
     const mode = openClawProcessService.resolveMode();
-    connectToGateway().then((status) => {
-      if (status.connected) {
-        console.log(`[Main] OpenClaw Gateway connected (mode=${mode})`);
-      } else {
-        console.warn(`[Main] OpenClaw Gateway not available (mode=${mode}):`, status.error);
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 5_000;
+    (async () => {
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const status = await connectToGateway();
+          if (status.connected) {
+            console.log(`[Main] OpenClaw Gateway connected (mode=${mode}, attempt=${attempt})`);
+            return;
+          }
+          console.warn(`[Main] OpenClaw Gateway attempt ${attempt}/${MAX_RETRIES} failed: ${status.error}`);
+        } catch (err) {
+          console.warn(`[Main] OpenClaw Gateway attempt ${attempt}/${MAX_RETRIES} error:`, (err as Error).message);
+        }
+        if (attempt < MAX_RETRIES) {
+          console.log(`[Main] Retrying OpenClaw in ${RETRY_DELAY / 1000}s...`);
+          await new Promise((r) => setTimeout(r, RETRY_DELAY));
+        }
       }
-    }).catch((err) => {
-      console.warn(`[Main] OpenClaw Gateway connection error (mode=${mode}, ignored):`, err.message);
-    });
+      console.warn(`[Main] OpenClaw Gateway not available after ${MAX_RETRIES} attempts (mode=${mode})`);
+    })();
   }
 
   app.on('activate', () => {

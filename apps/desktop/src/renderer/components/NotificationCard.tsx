@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { API_BASE_URL } from '@renderer/config'
 
 interface NotificationAction {
   label: string
@@ -81,7 +82,7 @@ export function NotificationCard({ metadata }: NotificationCardProps) {
         if (deviceId && command) {
           window.electronAPI.getToken().then((token) => {
             if (!token) return
-            fetch('http://localhost:3008/api/v1/commands', {
+            fetch(`${API_BASE_URL}/api/v1/commands`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

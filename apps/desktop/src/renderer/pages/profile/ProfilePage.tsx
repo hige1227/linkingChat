@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { uploadFile } from '../../services/uploadService';
+import { API_BASE_URL } from '@renderer/config';
 import './ProfilePage.css';
 
 interface UserProfile {
@@ -49,7 +50,7 @@ export const ProfilePage: React.FC = () => {
   const fetchProfile = async () => {
     try {
       const token = await window.electronAPI.getToken();
-      const response = await fetch('http://localhost:3008/api/v1/profile/me', {
+      const response = await fetch(`${API_BASE_URL}/api/v1/profile/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -79,7 +80,7 @@ export const ProfilePage: React.FC = () => {
       const token = await window.electronAPI.getToken();
       if (!token) return;
 
-      const res = await fetch('http://localhost:3008/api/v1/profile/me', {
+      const res = await fetch(`${API_BASE_URL}/api/v1/profile/me`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +108,7 @@ export const ProfilePage: React.FC = () => {
 
     try {
       const token = await window.electronAPI.getToken();
-      const response = await fetch('http://localhost:3008/api/v1/profile/me', {
+      const response = await fetch(`${API_BASE_URL}/api/v1/profile/me`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -132,7 +133,7 @@ export const ProfilePage: React.FC = () => {
 
     try {
       const token = await window.electronAPI.getToken();
-      const response = await fetch('http://localhost:3008/api/v1/profile/me', {
+      const response = await fetch(`${API_BASE_URL}/api/v1/profile/me`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,

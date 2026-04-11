@@ -1,8 +1,10 @@
 import { io, type Socket } from 'socket.io-client';
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, app } from 'electron';
 import { AuthStore } from './auth-store.service';
 import { openClawClientService } from './openclaw-client.service';
 import { CommandExecutor, type CommandResult } from './command-executor.service';
+
+const PROD_API = 'https://linkchat-api.matrix-ai.com.cn';
 import { isDangerousCommand } from '../utils/command-blacklist';
 import { getDeviceId, getDeviceName, getPlatform } from '../utils/platform';
 import type {
@@ -69,7 +71,7 @@ export class WsClientService {
       return;
     }
 
-    const WS_URL = process.env.WS_URL || 'http://localhost:3008';
+    const WS_URL = process.env.WS_URL || process.env.VITE_WS_URL || (app.isPackaged ? PROD_API : 'http://localhost:3008');
 
     this.updateStatus('connecting');
 
@@ -193,7 +195,7 @@ export class WsClientService {
     const tokens = AuthStore.load();
     if (!tokens?.refreshToken) return;
 
-    const API_BASE = process.env.API_BASE_URL || 'http://localhost:3008';
+    const API_BASE = process.env.API_BASE_URL || process.env.VITE_API_URL || (app.isPackaged ? PROD_API : 'http://localhost:3008');
     try {
       const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
         method: 'POST',

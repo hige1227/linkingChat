@@ -10,6 +10,10 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
   },
   renderer: {
+    define: {
+      'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || ''),
+      'import.meta.env.VITE_WS_URL': JSON.stringify(process.env.VITE_WS_URL || ''),
+    },
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer'),

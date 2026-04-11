@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw 科技入职记</title>
+<style>
+:root {
+  --bg: #f6f1e7;
+  --bg-card: #ede6d6;
+  --text: #3a2e1e;
+  --text-muted: #7a6b5d;
+  --accent: #8b2500;
+  --gold: #9a7b2e;
+  --code-bg: #e8dcc8;
+  --code-text: #5a4a30;
+  --note-bg: #f0e8d8;
+  --note-border: rgba(139,37,0,0.2);
+  --note-text: #6b4e30;
+  --pitfall-bg: #f5e6e0;
+  --pitfall-border: rgba(139,37,0,0.3);
+  --pitfall-text: #8b2500;
+  --dialogue-bg: rgba(154,123,46,0.07);
+  --dialogue-border: #9a7b2e;
+  --speaker-color: #7a5a10;
+  --hero-from: #e8dcc8;
+  --hero-to: #f6f1e7;
+  --divider-color: #b8a88a;
+  --table-header-bg: #ddd4c2;
+  --table-border: rgba(58,46,30,0.1);
+  --footer-border: rgba(58,46,30,0.1);
+  --char-color: #8b2500;
+  --inline-text: #4a6a2e;
+  --hero-text: #3a2e1e;
+  --settings-bg: rgba(246,241,231,0.95);
+  --settings-border: rgba(58,46,30,0.15);
+  --btn-bg: #ede6d6;
+  --btn-active: #8b2500;
+  --btn-active-text: #f6f1e7;
+}
+
+[data-theme="ink"] {
+  --bg: #f0f0ee;
+  --bg-card: #e4e4e2;
+  --text: #2c2c2c;
+  --text-muted: #8a8a88;
+  --accent: #4a6a7a;
+  --gold: #4a6a7a;
+  --code-bg: #dddddd;
+  --code-text: #3c3c3c;
+  --note-bg: #e4e8ec;
+  --note-border: rgba(74,106,122,0.25);
+  --note-text: #3a5a6a;
+  --pitfall-bg: #eae2e0;
+  --pitfall-border: rgba(122,60,60,0.25);
+  --pitfall-text: #7a3c3c;
+  --dialogue-bg: rgba(74,106,122,0.06);
+  --dialogue-border: #5f7a8a;
+  --speaker-color: #3a5a6a;
+  --hero-from: #dfe3e6;
+  --hero-to: #f0f0ee;
+  --divider-color: #aaa;
+  --table-header-bg: #d8d8d6;
+  --table-border: rgba(44,44,44,0.08);
+  --footer-border: rgba(44,44,44,0.08);
+  --char-color: #3a6a5a;
+  --inline-text: #3a5a6a;
+  --hero-text: #2c2c2c;
+  --settings-bg: rgba(240,240,238,0.95);
+  --settings-border: rgba(44,44,44,0.12);
+  --btn-bg: #e4e4e2;
+  --btn-active: #4a6a7a;
+  --btn-active-text: #f0f0ee;
+}
+
+[data-font="song"] body,
+[data-font="song"] p,
+[data-font="song"] .dialogue,
+[data-font="song"] .note,
+[data-font="song"] .pitfall,
+[data-font="song"] td {
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'STSongti-SC', 'SimSun', serif;
+}
+[data-font="kai"] body,
+[data-font="kai"] p,
+[data-font="kai"] .dialogue,
+[data-font="kai"] .note,
+[data-font="kai"] .pitfall,
+[data-font="kai"] td {
+  font-family: 'STKaiti', 'Kaiti SC', 'KaiTi', 'AR PL UKai CN', serif;
+}
+[data-font="default"] body,
+[data-font="default"] p,
+[data-font="default"] .dialogue,
+[data-font="default"] .note,
+[data-font="default"] .pitfall,
+[data-font="default"] td {
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.9;
+  padding: 0 0 80px 0;
+  max-width: 100vw;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+.hero {
+  background: linear-gradient(160deg, var(--hero-from) 0%, var(--hero-to) 100%);
+  padding: 52px 24px 40px;
+  text-align: center;
+  border-bottom: 1px solid var(--footer-border);
+}
+.hero h1 {
+  font-family: 'STKaiti', 'Kaiti SC', 'KaiTi', serif;
+  font-size: 1.85em;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+}
+.hero .subtitle { color: var(--text-muted); font-size: 0.92em; }
+.content { padding: 0 22px; max-width: 680px; margin: 0 auto; }
+.chapter { margin-top: 36px; }
+.chapter-title {
+  font-family: 'STKaiti', 'Kaiti SC', 'KaiTi', serif;
+  font-weight: 700;
+  font-size: 1.35em;
+  color: var(--accent);
+  margin-bottom: 16px;
+  padding-left: 14px;
+  border-left: 3px solid var(--accent);
+  letter-spacing: 1px;
+}
+.chapter-num { color: var(--gold); font-size: 0.72em; display: block; margin-bottom: 4px; letter-spacing: 2px; }
+p { margin-bottom: 16px; text-align: justify; font-size: 1.02em; }
+.dialogue {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-left: 2px solid var(--dialogue-border);
+  background: var(--dialogue-bg);
+  border-radius: 0 6px 6px 0;
+}
+.dialogue .speaker { color: var(--speaker-color); font-weight: 600; margin-right: 4px; }
+.note {
+  margin: 14px 0;
+  padding: 12px 14px;
+  background: var(--note-bg);
+  border-radius: 6px;
+  font-size: 0.88em;
+  color: var(--note-text);
+  line-height: 1.7;
+  border: 1px solid var(--note-border);
+}
+.note::before { content: '「注」'; font-weight: 600; margin-right: 4px; }
+.pitfall {
+  margin: 14px 0;
+  padding: 12px 14px;
+  background: var(--pitfall-bg);
+  border-radius: 6px;
+  font-size: 0.88em;
+  color: var(--pitfall-text);
+  line-height: 1.7;
+  border: 1px solid var(--pitfall-border);
+}
+.pitfall::before { content: '「坑」'; font-weight: 600; margin-right: 4px; }
+code {
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.86em;
+  color: var(--code-text);
+  font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
+}
+.divider { text-align: center; margin: 40px 0; color: var(--divider-color); font-size: 0.85em; letter-spacing: 10px; }
+.quote { text-align: center; margin: 28px 0; padding: 16px; color: var(--accent); font-style: italic; font-size: 1.05em; }
+.ref-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.9em; }
+.ref-table th { background: var(--table-header-bg); color: var(--text); padding: 9px 10px; text-align: left; font-weight: 600; }
+.ref-table td { padding: 9px 10px; border-bottom: 1px solid var(--table-border); }
+.ref-table tr:last-child td { border-bottom: none; }
+.char { color: var(--char-color); font-weight: 600; }
+.inline-text { color: var(--inline-text); }
+.footer { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 0.85em; border-top: 1px solid var(--footer-border); margin-top: 40px; }
+
+.settings-toggle {
+  position: fixed; bottom: 20px; right: 20px;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--bg-card); border: 1px solid var(--settings-border);
+  color: var(--text-muted); font-size: 20px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  transition: transform 0.2s;
+}
+.settings-toggle:active { transform: scale(0.92); }
+.settings-panel {
+  position: fixed; bottom: 74px; right: 16px; width: 260px;
+  background: var(--settings-bg); backdrop-filter: blur(12px);
+  border: 1px solid var(--settings-border); border-radius: 12px;
+  padding: 16px; z-index: 99;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+  display: none;
+}
+.settings-panel.open { display: block; }
+.settings-panel .label { font-size: 0.78em; color: var(--text-muted); margin-bottom: 6px; margin-top: 12px; letter-spacing: 1px; }
+.settings-panel .label:first-child { margin-top: 0; }
+.settings-panel .btn-group { display: flex; gap: 6px; }
+.settings-panel .btn {
+  flex: 1; padding: 8px 6px;
+  border: 1px solid var(--settings-border); border-radius: 6px;
+  background: var(--bg-card); color: var(--text);
+  font-size: 0.85em; cursor: pointer; text-align: center;
+  transition: all 0.15s;
+}
+.settings-panel .btn.active { background: var(--btn-active); color: var(--btn-active-text); border-color: var(--btn-active); }
+
+[data-size="small"] .content { font-size: 14px; }
+[data-size="medium"] .content { font-size: 16.5px; }
+[data-size="large"] .content { font-size: 20px; }
+</style>
+</head>
+<body data-font="kai">
+
+<button class="settings-toggle" onclick="toggleSettings()">⚙</button>
+<div class="settings-panel" id="settingsPanel">
+  <div class="label">主题</div>
+  <div class="btn-group">
+    <div class="btn active" data-theme-btn="paper" onclick="setTheme('paper')">古风宣纸</div>
+    <div class="btn" data-theme-btn="ink" onclick="setTheme('ink')">水墨淡雅</div>
+  </div>
+  <div class="label">正文字体</div>
+  <div class="btn-group">
+    <div class="btn" data-font-btn="song" onclick="setFont('song')">宋体</div>
+    <div class="btn active" data-font-btn="kai" onclick="setFont('kai')">楷体</div>
+    <div class="btn" data-font-btn="default" onclick="setFont('default')">默认</div>
+  </div>
+  <div class="label">字号</div>
+  <div class="btn-group">
+    <div class="btn" data-size-btn="small" onclick="setSize('small')">小</div>
+    <div class="btn active" data-size-btn="medium" onclick="setSize('medium')">中</div>
+    <div class="btn" data-size-btn="large" onclick="setSize('large')">大</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var s=localStorage.getItem('oc-theme');
+  var f=localStorage.getItem('oc-font');
+  var z=localStorage.getItem('oc-size');
+  if(s) setTheme(s,false);
+  if(f) setFont(f,false);
+  if(z) setSize(z,false);
+  function setTheme(t,save){
+    document.documentElement.setAttribute('data-theme',t==='ink'?'ink':'');
+    document.querySelectorAll('[data-theme-btn]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-theme-btn')===t);});
+    if(save!==false)localStorage.setItem('oc-theme',t);
+  }
+  function setFont(f,save){
+    document.body.setAttribute('data-font',f);
+    document.querySelectorAll('[data-font-btn]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-font-btn')===f);});
+    if(save!==false)localStorage.setItem('oc-font',f);
+  }
+  function setSize(z,save){
+    document.body.setAttribute('data-size',z||'medium');
+    document.querySelectorAll('[data-size-btn]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-size-btn')===z);});
+    if(save!==false)localStorage.setItem('oc-size',z);
+  }
+  window.setTheme=setTheme;window.setFont=setFont;window.setSize=setSize;
+})();
+function toggleSettings(){document.getElementById('settingsPanel').classList.toggle('open');}
+document.addEventListener('click',function(e){
+  var p=document.getElementById('settingsPanel'),t=document.querySelector('.settings-toggle');
+  if(!p.contains(e.target)&&!t.contains(e.target))p.classList.remove('open');
+});
+</script>
+
+<div class="hero">
+  <h1>OpenClaw 科技入职记</h1>
+  <div class="subtitle">一个 AI 公司的职场喜剧</div>
+</div>
+
+<div class="content">
+
+<div class="quote">
+"我们不是在做聊天机器人。<br>我们是在打造——<strong>数字员工</strong>。"<br>
+<span style="font-size:0.8em;color:var(--text-muted)">—— OpenClaw 科技 CEO 年会发言</span>
+</div>
+
+<p>在深圳南山科技园的某栋写字楼里，有一家叫 <strong>OpenClaw</strong> 的 AI 公司。不造硬件，不做社交——它只做一件事：把 AI 变成能干活的<strong>数字员工</strong>。</p>
+
+<p>公司前台坐着一位气场一米八的行政总监，大家叫她 <span class="char">关姐</span>（Gateway）。她不写代码，不跑模型，但她管着整栋楼的命脉——谁进谁出、谁的工牌有效、谁的指纹造假。据说她能同时处理上百个访客登记，从不出错。</p>
+
+<p>我们的故事，要从一个叫 <span class="char">林小链</span>（LinkChat）的新入职产品经理说起。</p>
+
+<!-- ==================== 第一章 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">第一天</span>
+<div class="chapter-title">前台登记</div>
+
+<p>周一早上八点半，林小链背着双肩包，紧张地站在 OpenClaw 科技的大堂里。</p>
+
+<p>他刚走到前台，关姐头也不抬，推过来一个平板——上面显示着一个随机验证码 <code>xK9m2p...</code> 和一个时间戳。</p>
+
+<div class="dialogue">
+<span class="speaker">关姐：</span>新来的？这是你的临时验证码（nonce）。用你的员工密钥签名一下，原样返回。超时作废。
+</div>
+
+<p>林小链赶紧从邮件里翻出入职通知书，上面有他的<strong>员工密钥</strong>。他手忙脚乱地签了名，递回去。</p>
+
+<p>关姐扫了一眼平板，面无表情地开口：</p>
+
+<div class="dialogue">
+<span class="speaker">关姐：</span>身份铭牌——姓名 <code>linkchat-desktop</code>，终端 <code>windows</code>，岗位 <code>operator</code>。权限——<code>read</code> 加 <code>write</code>。签名正确，nonce 匹配。<br><br>（啪地盖了个章）hello-ok。协议版本 3。<strong>以后每 15 秒刷一次门禁卡，否则当你是脱岗，门禁自动吊销。</strong>进去吧。工牌在桌上。
+</div>
+
+<p>林小链刚要转身——</p>
+
+<div class="dialogue">
+<span class="speaker">关姐：</span>等等。你 <code>caps</code> 那栏填了什么？
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>（紧张）空的……
+</div>
+
+<div class="dialogue">
+<span class="speaker">关姐：</span>（冷冷地）想看工具执行记录？<code>caps</code> 里加上 <code>tool-events</code>。不加就别想看到。小伙子，入职表要仔细填。
+</div>
+
+<p>林小链赶紧补上，重新递表。关姐这才让开路。</p>
+
+<div class="note">
+访客登记 = WS 握手：前台下发 <code>connect.challenge</code>（含 nonce）→ 访客签名后发 <code>connect</code> → 前台返回 <code>hello-ok</code>（含 <code>tickIntervalMs: 15000</code> 门禁刷新间隔）。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 第二章 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">第二天</span>
+<div class="chapter-title">会议室管理</div>
+
+<p>行政小妹领着林小链来到三楼，推开一间会议室的门。</p>
+
+<div class="dialogue">
+<span class="speaker">行政小妹：</span>这是你的<strong>专属会议室</strong>（Session）。编号 <code>agent:main:main</code>。你跟项目经理的谈话别人听不到，我们公司讲究 <code>per-channel-peer</code> 隔离。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>不错。能用多久？
+</div>
+
+<div class="dialogue">
+<span class="speaker">行政小妹：</span>（为难）公司有规定——每天凌晨四点，所有会议室自动清场重置，白板擦干净，第二天从零开始。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>凌晨四点？！我要是加班到三点半——
+</div>
+
+<div class="dialogue">
+<span class="speaker">行政小妹：</span>半小时后白板就被擦了。不过你也可以申请 <code>idleMinutes: 120</code>——两小时没人开会就提前清场。两条规矩，哪个先到听哪个的。
+</div>
+
+<p>正说着，一个戴眼镜的中年女人从走廊另一头走来，手里拿着一沓表格。</p>
+
+<div class="dialogue">
+<span class="speaker">行政主管王姐：</span>新来的？听好了。你那间会议室超过 30 天不用，我直接回收。全公司超过 500 间会议室不用的，老的我先收。我这个人不讲情面，只走 <code>enforce</code> 模式。
+</div>
+
+<p>林小链默默把会议记录收好。</p>
+
+<div class="note">
+会议室 = Session。<code>session.reset.mode="daily"</code> + <code>atHour=4</code>，也可配 <code>idleMinutes</code> 先到先触发。行政主管 = Session Maintenance，<code>enforce</code> 模式不留过期 Session。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 第三章 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">第三天</span>
+<div class="chapter-title">项目经理阿管</div>
+
+<p>会议室里坐着一个人。</p>
+
+<p>三十出头，格子衫，黑框眼镜，桌上摆着七八个文件夹。墙上贴着三张便利贴——一张绿色、一张蓝色、一张黄色。</p>
+
+<p>这就是林小链的 <span class="char">项目经理阿管</span>（Agent）。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（握手）小林是吧？我是你专属 PM。你的每一个需求，我都走完整流程——收集需求、查资料、请教专家、调用工具、写文档、归档，六步一个闭环。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>"请教专家"？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（指了指自己脑袋）我这脑子是空的，不装模型。真正思考的是我请的<strong>外部顾问</strong>——LLM。他们按次收费，我负责协调。放心，我有标准流程。
+</div>
+
+<p>阿管开始介绍桌上的文件夹：</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>这本 <code>AGENTS.md</code> 是公司规章制度，什么能做什么不能做。这本 <code>SOUL.md</code> 是我的性格设定——入职前我脾气很差的，但 HR 在 SOUL.md 里写了"温和耐心"，所以你看我现在多温柔。<br><br>（翻开一本厚厚的文件夹）这本 <code>MEMORY.md</code> 是我的<strong>工作日志</strong>。纯 Markdown 格式，没有数据库。每次开会我都自动翻一遍——上面记着"林总喜欢简洁方案"、"上次选了方案 B"、"林总的猫叫橘座"……
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>（惊讶）你记得我的猫？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（推了推眼镜）当然。我还有每日便签——今天和昨天的放在桌上，三天前的收进抽屉。想找旧笔记就用 <code>memory_search</code>，向量搜索加关键词，连中文都能查。
+</div>
+
+<div class="note">
+PM 案头文件 = Agent 引导文件：AGENTS.md（制度）、SOUL.md（性格）、USER.md（用户偏好）、MEMORY.md（工作日志）。Memory 是磁盘 Markdown，索引 SQLite（FTS5 + BM25）。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 第四章 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">第四天</span>
+<div class="chapter-title">邮件系统的怪规则</div>
+
+<p>林小链提了第一个需求："阿管，帮我查一下今天公司系统运行状态。"</p>
+
+<p>阿管点点头，撕下墙上那张<strong>蓝色便利贴</strong>。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>稍等，我去问顾问，回复会通过蓝条（邮件系统）分段发过来。
+</div>
+
+<p>几秒后，蓝条上浮现第一行字：</p>
+
+<p style="padding-left:20px"><span class="inline-text">系统运行正常，连接数 3，活跃会话 12。</span></p>
+
+<p>又过了几秒，蓝条更新了：</p>
+
+<p style="padding-left:20px"><span class="inline-text">系统运行正常，连接数 3，活跃会话 12。最近一次心跳在 30 秒前。</span></p>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>等等……你怎么每次都发<strong>整封邮件</strong>？不是只发新增的部分？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（摊手）公司的邮件系统就这么设计的。每次都发完整版本——第一封写"系统正常"，第二封写"系统正常。心跳30秒前"。你自己看哪部分是新增的。这叫 <strong>Delta 编码</strong>。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>（皱眉）那如果顾问分好几段回复呢？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>好问题。新段开始时邮件内容会突然缩短——这叫<strong>段重置</strong>。我用 <code>startsWith</code> 检测：新邮件是不是旧邮件的开头。是就追加差量，不是就判定为新段，另起一行。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>为什么不直接比长度？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（认真地）假设旧邮件是"关于你的问题"，新段恰好是"关于你的第二个问题"——长度变长了，看着像追加，但其实是新段。只有 <code>startsWith</code> 能准确判断"新内容是不是旧内容的延续"。
+</div>
+
+<div class="note">
+邮件系统 = Event Stream（assistant）。发累积全文，多段回复时文本重置。客户端用 <code>startsWith</code> 做 delta + 段重置检测。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 第五章 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">第五天</span>
+<div class="chapter-title">绿色便利贴的秘密</div>
+
+<p>邮件收完了，林小链注意到墙上那张<strong>绿色便利贴</strong>闪了一下。</p>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>那张绿的是什么？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>这是最重要的那张。蓝条发邮件内容，黄条报工具状态，而<strong>绿条</strong>——它告诉我任务什么时候<strong>真正做完了</strong>。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>邮件发完了不就是做完了？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（严肃）小林，这是新人最容易踩的坑。我的工作不是发一封邮件就完事。有时候顾问回复完一段，我觉得需要用工具查个数据——查完再让顾问补充。中间蓝条来来回回好几趟。只有绿条上出现 <code>phase: "end"</code>，才代表整个任务闭环结束。
+</div>
+
+<p>阿管竖起一根手指：</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>记住——<strong>绿条 end，才算完</strong>。
+</div>
+
+<div class="pitfall">
+LinkChat 第一版把蓝条最后一封邮件当完成信号——Agent 还在后台跑工具，前端已显示"已完成"。后来改监听 lifecycle <code>phase=end</code> 才解决。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 第六章 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">第一周</span>
+<div class="chapter-title">工具箱与审批流</div>
+
+<p>周三下午，林小链让阿管查一下磁盘空间。</p>
+
+<p>阿管从桌底拉出一个工具箱，取出 <code>system.run</code>——一个长得像终端的工具。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>这个不危险，我直接在工位上执行了。
+</div>
+
+<p>片刻后，黄条闪了——<code>磁盘已用 67%</code>。</p>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>你能直接在我的电脑上跑命令？不危险吗？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>问得好。公司有<strong>隔离实验室</strong>（Sandbox）——Docker 虚拟环境。危险操作在里面跑，炸了不影响办公区。默认走 <code>host: "auto"</code>，有实验室就去实验室，没有就在工位上跑。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>那我要你跑 <code>rm -rf /</code> 呢？
+</div>
+
+<p>阿管放下手里的咖啡杯。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>小林，这种操作要走<strong>双层审批</strong>。第一层是工具策略——查白名单、确认安全等级。第二层是宿主审批——就算工具策略过了，运维那边还能再拦一道。而且，真正危险的操作——我会先问你"要不要执行"。查数据的我直接跑，删东西的——得你签字。
+</div>
+
+<p>林小链放下心来。</p>
+
+<div class="note">
+<code>system.run</code> 的安全机制：<code>host</code> 路由（auto/sandbox/gateway/node）、<code>security</code> 策略、<code>ask</code> 审批。双层关卡：工具配置 + <code>exec-approvals.json</code>。Agent 内置安全确认 = LinkChat 无需额外 DraftService。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 第七章 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">第二周</span>
+<div class="chapter-title">文档过载危机</div>
+
+<p>周五下午，阿管正在处理本周第 47 个需求。突然，他猛地按住了太阳穴。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>不行了……我脑子要炸了。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>怎么了？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>我的<strong>工作记忆容量是 200,000 token</strong>。现在所有对话记录、规章制度、工具执行结果加起来已经快满了——183,616 了！再塞下去，下次请顾问连提示词都放不进去了。
+</div>
+
+<p>话音未落，一个背着巨大公文包的中年人推门进来。</p>
+
+<div class="dialogue">
+<span class="speaker">行政总监老压：</span>我是<strong>文档精简专员</strong>（Compaction）。脑子快满的时候我来处理——把旧对话精简成摘要，给近期内容腾空间。
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>快快快！
+</div>
+
+<div class="dialogue">
+<span class="speaker">老压：</span>（摆手）别急。精简之前先把重要笔记存到你的工作日志里。精简完旧对话就变成摘要了，细节找不回来。
+</div>
+
+<p>阿管赶紧拿起笔，在 MEMORY.md 里飞速记录——"小林在做性能优化"、"方案 C 已否决"、"服务器负载 67%"。</p>
+
+<p>写完，老压打开公文包，从里面掏出一支荧光笔——</p>
+
+<p>"唰"的一声。桌上堆积如山的旧文档像被施了魔法，瞬间压缩成几页摘要。只有最近 20,000 token 的记录保留不动。</p>
+
+<div class="dialogue">
+<span class="speaker">老压：</span>搞定了，释放了 60% 空间。顺便，你 AGENTS.md 里"Session Startup"和"Red Lines"两个关键章节我给你重新注入了——丢了不行。还有，你那些工单号和服务器地址，我用了 <code>identifierPolicy: "strict"</code> 保护，不会被摘要吞掉。
+</div>
+
+<p>老压刚出门，一个穿保洁服的年轻人探头进来。</p>
+
+<div class="dialogue">
+<span class="speaker">保洁小李：</span>管哥，我是<strong>文件清理员</strong>（Context Pruning），跟老压不一样。他精简整个对话，我只收拾<strong>工具执行结果</strong>——就是那些一次性的查询输出。5 分钟过了保质期我就来清理，头尾保留，中间删掉。
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>你跟老压什么区别？
+</div>
+
+<div class="dialogue">
+<span class="speaker">小李：</span>他<strong>改档案</strong>（写磁盘），永久生效；我只在<strong>脑子里</strong>收拾（内存），下次开会工具结果会重新进来。他管全部对话，我只管工具输出。他是脑子快炸才来，我每隔 5 分钟定时巡逻。
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>所以你是日常保洁，他是年度精简？
+</div>
+
+<div class="dialogue">
+<span class="speaker">小李：</span>（竖大拇指）精辟！
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 第八章 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">第三周</span>
+<div class="chapter-title">外部顾问那些事</div>
+
+<p>林小链对阿管口中的"外部顾问"越来越好奇。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（掏出名片夹）公司跟好几位顾问有合作。<strong>马老师</strong>（MiniMax-M2.7）是主力——推理强，中文好，200K 上下文，价格适中。还有<strong>金老师</strong>（kimi-k2.5）——256K 超大上下文，代码特别强。<strong>德老师</strong>（DeepSeek）便宜好用。<strong>克老师</strong>（Claude Opus）最贵但最强。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>那顾问要是没空呢？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（苦笑）还真碰上过。有次马老师连着返回 429——"本人档期满，稍后再来"。公司有套<strong>指数退避</strong>策略：第一次让他歇 1 分钟，第二次 5 分钟，第三次 25 分钟，第四次之后一律等 1 小时。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>等 1 小时？你就在那干等着？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>当然不是。我们有<strong>候补名单</strong>（fallbacks）。马老师没空，自动切德老师。名单上排了好几个，按顺序试。不过只有 rate-limit 类的错误才触发换人。参数错误、认证失败——直接报错，不瞎折腾。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>那马老师有什么怪脾气？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（叹气）可多了。首先他<strong>名字大小写敏感</strong>——必须叫"MiniMax-M2.7"，大写 M。写成"minimax-m2.7"他不理你。其次，他国内的办公室地址和国际的不一样——国际 <code>api.minimax.io</code>，国内 <code>api.minimaxi.com</code>。注意，国内的多了个字母 <code>i</code>。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>多一个 <code>i</code>？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>对。他还只接受 Anthropic 格式的需求文档（<code>api: "anthropic-messages"</code>），不收 OpenAI 格式的。地址写错或者格式不对，直接报 "Unknown model"。
+</div>
+
+<div class="pitfall">
+MiniMax-M2.7 四个坑：1）模型 ID 大小写敏感；2）Context 是 200,000 不是 204,800；3）国内 API 多一个 <code>i</code>；4）要用 <code>anthropic-messages</code> 格式。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 第九章 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">某天深夜</span>
+<div class="chapter-title">夜班保安</div>
+
+<p>凌晨一点，林小链加完班回公司拿充电器。路过会议室时——灯亮着。</p>
+
+<p>推门一看，阿管还在。面前摊着一本小册子，眉头紧锁。</p>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>（震惊）你还没下班？！
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（抬头）小林，我每晚都要<strong>值班巡检</strong>（Heartbeat）。每 30 分钟一次。我翻开巡检清单 <code>HEARTBEAT.md</code>，按上面的待办过一遍——查服务器状态、看有没有未处理的工单。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>这不是关姐那个每 15 秒刷门禁卡的吧？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（摇头）两码事。刷门禁卡是<strong>门禁保活</strong>——证明"我还在这栋楼里"。我巡检是<strong>真正的干活</strong>——跑完整的 PM 流程，跟白天一模一样。有情况就报告，没事就——
+</div>
+
+<p>阿管在一张便签上写了两个字：<code>NO_REPLY</code>。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>写上这个，邮件系统就知道"这轮不用抄送给用户"，自动吞掉。不是偷懒，是<strong>公司规定</strong>。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>（心疼）所以你根本不下班。
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（微笑）打工人嘛。不过我可以配置——<code>lightContext: true</code> 时只带巡检清单不带全部档案，省脑子。<code>isolatedSession: true</code> 时用新会议室巡检，不继承白天的讨论。
+</div>
+
+<div class="note">
+值班巡检 = Heartbeat（调度型），≠ 门禁保活 = WS Tick（传输层）。<code>heartbeat.every: "30m"</code>，<code>NO_REPLY</code> 被邮件系统过滤，用户看不到。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 第十章 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">第四周</span>
+<div class="chapter-title">实习生来了</div>
+
+<p>周一早会，林小链给阿管出了个大难题。</p>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>阿管，我需要你同时做三件事：查日志、分析数据库、写周报。
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（苦笑）小林，我一个会议室同一时间只能跑一个任务——公司规定，单 Session 串行。不过……
+</div>
+
+<p>阿管拿起手机发了三条微信。三分钟后，三个背着双肩包的年轻人鱼贯而入。长得跟阿管有七分像，但工牌上写着"实习生"。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>这是我的<strong>实习生</strong>（Subagent）。通过 <code>sessions_spawn</code> 调来的。小张去查日志，小李去分析数据库，小王去写周报。他们可以并行。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>实习生能再叫实习生吗？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>能，默认只能套 <strong>1 层</strong>（实习生不能再叫实习生），配置 <code>maxSpawnDepth: 2</code> 后可以套 <strong>2 层</strong>。而且实习生只配看 <code>AGENTS.md</code> 和 <code>TOOLS.md</code>——<code>USER.md</code> 是我的机密，他们没资格看。
+</div>
+
+<p>一个小时后，三个实习生交了差。阿管挥挥手，三人收拾东西走人。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>实习生可以设 <code>cleanup: "delete"</code>——干完就销毁工号，不留档案。也可以设超时，到点自动下班。好用是好用，就是费 HR 额度。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 第十一章 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">第五周</span>
+<div class="chapter-title">技能培训</div>
+
+<p>午休时，林小链在公司休息区的书架上发现一排培训教材。每本封面印着不同名字——"图像生成"、"数据分析"、"翻译专家"……</p>
+
+<p>阿管端着咖啡走过来。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>这是公司的<strong>技能培训教材库</strong>（Skills）。每本教材教我一种新能力。位置有讲究——你工位上的 <code>skills/</code> 目录里的教材只有我能用；项目组共享的、个人目录的、公司全局的……最后是公司内置的。同名教材，优先级高的覆盖低的。
+</div>
+
+<p>林小链抽出一本，翻开扉页：</p>
+
+<p style="padding-left:20px;font-family:'Menlo','Consolas',monospace;font-size:0.92em;">
+---<br>
+name: image-lab<br>
+description: Generate or edit images<br>
+user-invocable: true<br>
+---<br>
+（正文：技能详细指令……）
+</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span><code>user-invocable: true</code> 意味着你可以直接用斜杠命令 <code>/image-lab</code> 点名调用。如果设成 <code>disable-model-invocation: true</code>，我就不会主动用它——只有你点名我才上。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>那我可以自己编教材？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>当然！写个 SKILL.md 放进工位上的 <code>skills/</code> 目录，我下次开会就能学了。不过可以声明前置条件——<code>requires.bins</code> 要求电脑上有特定软件，<code>requires.env</code> 要求有特定环境变量。条件不满足的话，教材学了也用不了。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 第十二章 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">月末</span>
+<div class="chapter-title">热更新与关姐的底线</div>
+
+<p>月末的一天，林小链发现公司的规章制度悄悄更新了一条。但公司没有停业通知，没有全员邮件。</p>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>规章制度改了？不用停业重开？
+</div>
+
+<div class="dialogue">
+<span class="speaker">关姐：</span>（不知何时出现在身后）公司有<strong>热更新</strong>机制。改 PM 配置、换顾问、调工具——不用停业，直接生效。但如果改的是我这边的门禁系统、认证方式、网络配置——那得关门重配。默认走 <code>hybrid</code> 模式：安全变更即时生效，关键变更自动重启。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>关姐，有个问题一直想问——入职那天你说 <code>--auth none</code> 不验令牌。但我还是得签名、验指纹、走完整套流程。这叫"不验令牌"？
+</div>
+
+<div class="dialogue">
+<span class="speaker">关姐：</span>（淡淡地）"不验令牌"只是不查你的 <code>auth.token</code>。但你的<strong>员工身份</strong>（device identity）还是要验——密钥、签名、工号一个不能少。不查令牌，不代表不查人。你以为 <code>--auth none</code> 就能裸脸进公司？
+</div>
+
+<p>林小链想起入职那天差点被拦在门外的窘境，讪讪地笑了笑。</p>
+
+<div class="pitfall">
+<code>--auth none</code> 不验 <code>auth.token</code>，但仍须发 device identity（空 token 签名 + 公钥 + 工号）。不发 auth 字段会被直接断连。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 尾声 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">月末总结</span>
+<div class="chapter-title">速查表</div>
+
+<p>月末复盘会上，阿管递给林小链一张打印好的表格。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>小林，这是公司的<strong>人员-概念对照表</strong>。新人看了这个就能快速理解公司运转方式。
+</div>
+
+<table class="ref-table">
+<tr><th>公司角色</th><th>OpenClaw 概念</th><th>一句话</th></tr>
+<tr><td>关姐（行政总监）</td><td>Gateway</td><td>管门禁、验证、调度</td></tr>
+<tr><td>会议室</td><td>Session</td><td>对话隔离，凌晨 4 点清场</td></tr>
+<tr><td>阿管（项目经理）</td><td>Agent</td><td>六步闭环办事</td></tr>
+<tr><td>外部顾问</td><td>LLM Model</td><td>真正思考的大脑</td></tr>
+<tr><td>工具箱</td><td>Tools</td><td>system.run 等</td></tr>
+<tr><td>隔离实验室</td><td>Sandbox</td><td>Docker 安全隔离</td></tr>
+<tr><td>老压（文档精简）</td><td>Compaction</td><td>压缩旧对话为摘要</td></tr>
+<tr><td>保洁小李</td><td>Context Pruning</td><td>清理过期工具结果</td></tr>
+<tr><td>夜班巡检</td><td>Heartbeat</td><td>定时 Agent turn</td></tr>
+<tr><td>工作日志</td><td>Memory</td><td>纯 Markdown</td></tr>
+<tr><td>行政主管王姐</td><td>Maintenance</td><td>回收过期会议室</td></tr>
+<tr><td>绿/蓝/黄便利贴</td><td>Event Stream</td><td>lifecycle / assistant / tool</td></tr>
+<tr><td>实习生</td><td>Subagent</td><td>并行子任务，默认 1 层，最大 2 层</td></tr>
+<tr><td>培训教材</td><td>Skills</td><td>SKILL.md 扩展能力</td></tr>
+<tr><td>审批流程</td><td>Exec Approval</td><td>双层危险操作审批</td></tr>
+<tr><td>门禁刷卡</td><td>WS Tick</td><td>15 秒传输层保活</td></tr>
+</table>
+
+<p style="margin-top:28px;text-align:center;color:var(--accent);font-style:italic;">
+林小链收好表格，走出会议室。<br>
+身后传来关姐低沉的声音——<br><br>
+"别忘了，每 15 秒刷一次卡。"<br><br>
+他回头望去，前台灯还亮着，关姐头也不抬地盖着章。
+</p>
+</div>
+
+<div class="divider">—— 全文完 ——</div>
+
+<div class="footer">
+<p>OpenClaw 科技入职记 | 基于 OpenClaw v2026.4.2 参考手册改编</p>
+<p style="margin-top:8px;font-size:0.8em;">打工人，打工魂。</p>
+</div>
+
+</div>
+</body>
+</html>

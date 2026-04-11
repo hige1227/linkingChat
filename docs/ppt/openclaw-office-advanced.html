@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw 科技进阶篇</title>
+<style>
+:root {
+  --bg: #f6f1e7; --bg-card: #ede6d6; --text: #3a2e1e; --text-muted: #7a6b5d;
+  --accent: #8b2500; --gold: #9a7b2e; --code-bg: #e8dcc8; --code-text: #5a4a30;
+  --note-bg: #f0e8d8; --note-border: rgba(139,37,0,0.2); --note-text: #6b4e30;
+  --pitfall-bg: #f5e6e0; --pitfall-border: rgba(139,37,0,0.3); --pitfall-text: #8b2500;
+  --dialogue-bg: rgba(154,123,46,0.07); --dialogue-border: #9a7b2e; --speaker-color: #7a5a10;
+  --hero-from: #e8dcc8; --hero-to: #f6f1e7; --divider-color: #b8a88a;
+  --table-header-bg: #ddd4c2; --table-border: rgba(58,46,30,0.1); --footer-border: rgba(58,46,30,0.1);
+  --char-color: #8b2500; --inline-text: #4a6a2e; --hero-text: #3a2e1e;
+  --settings-bg: rgba(246,241,231,0.95); --settings-border: rgba(58,46,30,0.15);
+  --btn-bg: #ede6d6; --btn-active: #8b2500; --btn-active-text: #f6f1e7;
+}
+[data-theme="ink"] {
+  --bg: #f0f0ee; --bg-card: #e4e4e2; --text: #2c2c2c; --text-muted: #8a8a88;
+  --accent: #4a6a7a; --gold: #4a6a7a; --code-bg: #dddddd; --code-text: #3c3c3c;
+  --note-bg: #e4e8ec; --note-border: rgba(74,106,122,0.25); --note-text: #3a5a6a;
+  --pitfall-bg: #eae2e0; --pitfall-border: rgba(122,60,60,0.25); --pitfall-text: #7a3c3c;
+  --dialogue-bg: rgba(74,106,122,0.06); --dialogue-border: #5f7a8a; --speaker-color: #3a5a6a;
+  --hero-from: #dfe3e6; --hero-to: #f0f0ee; --divider-color: #aaa;
+  --table-header-bg: #d8d8d6; --table-border: rgba(44,44,44,0.08); --footer-border: rgba(44,44,44,0.08);
+  --char-color: #3a6a5a; --inline-text: #3a5a6a; --hero-text: #2c2c2c;
+  --settings-bg: rgba(240,240,238,0.95); --settings-border: rgba(44,44,44,0.12);
+  --btn-bg: #e4e4e2; --btn-active: #4a6a7a; --btn-active-text: #f0f0ee;
+}
+[data-font="song"] body,[data-font="song"] p,[data-font="song"] .dialogue,[data-font="song"] .note,[data-font="song"] .pitfall,[data-font="song"] td{font-family:'Noto Serif SC','Source Han Serif SC','STSongti-SC','SimSun',serif}
+[data-font="kai"] body,[data-font="kai"] p,[data-font="kai"] .dialogue,[data-font="kai"] .note,[data-font="kai"] .pitfall,[data-font="kai"] td{font-family:'STKaiti','Kaiti SC','KaiTi','AR PL UKai CN',serif}
+[data-font="default"] body,[data-font="default"] p,[data-font="default"] .dialogue,[data-font="default"] .note,[data-font="default"] .pitfall,[data-font="default"] td{font-family:-apple-system,'PingFang SC','Microsoft YaHei','Helvetica Neue',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);line-height:1.9;padding:0 0 80px 0;max-width:100vw;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+.hero{background:linear-gradient(160deg,var(--hero-from) 0%,var(--hero-to) 100%);padding:52px 24px 40px;text-align:center;border-bottom:1px solid var(--footer-border)}
+.hero h1{font-family:'STKaiti','Kaiti SC','KaiTi',serif;font-size:1.85em;font-weight:700;color:var(--accent);margin-bottom:8px;letter-spacing:2px}
+.hero .subtitle{color:var(--text-muted);font-size:0.92em}
+.content{padding:0 22px;max-width:680px;margin:0 auto}
+.chapter{margin-top:36px}
+.chapter-title{font-family:'STKaiti','Kaiti SC','KaiTi',serif;font-weight:700;font-size:1.35em;color:var(--accent);margin-bottom:16px;padding-left:14px;border-left:3px solid var(--accent);letter-spacing:1px}
+.chapter-num{color:var(--gold);font-size:0.72em;display:block;margin-bottom:4px;letter-spacing:2px}
+.part-header{margin-top:48px;padding:20px 0 12px;border-top:2px solid var(--accent);text-align:center}
+.part-header h2{font-family:'STKaiti','Kaiti SC','KaiTi',serif;font-size:1.5em;font-weight:700;color:var(--accent);letter-spacing:3px}
+.part-header p{color:var(--text-muted);font-size:0.9em;margin-top:4px}
+p{margin-bottom:16px;text-align:justify;font-size:1.02em}
+.dialogue{margin:16px 0;padding:12px 16px;border-left:2px solid var(--dialogue-border);background:var(--dialogue-bg);border-radius:0 6px 6px 0}
+.dialogue .speaker{color:var(--speaker-color);font-weight:600;margin-right:4px}
+.note{margin:14px 0;padding:12px 14px;background:var(--note-bg);border-radius:6px;font-size:0.88em;color:var(--note-text);line-height:1.7;border:1px solid var(--note-border)}
+.note::before{content:'「注」';font-weight:600;margin-right:4px}
+.pitfall{margin:14px 0;padding:12px 14px;background:var(--pitfall-bg);border-radius:6px;font-size:0.88em;color:var(--pitfall-text);line-height:1.7;border:1px solid var(--pitfall-border)}
+.pitfall::before{content:'「坑」';font-weight:600;margin-right:4px}
+code{background:var(--code-bg);padding:2px 6px;border-radius:3px;font-size:0.86em;color:var(--code-text);font-family:'Menlo','Consolas','Courier New',monospace}
+.code-block{margin:14px 0;padding:14px 16px;background:var(--code-bg);border-radius:6px;font-size:0.85em;color:var(--code-text);line-height:1.65;font-family:'Menlo','Consolas','Courier New',monospace;overflow-x:auto;white-space:pre}
+.divider{text-align:center;margin:40px 0;color:var(--divider-color);font-size:0.85em;letter-spacing:10px}
+.quote{text-align:center;margin:28px 0;padding:16px;color:var(--accent);font-style:italic;font-size:1.05em}
+.ref-table{width:100%;border-collapse:collapse;margin:14px 0;font-size:0.9em}
+.ref-table th{background:var(--table-header-bg);color:var(--text);padding:9px 10px;text-align:left;font-weight:600}
+.ref-table td{padding:9px 10px;border-bottom:1px solid var(--table-border)}
+.ref-table tr:last-child td{border-bottom:none}
+.char{color:var(--char-color);font-weight:600}
+.inline-text{color:var(--inline-text)}
+.footer{text-align:center;padding:40px 20px;color:var(--text-muted);font-size:0.85em;border-top:1px solid var(--footer-border);margin-top:40px}
+.settings-toggle{position:fixed;bottom:20px;right:20px;width:44px;height:44px;border-radius:50%;background:var(--bg-card);border:1px solid var(--settings-border);color:var(--text-muted);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.08);transition:transform 0.2s}
+.settings-toggle:active{transform:scale(0.92)}
+.settings-panel{position:fixed;bottom:74px;right:16px;width:260px;background:var(--settings-bg);backdrop-filter:blur(12px);border:1px solid var(--settings-border);border-radius:12px;padding:16px;z-index:99;box-shadow:0 4px 24px rgba(0,0,0,0.1);display:none}
+.settings-panel.open{display:block}
+.settings-panel .label{font-size:0.78em;color:var(--text-muted);margin-bottom:6px;margin-top:12px;letter-spacing:1px}
+.settings-panel .label:first-child{margin-top:0}
+.settings-panel .btn-group{display:flex;gap:6px}
+.settings-panel .btn{flex:1;padding:8px 6px;border:1px solid var(--settings-border);border-radius:6px;background:var(--btn-bg);color:var(--text);font-size:0.85em;cursor:pointer;text-align:center;transition:all 0.15s}
+.settings-panel .btn.active{background:var(--btn-active);color:var(--btn-active-text);border-color:var(--btn-active)}
+[data-size="small"] .content{font-size:14px}
+[data-size="medium"] .content{font-size:16.5px}
+[data-size="large"] .content{font-size:20px}
+</style>
+</head>
+<body data-font="kai">
+
+<button class="settings-toggle" onclick="toggleSettings()">⚙</button>
+<div class="settings-panel" id="settingsPanel">
+  <div class="label">主题</div>
+  <div class="btn-group">
+    <div class="btn active" data-theme-btn="paper" onclick="setTheme('paper')">古风宣纸</div>
+    <div class="btn" data-theme-btn="ink" onclick="setTheme('ink')">水墨淡雅</div>
+  </div>
+  <div class="label">正文字体</div>
+  <div class="btn-group">
+    <div class="btn" data-font-btn="song" onclick="setFont('song')">宋体</div>
+    <div class="btn active" data-font-btn="kai" onclick="setFont('kai')">楷体</div>
+    <div class="btn" data-font-btn="default" onclick="setFont('default')">默认</div>
+  </div>
+  <div class="label">字号</div>
+  <div class="btn-group">
+    <div class="btn" data-size-btn="small" onclick="setSize('small')">小</div>
+    <div class="btn active" data-size-btn="medium" onclick="setSize('medium')">中</div>
+    <div class="btn" data-size-btn="large" onclick="setSize('large')">大</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var s=localStorage.getItem('oc-theme'),f=localStorage.getItem('oc-font'),z=localStorage.getItem('oc-size');
+  if(s)setTheme(s,false);if(f)setFont(f,false);if(z)setSize(z,false);
+  function setTheme(t,sv){document.documentElement.setAttribute('data-theme',t==='ink'?'ink':'');document.querySelectorAll('[data-theme-btn]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-theme-btn')===t)});if(sv!==false)localStorage.setItem('oc-theme',t)}
+  function setFont(f,sv){document.body.setAttribute('data-font',f);document.querySelectorAll('[data-font-btn]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-font-btn')===f)});if(sv!==false)localStorage.setItem('oc-font',f)}
+  function setSize(z,sv){document.body.setAttribute('data-size',z||'medium');document.querySelectorAll('[data-size-btn]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-size-btn')===z)});if(sv!==false)localStorage.setItem('oc-size',z)}
+  window.setTheme=setTheme;window.setFont=setFont;window.setSize=setSize;
+})();
+function toggleSettings(){document.getElementById('settingsPanel').classList.toggle('open')}
+document.addEventListener('click',function(e){var p=document.getElementById('settingsPanel'),t=document.querySelector('.settings-toggle');if(!p.contains(e.target)&&!t.contains(e.target))p.classList.remove('open')});
+</script>
+
+<div class="hero">
+  <h1>OpenClaw 科技进阶篇</h1>
+  <div class="subtitle">协议实现 · 配置实战 · 扩展开发 · 调试排查</div>
+</div>
+
+<div class="content">
+
+<div class="quote">
+"入职培训只是开始。<br>真正的考验——在工程细节里。"<br>
+<span style="font-size:0.8em;color:var(--text-muted)">—— 关姐对新人的忠告</span>
+</div>
+
+<p>林小链入职 OpenClaw 科技已经一个月了。他熟悉了公司的基本运作——前台关姐的登记流程、项目经理阿管的工作闭环、会议室的管理规则。但这些都是"会用"的层面。</p>
+
+<p>今天，CTO 叫他去了办公室。</p>
+
+<div class="dialogue">
+<span class="speaker">CTO：</span>小林，你熟悉了公司的基本流程。但如果你想真正掌控这套系统——不是"会用"，而是"能改、能调、能排障"——你需要搞懂四个东西：通讯协议的实现细节、配置文件的最佳实践、扩展开发的方法论、还有故障排查的套路。
+</div>
+
+<p>于是，林小链开始了进阶之旅。</p>
+
+<!-- ╔══════════════════════════════════╗ -->
+<!-- ║        Part 1: 协议实现深度        ║ -->
+<!-- ╚══════════════════════════════════╝ -->
+
+<div class="part-header">
+  <h2>Part 1：协议实现深度</h2>
+  <p>—— 通讯系统的底层逻辑</p>
+</div>
+
+<!-- 1.1 -->
+
+<div class="chapter">
+<span class="chapter-num">1.1</span>
+<div class="chapter-title">三种信封</div>
+
+<p>阿管把林小链叫到会议室，在白板上画了一个大表。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>小林，公司的内部通讯系统只传<strong>文本 JSON</strong>，不传二进制。所有消息分三种"信封"：
+</div>
+
+<table class="ref-table">
+<tr><th>信封类型</th><th>结构</th><th>方向</th><th>比喻</th></tr>
+<tr><td><code>req</code></td><td><code>{ type, id, method, params }</code></td><td>你 → 公司</td><td>你提交的申请表</td></tr>
+<tr><td><code>res</code></td><td><code>{ type, id, ok, payload }</code></td><td>公司 → 你</td><td>公司的审批回执</td></tr>
+<tr><td><code>event</code></td><td><code>{ type, event, payload, seq? }</code></td><td>公司 → 你</td><td>公司主动推送的通知</td></tr>
+</table>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>所以 <code>req</code> 和 <code>res</code> 是一问一答，<code>event</code> 是公司主动发过来的？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>对。关键点是——<code>req</code> 的 <code>id</code> 和 <code>res</code> 的 <code>id</code> 必须配对。你发 <code>id: "abc123"</code> 的申请，回执也是 <code>id: "abc123"</code>。不配对就是串线了。
+</div>
+
+<div class="note">
+WS 帧只有文本帧，JSON 载荷。协议版本 <code>PROTOCOL_VERSION = 3</code>。Schema 源在 <code>src/gateway/protocol/schema.ts</code>（TypeBox）。副作用方法需要 <strong>幂等键</strong>（<code>idempotencyKey</code>），防止重复操作。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- 1.2 -->
+
+<div class="chapter">
+<span class="chapter-num">1.2</span>
+<div class="chapter-title">断线重连的艺术</div>
+
+<p>周三下午，公司网络突然断了。林小链的会议室连接掉线。</p>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>（紧张）阿管！网络断了！我所有的对话记录还在吗？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（淡定）别慌。你的对话记录存在磁盘上（<code>sessions.json</code> + JSONL），不在内存里。断线只是丢了连接，数据没丢。重连就行。
+</div>
+
+<p>阿管在白板上写下重连流程：</p>
+
+<div class="code-block">1. 检测断线（心跳超时 / WS error / close 事件）
+2. 指数退避等待（1s → 2s → 5s → 10s → 30s → 60s，最多重试 100 次）
+3. 重新走握手流程（challenge → connect → hello-ok）
+4. 恢复上次活跃的 Session
+5. 继续工作</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>为什么要指数退避？不能立刻重连吗？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（摇头）这是<strong>反脆弱设计</strong>——越失败越慢，而不是越失败越猛。最多重试 100 次。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>那重连后，之前的消息怎么办？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>对话数据存在磁盘上（<code>sessions.json</code> + JSONL），断线不丢失。重连后 Session 状态还在。<code>event</code> 帧有 <code>seq</code> 字段（序列号），理论上可以用来做断点续传，但 OpenClaw 官方文档没有明确说明自动重连后的 seq 回放机制——这部分需要实测验证。
+</div>
+
+<div class="note">
+重连策略：指数退避（1s → 2s → 5s → 10s → 30s → 60s），最多 100 次（源码 <code>RECONNECT_DELAYS</code> + <code>MAX_RECONNECT_ATTEMPTS</code>）。握手必须重新走。对话数据持久化在磁盘，断线不丢失。seq 字段存在但断点续传机制未经官方确认。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- 1.3 -->
+
+<div class="chapter">
+<span class="chapter-num">1.3</span>
+<div class="chapter-title">背压：消息太多怎么办</div>
+
+<p>周五，林小链同时触发了三个 Agent 任务，事件通知疯狂涌入。</p>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>阿管！消息太多了，我的客户端处理不过来！
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>别慌。公司系统内部有<strong>消息队列</strong>（默认容量 1000 条），已经做了背压处理。Gateway 在消息堆积时会缓冲排队，不会把客户端冲爆。你不需要自己实现背压控制。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>那客户端完全不用管？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>Gateway 侧已经帮你扛了大部分压力。客户端侧只需要注意<strong>不要 block 主线程</strong>——lifecycle event（完成信号）优先处理；assistant event（流式文本）缓冲排队控制渲染节奏；tool event 可以 batch 更新。这不是背压问题，是<strong>渲染优先级</strong>问题。
+</div>
+
+<div class="note">
+Gateway 内置消息队列（<code>MESSAGE_QUEUE_SIZE = 1000</code>），超过队列限制时记录错误日志。Discord 等集成支持按账户配置 <code>eventQueue.maxQueueSize</code>。客户端不需要自己实现背压控制。
+</div>
+</div>
+
+<!-- ╔══════════════════════════════════╗ -->
+<!-- ║        Part 2: 配置实战手册        ║ -->
+<!-- ╚══════════════════════════════════╝ -->
+
+<div class="part-header">
+  <h2>Part 2：配置实战手册</h2>
+  <p>—— openclaw.json 最佳实践</p>
+</div>
+
+<!-- 2.1 -->
+
+<div class="chapter">
+<span class="chapter-num">2.1</span>
+<div class="chapter-title">规章制度总纲</div>
+
+<p>CTO 把林小链叫到办公室，打开了一个文件：<code>~/.openclaw/openclaw.json</code>。</p>
+
+<div class="dialogue">
+<span class="speaker">CTO：</span>小林，这是公司的<strong>规章制度总纲</strong>。JSON5 格式——支持注释和尾逗号。改错了公司<strong>拒绝启动</strong>，不会静默忽略。
+</div>
+
+<p>CTO 开始逐块讲解：</p>
+
+<div class="dialogue">
+<span class="speaker">CTO：</span>最关键的配置族有三个。第一，<code>agents.defaults</code>——<strong>员工默认行为</strong>。管脑容量（<code>contextTokens</code>）、性格（<code>thinkingDefault</code>）、工作时长（<code>timeoutSeconds</code>）、并行上限（<code>maxConcurrent</code>）。第二，<code>compaction</code>——<strong>文档精简策略</strong>。什么时候触发、保留多少近期内容、压缩前是否提醒存笔记。第三，<code>session</code>——<strong>会议室管理策略</strong>。重置周期、过期回收、磁盘预算。
+</div>
+
+<div class="pitfall">
+配置文件用 JSON5 格式，但<strong>严格校验</strong>——未知键、类型错误、无效值会导致 Gateway 拒绝启动。唯一例外是根级 <code>$schema</code> 字段。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- 2.2 -->
+
+<div class="chapter">
+<span class="chapter-num">2.2</span>
+<div class="chapter-title">场景化配置模板</div>
+
+<p>CTO 拿出三份配置模板，对应三种典型场景。</p>
+
+<div class="dialogue">
+<span class="speaker">CTO：</span><strong>场景一：个人开发者本地使用</strong>。单用户、追求简单、不用审批。
+</div>
+
+<div class="code-block">{
+  agents: {
+    defaults: {
+      model: { primary: "minimax/MiniMax-M2.7" },
+      contextTokens: 200000,
+      compaction: {
+        enabled: true,
+        reserveTokens: 16384,
+        memoryFlush: { enabled: true },
+      },
+      // 不需要 contextPruning —— 个人使用对话量不大
+    },
+  },
+  session: {
+    dmScope: "main",           // 简单模式：所有对话一个 session
+    reset: { mode: "daily", atHour: 4 },
+  },
+}</div>
+
+<div class="dialogue">
+<span class="speaker">CTO：</span><strong>场景二：多用户 SaaS 服务</strong>。需要隔离、需要安全、需要监控。
+</div>
+
+<div class="code-block">{
+  agents: {
+    defaults: {
+      model: {
+        primary: "minimax/MiniMax-M2.7",
+        fallbacks: ["deepseek/deepseek-chat"],  // 故障转移
+      },
+      contextTokens: 200000,
+      maxConcurrent: 8,            // 多用户，提高并行
+      sandbox: { mode: "non-main", scope: "session", backend: "docker" },
+      compaction: {
+        enabled: true,
+        notifyUser: true,           // 压缩时通知用户
+        identifierPolicy: "strict",
+      },
+      contextPruning: {
+        mode: "cache-ttl",          // 开启工具结果裁剪
+        ttl: "5m",
+      },
+    },
+  },
+  session: {
+    dmScope: "per-channel-peer",    // 严格隔离
+    reset: { mode: "daily", atHour: 4, idleMinutes: 120 },
+    maintenance: { mode: "enforce", pruneAfter: "7d" },
+  },
+  heartbeat: {
+    every: "30m",
+    target: "last",
+  },
+}</div>
+
+<div class="dialogue">
+<span class="speaker">CTO：</span><strong>场景三：LinkChat 当前配置</strong>。本地进程、单用户、简化认证。
+</div>
+
+<div class="code-block">{
+  agents: {
+    defaults: {
+      model: { primary: "minimax/MiniMax-M2.7" },
+      contextTokens: 200000,
+      compaction: {
+        enabled: true,
+        reserveTokens: 16384,
+        memoryFlush: { enabled: true },
+      },
+    },
+  },
+  session: {
+    dmScope: "per-channel-peer",
+    reset: { mode: "daily", atHour: 4, idleMinutes: 120 },
+    maintenance: { mode: "enforce", pruneAfter: "7d" },
+  },
+  // --auth none：不验令牌，但验证设备身份
+  // 不需要 sandbox：本地单用户场景
+  // 不需要 heartbeat.target：默认 none，巡逻但不汇报
+}</div>
+
+<div class="note">
+LinkChat 当前是场景三。可以改进的点：1）加 <code>model.fallbacks</code> 故障转移；2）开 <code>contextPruning</code> 减少工具结果膨胀；3）配置 <code>heartbeat.target: "last"</code> 让巡检结果主动推送。
+</div>
+</div>
+
+<!-- ╔══════════════════════════════════╗ -->
+<!-- ║        Part 3: 扩展开发            ║ -->
+<!-- ╚══════════════════════════════════╝ -->
+
+<div class="part-header">
+  <h2>Part 3：扩展开发</h2>
+  <p>—— 技能、插件、定制化</p>
+</div>
+
+<!-- 3.1 -->
+
+<div class="chapter">
+<span class="chapter-num">3.1</span>
+<div class="chapter-title">写一本培训教材（SKILL.md）</div>
+
+<p>CTO 给林小链布置了一个任务："给阿管写一个新的技能——让他在回答技术问题前，先搜索项目文档。"</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（兴奋）小林，你要给我写培训教材了？来，我教你格式。
+</div>
+
+<p>阿管在白板上写：</p>
+
+<div class="code-block">---
+name: project-search
+description: Search project docs before answering tech questions
+user-invocable: true
+metadata:
+  openclaw:
+    requires:
+      bins: ["grep", "find"]
+---
+
+# Project Doc Search
+
+Before answering any technical question about the LinkChat project:
+
+1. Use `grep` to search relevant files in the workspace
+2. Read the top 3 most relevant files
+3. Base your answer on the actual code, not guesses
+
+Always cite the file path and line number when referencing code.</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>扉页（frontmatter）用 YAML 格式。<code>name</code> 是技能名，<code>description</code> 是一句话说明，<code>user-invocable: true</code> 让你可以直接用 <code>/project-search</code> 调用。<code>requires.bins</code> 声明前置依赖——如果电脑上没有 <code>grep</code> 或 <code>find</code>，这个技能加载了也用不了。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>写完放哪？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>放进工作区的 <code>skills/</code> 目录。优先级最高——只有我可以用。或者放进 <code>~/.openclaw/skills/</code>，全公司的所有 PM 都能用。放好后下次开会我就自动学会了——不需要重启公司。
+</div>
+
+<div class="note">
+SKILL.md 格式：YAML frontmatter + Markdown 正文。关键字段：<code>user-invocable</code>（用户可调用）、<code>disable-model-invocation</code>（禁止 Agent 主动用）、<code>command-dispatch: "tool"</code>（绕过 Agent 思考直接分发到工具）。加载优先级：workspace > project > personal > global > built-in > extraDirs。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- 3.2 -->
+
+<div class="chapter">
+<span class="chapter-num">3.2</span>
+<div class="chapter-title">公司内部工具集成（Plugin Hooks）</div>
+
+<p>林小链问阿管："能不能在顾问回复之前，自动加一段公司介绍？"</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>可以，这需要用<strong>插件钩子</strong>（Plugin Hooks）。公司系统在 PM 工作流的各个节点都埋了钩子——一共 <strong>28 个</strong>，覆盖模型调用、工具执行、消息流、子 Agent、Gateway 生命周期等。你可以在特定阶段插入自己的逻辑。最常用的有这些：
+</div>
+
+<table class="ref-table">
+<tr><th>钩子</th><th>时机</th><th>能干什么</th></tr>
+<tr><td><code>before_model_resolve</code></td><td>选顾问之前</td><td>强制指定用哪位顾问</td></tr>
+<tr><td><code>before_prompt_build</code></td><td>拼装提示词时</td><td>注入额外的上下文或 system prompt</td></tr>
+<tr><td><code>before_agent_reply</code></td><td>顾问回复前</td><td>拦截回复、返回合成内容、静默跳过</td></tr>
+<tr><td><code>before_tool_call</code></td><td>工具执行前</td><td>修改工具参数或阻止执行</td></tr>
+<tr><td><code>after_tool_call</code></td><td>工具执行后</td><td>修改工具返回值</td></tr>
+<tr><td><code>agent_end</code></td><td>任务结束时</td><td>检查最终结果、记录日志</td></tr>
+<tr><td><code>before_compaction</code></td><td>文档精简前</td><td>观察或修改精简策略</td></tr>
+<tr><td><code>message_received</code></td><td>收到消息时</td><td>预处理入站消息</td></tr>
+<tr><td><code>message_sending</code></td><td>发出消息前</td><td>拦截或取消发送</td></tr>
+</table>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>你说的"自动加公司介绍"，就用 <code>before_prompt_build</code>——在拼装提示词的时候注入一段 <code>systemPrompt</code>。或者用 <code>before_model_resolve</code>——根据问题类型强制指定用哪位顾问。
+</div>
+
+<div class="note">
+钩子共 <strong>28 个</strong>（源码 <code>types.d.ts</code>），上面列出最常用的 9 个。其他重要的还有：<code>llm_input</code>/<code>llm_output</code>（模型调用前后）、<code>session_start</code>/<code>session_end</code>（会话生命周期）、<code>subagent_spawning</code>/<code>subagent_ended</code>（子 Agent 管理）、<code>gateway_start</code>/<code>gateway_stop</code>（Gateway 生命周期）。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- 3.3 -->
+
+<div class="chapter">
+<span class="chapter-num">3.3</span>
+<div class="chapter-title">定制工作流程（Context Engine）</div>
+
+<p>CTO 把林小链叫到办公室。</p>
+
+<div class="dialogue">
+<span class="speaker">CTO：</span>小林，你知道阿管每次开会前，是谁决定"带哪些资料"吗？
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>不是阿管自己决定的吗？
+</div>
+
+<div class="dialogue">
+<span class="speaker">CTO：</span>不是。是<strong>上下文引擎</strong>（Context Engine）决定的。它有四个生命周期钩子——<code>Ingest</code>（消息进来时存储索引）、<code>Assemble</code>（开会前拼装资料）、<code>Compact</code>（文档满了时精简）、<code>AfterTurn</code>（会开完后归档）。默认引擎是 <code>"legacy"</code>，但你可以通过插件替换成自己的。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>替换整个引擎？那不是把核心逻辑都改了？
+</div>
+
+<div class="dialogue">
+<span class="speaker">CTO：</span>（微笑）这就是 OpenClaw 的设计哲学——<strong>默认好用，但允许替换</strong>。你不替换也行，替换了就能做定制化。比如你可以写一个 Context Engine，让阿管在开会时自动优先加载最近修改过的文件，而不是按时间顺序加载所有对话。
+</div>
+
+<div class="note">
+Context Engine 四钩子：Ingest（入库）→ Assemble（拼装）→ Compact（精简）→ AfterTurn（归档）。默认 <code>"legacy"</code>。可通过插件系统替换，实现定制化的上下文管理策略。
+</div>
+</div>
+
+<!-- ╔══════════════════════════════════╗ -->
+<!-- ║        Part 4: 调试与排查          ║ -->
+<!-- ╚══════════════════════════════════╝ -->
+
+<div class="part-header">
+  <h2>Part 4：调试与排查</h2>
+  <p>—— 线上故障的急救手册</p>
+</div>
+
+<!-- 4.1 -->
+
+<div class="chapter">
+<span class="chapter-num">4.1</span>
+<div class="chapter-title">体检报告（Health Check）</div>
+
+<p>某天下午，关姐的系统面板突然变红。</p>
+
+<div class="dialogue">
+<span class="speaker">关姐：</span>（皱眉）系统健康检查异常。谁去看一下？
+</div>
+
+<p>林小链自告奋勇。阿管递给他一份<strong>排查清单</strong>：</p>
+
+<div class="code-block"># Step 1: 看 Gateway 是否活着
+curl http://localhost:PORT/health
+
+# Step 2: 查看 Session 状态
+openclaw sessions --json
+
+# Step 3: 检查最近心跳
+# （RPC 方法 last-heartbeat）
+
+# Step 4: 查看在线设备列表
+# （RPC 方法 system-presence）
+
+# Step 5: 查看模型调用状态
+# （检查 provider 是否正常响应）</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>排查的第一步永远是<strong>分层定位</strong>——是网络层（WS 连接断了？）、是 Gateway 层（进程挂了？）、是 Agent 层（模型调用失败？）、还是数据层（Session 损坏了？）。从外到内，逐层排除。
+</div>
+
+<div class="note">
+排查四层模型：网络层（WS 连接/Tick）→ Gateway 层（进程/Health）→ Agent 层（模型/工具）→ 数据层（Session/文件）。先查外层再查内层。Health 端点能一次看到 Gateway 状态、WS 连接数、活跃 Session 数、最近心跳时间。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- 4.2 -->
+
+<div class="chapter">
+<span class="chapter-num">4.2</span>
+<div class="chapter-title">会议室状态检查</div>
+
+<p>林小链用 <code>openclaw sessions --json</code> 查到了 Session 列表，但看不懂那些字段。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>重点看这几个——<code>sessionId</code>（会议室当前编号）、<code>updatedAt</code>（最后活跃时间）、<code>contextTokens</code>（当前 context 占用）、<code>compactionCount</code>（精简了几次）。如果 <code>contextTokens</code> 接近 <code>contextWindow</code>（200K），说明快撑不住了——可能需要手动精简（<code>/compact</code>）。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>那 Session 文件损坏了怎么办？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>Session 数据在 <code>~/.openclaw/agents/&lt;agentId&gt;/sessions/</code> 目录下。<code>sessions.json</code> 是索引文件（K/V 映射），<code>&lt;sessionId&gt;.jsonl</code> 是对话记录（追加写入的 JSONL）。如果 <code>sessions.json</code> 损坏——最简单的办法是删掉它，Gateway 重启后自动创建空的。代价是丢失所有 Session 映射，但对话记录文件还在。
+</div>
+
+<div class="note">
+Session 文件结构：索引（<code>sessions.json</code>）+ 对话记录（<code>&lt;sessionId&gt;.jsonl</code>，树结构 id+parentId）。维护命令：<code>openclaw status</code>（概览）、<code>openclaw sessions --json</code>（列表）、<code>/status</code>（聊天中查 context 使用量）、<code>/context list</code>（查当前系统提示）。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- 4.3 -->
+
+<div class="chapter">
+<span class="chapter-num">4.3</span>
+<div class="chapter-title">通讯帧级别调试</div>
+
+<p>有一次，林小链发了一条消息，阿管迟迟不回。蓝条没动静，绿条也没动静。</p>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>（焦虑）阿管，你是不是卡了？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>（正在喝咖啡）没卡。我在等顾问回复，顾问还没回。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>那怎么判断是"在等"还是"卡死了"？
+</div>
+
+<p>阿管放下咖啡杯，认真地教他：</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>三层诊断。第一，<strong>WS 帧级别</strong>——用浏览器开发者工具的 Network 面板，过滤 WS 连接，看有没有数据在传输。如果完全没帧——是 WS 连接断了。如果有帧但都是 tick——是连接活着但 Agent 没在跑。第二，<strong>lifecycle 事件</strong>——看有没有收到 <code>phase: "start"</code>。如果没收到 start，说明任务根本没被接受。第三，<strong>模型调用链</strong>——如果 start 收到了但没有 assistant event，说明卡在模型调用上——可能是顾问超时或 rate limit。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>那顾问超时了怎么办？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>超时有两种。短超时（<code>agent.wait</code> 默认 30 秒）只影响等待方法，不影响实际执行。长超时（<code>agents.defaults.timeoutSeconds</code> 默认 600 秒 / 10 分钟）会强制终止 Agent 运行。如果顾问真卡了——你可以用 <code>chat.abort</code> 手动中止当前任务。
+</div>
+
+<div class="note">
+调试三层模型：1）WS 帧级别（Network 面板）；2）Lifecycle event（start/end/error）；3）模型调用链（assistant/tool event 交替）。<code>chat.abort</code> 可中止当前任务。Agent 运行超时默认 600 秒。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- 4.4 -->
+
+<div class="chapter">
+<span class="chapter-num">4.4</span>
+<div class="chapter-title">顾问调用失败排查</div>
+
+<p>最让人头疼的问题——模型调用报错了。</p>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>小林，模型调用失败的排查有套路。先看错误类型——是<strong>认证错误</strong>（401/403）？<strong>限流错误</strong>（429）？<strong>参数错误</strong>（400）？还是<strong>服务器错误</strong>（5xx）？
+</div>
+
+<table class="ref-table">
+<tr><th>错误类型</th><th>HTTP 状态码</th><th>原因</th><th>处理</th></tr>
+<tr><td>认证失败</td><td>401/403</td><td>API Key 无效/过期</td><td>检查 Key 配置</td></tr>
+<tr><td>限流</td><td>429</td><td>请求太频繁</td><td>自动退避 + Key 轮换</td></tr>
+<tr><td>参数错误</td><td>400</td><td>请求格式/参数有问题</td><td>检查请求体</td></tr>
+<tr><td>余额不足</td><td>402</td><td>账户没钱了</td><td>充值（初始退避 5 小时）</td></tr>
+<tr><td>模型不可用</td><td>404/503</td><td>模型名错误或下线</td><td>检查模型 ID + fallbacks</td></tr>
+</table>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>关键规则——<strong>只有 rate-limit 类错误（429/资源耗尽）才会触发自动降级</strong>。认证失败、参数错误这类问题，降级到另一个顾问也没用——问题出在你这边，不在顾问那边。
+</div>
+
+<div class="dialogue">
+<span class="speaker">林小链：</span>那 Key 轮换是什么？
+</div>
+
+<div class="dialogue">
+<span class="speaker">阿管：</span>一个顾问可以配多把钥匙（API Key）。如果第一把被限流了，自动试第二把、第三把。轮换完了还是被限流，才降级到下一个顾问。Key 的优先级：<code>OPENCLAW_LIVE_xxx</code>（最高）→ <code>xxx_API_KEYS</code>（逗号分隔多个）→ <code>xxx_API_KEY</code>（单个）→ <code>xxx_API_KEY_*</code>（编号多个）。
+</div>
+
+<div class="pitfall">
+最常见的"Unknown model"错误原因：1）模型 ID 写错了（大小写！）；2）Provider 没配置；3）API Key 没设置。排查顺序：先查 ID 拼写 → 再查 <code>openclaw.json</code> 的 models 配置 → 最后查环境变量。
+</div>
+</div>
+
+<div class="divider">— · —</div>
+
+<!-- ==================== 尾声 ==================== -->
+
+<div class="chapter">
+<span class="chapter-num">尾声</span>
+<div class="chapter-title">速查表</div>
+
+<p>进阶培训结束。阿管递给林小链最后一张纸——进阶概念速查表。</p>
+
+<table class="ref-table">
+<tr><th>职场概念</th><th>OpenClaw 概念</th><th>一句话</th></tr>
+<tr><td>三种信封</td><td>req / res / event</td><td>申请表、回执、通知</td></tr>
+<tr><td>幂等申请表</td><td>Idempotency Key</td><td>同一个操作不执行两次</td></tr>
+<tr><td>断线重连</td><td>Reconnect + seq</td><td>指数退避 + 断点续传</td></tr>
+<tr><td>背压处理</td><td>Backpressure</td><td>lifecycle 必处理，tool 可延迟</td></tr>
+<tr><td>规章制度总纲</td><td>openclaw.json</td><td>JSON5 格式，严格校验</td></tr>
+<tr><td>培训教材</td><td>SKILL.md</td><td>YAML frontmatter + Markdown</td></tr>
+<tr><td>插件钩子</td><td>Plugin Hooks</td><td>9 个节点，可插拔</td></tr>
+<tr><td>上下文引擎</td><td>Context Engine</td><td>Ingest → Assemble → Compact → AfterTurn</td></tr>
+<tr><td>排查四层模型</td><td>Debug Layers</td><td>网络 → Gateway → Agent → 数据</td></tr>
+<tr><td>体检报告</td><td>Health Check</td><td>/health + sessions + heartbeat</td></tr>
+<tr><td>中止按钮</td><td>chat.abort</td><td>手动终止当前任务</td></tr>
+<tr><td>Key 轮换</td><td>API Key Rotation</td><td>4 级优先级，限流时自动切换</td></tr>
+</table>
+
+<p style="margin-top:28px;text-align:center;color:var(--accent);font-style:italic;">
+林小链收好表格，走出 CTO 办公室。<br>
+走廊里，关姐正在前台处理第 47 个访客登记。<br><br>
+她头也不抬：<br>
+"别忘了，每 15 秒刷一次卡。"<br><br>
+林小链笑了。<br>
+这次，他真的懂了。
+</p>
+</div>
+
+<div class="divider">—— 全文完 ——</div>
+
+<div class="footer">
+<p>OpenClaw 科技进阶篇 | 基于 OpenClaw v2026.4.2 参考手册</p>
+<p style="margin-top:8px;font-size:0.8em;">协议实现 · 配置实战 · 扩展开发 · 调试排查</p>
+</div>
+
+</div>
+</body>
+</html>

@@ -1,9 +1,10 @@
-import { ipcMain } from 'electron';
+import { ipcMain, app } from 'electron';
 import { AuthStore } from '../services/auth-store.service';
 import type { WsClientService } from '../services/ws-client.service';
 import { connectToGateway, disconnectFromGateway } from './openclaw.ipc';
 
-const API_BASE = process.env.API_BASE_URL || 'http://localhost:3008';
+const PROD_API = 'https://linkchat-api.matrix-ai.com.cn';
+const API_BASE = process.env.API_BASE_URL || process.env.VITE_API_URL || (app.isPackaged ? PROD_API : 'http://localhost:3008');
 
 export function registerAuthIpc(wsClient: WsClientService): void {
   ipcMain.handle(

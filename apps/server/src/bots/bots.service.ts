@@ -320,7 +320,7 @@ export class BotsService {
   async saveBotReply(
     userId: string,
     botId: string,
-    dto: { converseId: string; content: string },
+    dto: { converseId: string; content: string; metadata?: Record<string, unknown> },
   ) {
     const bot = await this.prisma.bot.findFirst({
       where: { id: botId, ownerId: userId },
@@ -334,6 +334,7 @@ export class BotsService {
         content: dto.content,
         converseId: dto.converseId,
         authorId: bot.userId,
+        ...(dto.metadata ? { metadata: dto.metadata as Prisma.InputJsonValue } : {}),
       },
       include: {
         author: {

@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { useChatStore } from '../stores/chatStore';
 import { useAiStore } from '../stores/aiStore';
 import { useFriendsStore } from '../stores/friendsStore';
+import { WS_URL, API_BASE_URL } from '@renderer/config';
 import type {
   MessageResponse,
   ConverseResponse,
@@ -11,7 +12,7 @@ import type {
   FriendRemovedPayload,
 } from '@linkingchat/ws-protocol';
 
-const CHAT_URL = 'http://localhost:3008/chat';
+const CHAT_URL = WS_URL + '/chat';
 
 /** Decode JWT payload to get user ID (sub claim) */
 function getUserIdFromToken(token: string): string | null {
@@ -144,7 +145,7 @@ function initSocket() {
       const t = window.electronAPI ? await window.electronAPI.getToken() : null;
       if (!t) return;
       try {
-        const res = await fetch('http://localhost:3008/api/v1/converses', {
+        const res = await fetch(`${API_BASE_URL}/api/v1/converses`, {
           headers: { Authorization: `Bearer ${t}` },
         });
         if (res.ok) {
@@ -166,7 +167,7 @@ function initSocket() {
       const t = window.electronAPI ? await window.electronAPI.getToken() : null;
       if (!t) return;
       try {
-        const res = await fetch('http://localhost:3008/api/v1/converses', {
+        const res = await fetch(`${API_BASE_URL}/api/v1/converses`, {
           headers: { Authorization: `Bearer ${t}` },
         });
         if (res.ok) {
@@ -189,7 +190,7 @@ function initSocket() {
       const t = window.electronAPI ? await window.electronAPI.getToken() : null;
       if (!t) return;
       try {
-        const res = await fetch('http://localhost:3008/api/v1/converses', {
+        const res = await fetch(`${API_BASE_URL}/api/v1/converses`, {
           headers: { Authorization: `Bearer ${t}` },
         });
         if (res.ok) {
@@ -205,7 +206,7 @@ function initSocket() {
       const t = window.electronAPI ? await window.electronAPI.getToken() : null;
       if (!t) return;
       try {
-        const res = await fetch('http://localhost:3008/api/v1/converses', {
+        const res = await fetch(`${API_BASE_URL}/api/v1/converses`, {
           headers: { Authorization: `Bearer ${t}` },
         });
         if (res.ok) {
