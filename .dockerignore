@@ -1,0 +1,13 @@
+node_modules
+.git
+.env
+.env.*
+!.env.production.example
+apps/desktop
+apps/mobile
+docs/ppt
+*.md
+!README.md
+token_*.txt
+test-*
+backups

@@ -154,11 +154,9 @@ export class OpenClawProcessService {
       // Verify it's actually an OpenClaw instance
       const isOpenClaw = await this.checkHealth();
       if (isOpenClaw) {
-        console.log(`[OpenClaw:Process] Existing OpenClaw found on port ${PORT}`);
-        // We don't know the token, so we can't connect. Need a fresh start.
-        this.lastError = `Port ${PORT} already in use by another OpenClaw instance. Cannot obtain token.`;
-        console.error(`[OpenClaw:Process] ${this.lastError}`);
-        return null;
+        console.log(`[OpenClaw:Process] Reusing existing OpenClaw Gateway on port ${PORT}`);
+        this.token = '';
+        return { url: `ws://${BIND_HOST}:${PORT}`, token: this.token };
       }
       this.lastError = `Port ${PORT} is occupied by a non-OpenClaw process`;
       console.error(`[OpenClaw:Process] ${this.lastError}`);
@@ -303,19 +301,60 @@ export class OpenClawProcessService {
       return { nodePath: null, cliPath: null };
     }
 
-    // Production: bundled sidecar
+    // Production: bundled sidecar, or fall back to globally installed openclaw
     const resourcesPath = (process as any).resourcesPath || join(app.getAppPath(), '..', '..', 'resources');
-    const cliPath = join(resourcesPath, 'openclaw-sidecar', 'cli.js');
-    const nodePath = process.execPath; // Electron executable can also run Node scripts in some setups
+    const sidecarPath = join(resourcesPath, 'openclaw-sidecar', 'cli.js');
 
-    // In production Electron, we need a real Node.js binary
-    // Check if a bundled node exists, otherwise fall back to system node
-    const isElectron = process.versions['electron'] != null;
-    if (isElectron) {
-      return { nodePath: 'node', cliPath };
+    // Check bundled sidecar first
+    try {
+      fs.accessSync(sidecarPath);
+      console.log(`[OpenClaw:Process] Using bundled sidecar: ${sidecarPath}`);
+      return { nodePath: 'node', cliPath: sidecarPath };
+    } catch { /* bundled sidecar not found */ }
+
+    // Fallback: globally installed openclaw (npm install -g openclaw)
+    console.log('[OpenClaw:Process] No bundled sidecar, searching for global openclaw...');
+    const candidates: string[] = [];
+    // 1. Try npm root -g
+    try {
+      const globalRoot = execSync('npm root -g', { encoding: 'utf8', timeout: 5000 }).trim();
+      candidates.push(join(globalRoot, 'openclaw', 'openclaw.mjs'));
+    } catch { /* npm not available in this context */ }
+    // 2. Windows: %APPDATA%\npm\node_modules
+    try {
+      const appDataPath = process.env.APPDATA || app.getPath('appData');
+      if (appDataPath) {
+        candidates.push(join(appDataPath, 'npm', 'node_modules', 'openclaw', 'openclaw.mjs'));
+      }
+    } catch { /* app.getPath not available */ }
+    // 3. Windows: USERPROFILE fallback
+    try {
+      const home = process.env.USERPROFILE || process.env.HOME;
+      if (home) {
+        candidates.push(join(home, 'AppData', 'Roaming', 'npm', 'node_modules', 'openclaw', 'openclaw.mjs'));
+      }
+    } catch { /* no home */ }
+    // 4. macOS/Linux standard paths
+    candidates.push('/usr/local/lib/node_modules/openclaw/openclaw.mjs');
+    candidates.push('/usr/lib/node_modules/openclaw/openclaw.mjs');
+
+    console.log('[OpenClaw:Process] Candidates:', candidates);
+    // Use original-fs to bypass Electron's ASAR interception of fs calls
+    let realFs: typeof fs;
+    try {
+      realFs = require('original-fs') as typeof fs;
+    } catch {
+      realFs = fs;
     }
-
-    return { nodePath, cliPath };
+    for (const candidate of candidates) {
+      try {
+        realFs.accessSync(candidate);
+        console.log(`[OpenClaw:Process] Using global openclaw: ${candidate}`);
+        return { nodePath: 'node', cliPath: candidate };
+      } catch { /* not found */ }
+    }
+    console.error('[OpenClaw:Process] No global openclaw found among candidates');
+    return { nodePath: null, cliPath: null };
   }
 
   // ── Private: Port & Health ──

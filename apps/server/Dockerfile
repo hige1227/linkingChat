@@ -3,18 +3,13 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Copy workspace config
+# Copy everything first (source + package jsons)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-COPY apps/server/package.json apps/server/
-COPY packages/shared/package.json packages/shared/
-COPY packages/ws-protocol/package.json packages/ws-protocol/
-
-# Install ALL dependencies
-RUN corepack enable && pnpm install --frozen-lockfile
-
-# Copy source
 COPY packages/ packages/
 COPY apps/server/ apps/server/
+
+# Install ALL dependencies (after source is copied, so pnpm can set up symlinks correctly)
+RUN corepack enable && pnpm install --frozen-lockfile
 
 # Generate Prisma client + build
 RUN cd apps/server && npx prisma generate
@@ -34,13 +29,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache openssl
 
-# Copy workspace config
+# Copy workspace config + package jsons only (for pnpm install)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY apps/server/package.json apps/server/
 COPY packages/shared/package.json packages/shared/
 COPY packages/ws-protocol/package.json packages/ws-protocol/
 
-# Install production dependencies
+# Install production dependencies only
 RUN corepack enable && pnpm install --prod --frozen-lockfile
 
 # Copy generated Prisma client + schema to where @prisma/client expects it
@@ -49,7 +44,7 @@ COPY --from=builder /app/prisma-client-save ./node_modules/.prisma/client
 RUN PRISMA_STORE=$(find /app/node_modules/.pnpm -path "*/@prisma+client*/node_modules/.prisma/client" -type d | head -1) && \
     cp -r /app/node_modules/.prisma/client/* "$PRISMA_STORE/"
 
-# Copy built output
+# Copy built output (only dist directories, not source)
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist

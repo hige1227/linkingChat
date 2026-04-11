@@ -51,7 +51,7 @@ function base64url(buf: Buffer): string {
 // ── Constants ──
 
 const PROTOCOL_VERSION = 3;
-const CONNECT_TIMEOUT = 10_000;
+const CONNECT_TIMEOUT = 30_000;
 const REQUEST_TIMEOUT = 30_000;
 
 // ── Client ──
@@ -545,7 +545,7 @@ export class OpenClawWsClient {
   private send(msg: Record<string, unknown>): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       const data = JSON.stringify(msg);
-      console.log('[OpenClaw:WS] SEND:', data.substring(0, 200));
+      console.log('[OpenClaw:WS] SEND:', data.substring(0, 300));
       this.ws.send(data);
     } else {
       console.error('[OpenClaw:WS] Cannot send, ws not open. readyState:', this.ws?.readyState);

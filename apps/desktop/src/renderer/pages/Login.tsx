@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { API_BASE_URL } from '@renderer/config';
 
 interface AuthResult {
   success: boolean;
@@ -33,7 +34,7 @@ export function Login({ onLoginSuccess, onForgotPassword }: LoginProps) {
       } else {
         // Browser dev mode — call API directly
         try {
-          const res = await fetch('http://localhost:3008/api/v1/auth/register', {
+          const res = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, username, password, displayName }),
@@ -49,7 +50,7 @@ export function Login({ onLoginSuccess, onForgotPassword }: LoginProps) {
         result = await window.electronAPI.login(email, password);
       } else {
         try {
-          const res = await fetch('http://localhost:3008/api/v1/auth/login', {
+          const res = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
