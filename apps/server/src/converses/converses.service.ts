@@ -91,14 +91,19 @@ export class ConversesService {
     });
     const botByUserId = new Map(bots.map((b) => [b.userId, b]));
 
+    // 批量预取所有会话的未读数（避免 N+1）
+    const unreadCounts = await this.batchGetUnreadCounts(
+      userId,
+      activeMembers.map((m) => ({
+        converseId: m.converseId,
+        lastSeenMessageId: m.lastSeenMessageId ?? null,
+      })),
+    );
+
     // 构建响应并附加 Bot 信息
     const converses = await Promise.all(
       activeMembers.map(async (member) => {
-        const unreadCount = await this.getUnreadCount(
-          member.converseId,
-          userId,
-          member.lastSeenMessageId,
-        );
+        const unreadCount = unreadCounts.get(member.converseId) ?? 0;
 
         // 查找对方成员是否为 Bot
         const otherMember = member.converse.members.find(
@@ -172,6 +177,59 @@ export class ConversesService {
       select: { userId: true },
     });
     return members.map((m) => m.userId);
+  }
+
+  /**
+   * 批量获取多个会话的未读数，避免 N+1 查询。
+   * 相比逐个调用 getUnreadCount，节省了每个会话的 lastSeenMessage.createdAt 查询。
+   */
+  private async batchGetUnreadCounts(
+    userId: string,
+    entries: Array<{ converseId: string; lastSeenMessageId: string | null }>,
+  ): Promise<Map<string, number>> {
+    if (entries.length === 0) return new Map();
+
+    // 1. 批量取所有 lastSeenMessage 的 createdAt（1 次 findMany）
+    const seenIds = entries
+      .map((e) => e.lastSeenMessageId)
+      .filter((id): id is string => id !== null);
+
+    const seenMessages =
+      seenIds.length > 0
+        ? await this.prisma.message.findMany({
+            where: { id: { in: seenIds } },
+            select: { id: true, createdAt: true },
+          })
+        : [];
+
+    const seenCreatedAt = new Map(
+      seenMessages.map((m) => [m.id, m.createdAt]),
+    );
+
+    // 2. 并发 N 次 count（无额外 createdAt 查询）
+    const results = await Promise.all(
+      entries.map(async ({ converseId, lastSeenMessageId }) => {
+        if (!lastSeenMessageId) {
+          const count = await this.prisma.message.count({
+            where: { converseId, authorId: { not: userId }, deletedAt: null },
+          });
+          return { converseId, count };
+        }
+
+        const createdAt = seenCreatedAt.get(lastSeenMessageId);
+        const count = await this.prisma.message.count({
+          where: {
+            converseId,
+            authorId: { not: userId },
+            deletedAt: null,
+            ...(createdAt ? { createdAt: { gt: createdAt } } : {}),
+          },
+        });
+        return { converseId, count };
+      }),
+    );
+
+    return new Map(results.map((r) => [r.converseId, r.count]));
   }
 
   /**

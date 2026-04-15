@@ -559,4 +559,60 @@ describe('ConversesService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
   });
+
+  describe('findUserConverses — unread count batching', () => {
+    it('calls message.findMany once to batch-fetch timestamps, not per-converse', async () => {
+      mockPrisma.converseMember.findMany.mockResolvedValue([
+        {
+          converseId: 'c1', userId: 'u1', isOpen: true,
+          lastSeenMessageId: 'msg1', lastMessageId: null,
+          role: null, nickname: null, mutedUntil: null, joinedAt: new Date(),
+          converse: {
+            id: 'c1', type: 'DM', name: null, description: null,
+            avatarUrl: null, creatorId: null, maxMembers: 200,
+            deletedAt: null, createdAt: new Date(), updatedAt: new Date(),
+            members: [
+              { userId: 'u1', role: null, isOpen: true, mutedUntil: null, user: mockUser('u1') },
+              { userId: 'u2', role: null, isOpen: true, mutedUntil: null, user: mockUser('u2') },
+            ],
+            messages: [],
+            _count: { members: 2 },
+          },
+        },
+        {
+          converseId: 'c2', userId: 'u1', isOpen: true,
+          lastSeenMessageId: 'msg2', lastMessageId: null,
+          role: null, nickname: null, mutedUntil: null, joinedAt: new Date(),
+          converse: {
+            id: 'c2', type: 'DM', name: null, description: null,
+            avatarUrl: null, creatorId: null, maxMembers: 200,
+            deletedAt: null, createdAt: new Date(), updatedAt: new Date(),
+            members: [
+              { userId: 'u1', role: null, isOpen: true, mutedUntil: null, user: mockUser('u1') },
+              { userId: 'u3', role: null, isOpen: true, mutedUntil: null, user: mockUser('u3') },
+            ],
+            messages: [],
+            _count: { members: 2 },
+          },
+        },
+      ]);
+
+      mockPrisma.message.findMany = jest.fn().mockResolvedValue([
+        { id: 'msg1', createdAt: new Date('2026-01-01') },
+        { id: 'msg2', createdAt: new Date('2026-01-02') },
+      ]);
+      mockPrisma.message.count = jest.fn().mockResolvedValue(0);
+      mockPrisma.bot.findMany.mockResolvedValue([]);
+
+      await service.findUserConverses('u1');
+
+      // One findMany for timestamps, not one findUnique per converse
+      expect(mockPrisma.message.findMany).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.message.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: { in: expect.arrayContaining(['msg1', 'msg2']) } },
+        }),
+      );
+    });
+  });
 });
