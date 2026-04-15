@@ -13,6 +13,10 @@ extraResources:
     to: openclaw-sidecar
     filter:
       - '**/*'
+  - from: resources/hermes-env
+    to: hermes-env
+    filter:
+      - '**/*'
 win:
   target: nsis
   icon: build/icon.ico
