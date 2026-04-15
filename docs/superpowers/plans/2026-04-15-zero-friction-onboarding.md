@@ -1,10 +1,10 @@
 # Zero-Friction Onboarding Implementation Plan
 
-> **For implementers:** Recommended helper skill: `superpowers:subagent-driven-development` (or `superpowers:executing-plans`) to implement task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** User downloads installer, installs, logs in → JARVIS immediately greets them. After install, the app should keep working in a degraded/offline-friendly mode when the network is unavailable. Both OpenClaw and Hermes are bundled.
+**Goal:** User downloads installer, installs, logs in → JARVIS immediately greets them. No network required post-install. Both OpenClaw and Hermes bundled.
 
-**Architecture:** `AgentProvider` in the Desktop main process abstracts OpenClaw and Hermes behind identical `chat()` / `isReady()` / `cancelStream()` APIs. `HermesProcessService` mirrors the existing `OpenClawProcessService` pattern. `SetupService` runs once on first login to confirm both sidecars are healthy and fetch a **scoped bootstrap configuration** (non-secret, short-lived) required for agent features (avoid distributing upstream provider secrets to clients).
+**Architecture:** AgentProvider interface in Desktop main process abstracts OpenClaw and Hermes behind identical `chat()` / `isReady()` / `cancelStream()` APIs. HermesProcessService mirrors the existing OpenClawProcessService pattern. SetupService runs once on first login to confirm both sidecars healthy and fetch the platform API key.
 
 **Tech Stack:** Electron 35, TypeScript, electron-store, Node.js child_process, python-build-standalone, electron-builder extraResources, Jest
 
@@ -21,14 +21,14 @@
 | `apps/desktop/src/main/agents/hermes.adapter.ts` | `AgentProvider` impl — HTTP SSE fetch to `localhost:8765` |
 | `apps/desktop/src/main/agents/agent-provider.factory.ts` | `AgentProviderFactory.create(type)` + active provider singleton |
 | `apps/desktop/src/main/services/hermes-process.service.ts` | Spawn/health/restart Hermes sidecar (mirrors openclaw-process.service) |
-| `apps/desktop/src/main/services/setup.service.ts` | First-launch orchestrator: wait for sidecars + fetch bootstrap config (scoped, non-secret) |
+| `apps/desktop/src/main/services/setup.service.ts` | First-launch orchestrator: wait for sidecars + fetch API key |
 | `apps/desktop/src/main/ipc/agent.ipc.ts` | IPC: `agent:get-type`, `agent:set-type` |
 
 ### New files (Server)
 
 | File | Responsibility |
 |---|---|
-| `apps/server/src/config/config.controller.ts` | `GET /api/v1/config/agent-bootstrap` — returns scoped bootstrap config (do **not** expose upstream provider secrets to clients) |
+| `apps/server/src/config/config.controller.ts` | `GET /api/v1/config/agent-key` — returns platform LLM API key |
 | `apps/server/src/config/config.module.ts` | NestJS module registering ConfigController |
 
 ### New files (Build)
@@ -56,8 +56,8 @@
 | `apps/desktop/src/main/agents/__tests__/hermes.adapter.spec.ts` | SSE parsing, abort on cancel |
 | `apps/desktop/src/main/agents/__tests__/agent-provider.factory.spec.ts` | Creates correct adapter, swaps active |
 | `apps/desktop/src/main/services/__tests__/hermes-process.service.spec.ts` | Spawn, health poll, restart |
-| `apps/desktop/src/main/services/__tests__/setup.service.spec.ts` | Skips on setupComplete, waits for ready, saves bootstrap config |
-| `apps/server/src/config/__tests__/config.controller.spec.ts` | Returns bootstrap config, guards work |
+| `apps/desktop/src/main/services/__tests__/setup.service.spec.ts` | Skips on setupComplete, waits for ready, saves apiKey |
+| `apps/server/src/config/__tests__/config.controller.spec.ts` | Returns API key, guards work |
 
 ---
 
@@ -917,35 +917,24 @@ describe('SetupService', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('fetches bootstrap config and saves to store on first run', async () => {
+  it('fetches API key and saves to store on first run', async () => {
     mockStore.get.mockReturnValue(false);
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        success: true,
-        data: {
-          provider: 'deepseek',
-          agentToken: 'token_example',
-          expiresAt: '2099-01-01T00:00:00Z',
-        },
-      }),
+      json: async () => ({ success: true, data: { apiKey: 'sk-test-123', provider: 'deepseek' } }),
     });
 
     await service.initialize('user-1', 'token-abc');
 
     expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('/config/agent-bootstrap'),
+      expect.stringContaining('/config/agent-key'),
       expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer token-abc' }) }),
     );
-    expect(mockStore.set).toHaveBeenCalledWith('agentBootstrap', {
-      provider: 'deepseek',
-      agentToken: 'token_example',
-      expiresAt: '2099-01-01T00:00:00Z',
-    });
+    expect(mockStore.set).toHaveBeenCalledWith('platformApiKey', 'sk-test-123');
     expect(mockStore.set).toHaveBeenCalledWith('setupComplete', true);
   });
 
-  it('does not set setupComplete if bootstrap fetch fails', async () => {
+  it('does not set setupComplete if API key fetch fails', async () => {
     mockStore.get.mockReturnValue(false);
     mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
@@ -972,21 +961,14 @@ Expected: FAIL — `Cannot find module '../setup.service'`
 import Store from 'electron-store';
 import { app } from 'electron';
 
-// Avoid hardcoding production domains in docs. Prefer build-time config.
-const PROD_API = 'https://<your-prod-api-host>'; // e.g. https://api.example.com
+const PROD_API = 'https://linkchat-api.matrix-ai.com.cn';
 const API_URL = process.env.API_URL
   || (process.env.VITE_API_URL ? `${process.env.VITE_API_URL}/api/v1` : '')
   || (app.isPackaged ? `${PROD_API}/api/v1` : 'http://localhost:3008/api/v1');
 
-interface AgentBootstrap {
-  provider: string;
-  agentToken: string;      // short-lived, scoped token issued by server
-  expiresAt: string;       // ISO timestamp
-}
-
 interface SetupStore {
   setupComplete: boolean;
-  agentBootstrap: AgentBootstrap;
+  platformApiKey: string;
 }
 
 export class SetupService {
@@ -996,22 +978,22 @@ export class SetupService {
     if (this.store.get('setupComplete', false)) return;
 
     try {
-      const bootstrap = await this.fetchAgentBootstrap(accessToken);
-      this.store.set('agentBootstrap', bootstrap);
+      const apiKey = await this.fetchPlatformApiKey(accessToken);
+      this.store.set('platformApiKey', apiKey);
       this.store.set('setupComplete', true);
-      console.log('[Setup] First-launch bootstrap complete');
+      console.log('[Setup] First-launch setup complete');
     } catch (error: unknown) {
-      console.error('[Setup] First-launch bootstrap failed:', (error as Error).message);
+      console.error('[Setup] First-launch setup failed:', (error as Error).message);
       // Do not set setupComplete — retry next launch
     }
   }
 
-  getAgentBootstrap(): AgentBootstrap | undefined {
-    return this.store.get('agentBootstrap') || undefined;
+  getPlatformApiKey(): string | undefined {
+    return this.store.get('platformApiKey') || undefined;
   }
 
-  private async fetchAgentBootstrap(accessToken: string): Promise<AgentBootstrap> {
-    const res = await fetch(`${API_URL}/config/agent-bootstrap`, {
+  private async fetchPlatformApiKey(accessToken: string): Promise<string> {
+    const res = await fetch(`${API_URL}/config/agent-key`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
@@ -1019,15 +1001,15 @@ export class SetupService {
     });
 
     if (!res.ok) {
-      throw new Error(`Failed to fetch agent bootstrap: ${res.status}`);
+      throw new Error(`Failed to fetch agent key: ${res.status}`);
     }
 
-    const body = await res.json() as { success: boolean; data: AgentBootstrap };
-    if (!body.success || !body.data?.agentToken) {
-      throw new Error('Invalid agent-bootstrap response from server');
+    const body = await res.json() as { success: boolean; data: { apiKey: string } };
+    if (!body.success || !body.data?.apiKey) {
+      throw new Error('Invalid agent-key response from server');
     }
 
-    return body.data;
+    return body.data.apiKey;
   }
 }
 
@@ -1046,7 +1028,7 @@ Expected: PASS (3 tests)
 
 ```bash
 git add apps/desktop/src/main/services/setup.service.ts apps/desktop/src/main/services/__tests__/setup.service.spec.ts
-git commit -m "feat(desktop): add SetupService for first-launch agent bootstrap fetch"
+git commit -m "feat(desktop): add SetupService for first-launch API key fetch"
 ```
 
 ---
@@ -1087,31 +1069,35 @@ describe('ConfigController', () => {
     process.env = { ...originalEnv };
   });
 
-  it('returns scoped agent bootstrap (no upstream secrets)', () => {
-    process.env.DEFAULT_LLM_PROVIDER = 'deepseek';
+  it('returns apiKey from DEEPSEEK_API_KEY', () => {
+    process.env.DEEPSEEK_API_KEY = 'sk-deepseek-test';
+    delete process.env.KIMI_API_KEY;
 
-    const result = controller.getAgentBootstrap();
+    const result = controller.getAgentKey();
 
-    expect(result.success).toBe(true);
-    expect(result.data.provider).toBe('deepseek');
-    expect(typeof result.data.agentToken).toBe('string');
-    expect(result.data.agentToken.length).toBeGreaterThan(0);
-    expect(typeof result.data.expiresAt).toBe('string');
+    expect(result).toEqual({
+      success: true,
+      data: { apiKey: 'sk-deepseek-test', provider: 'deepseek' },
+    });
   });
 
-  it('falls back to a sane default provider when env missing', () => {
-    delete process.env.DEFAULT_LLM_PROVIDER;
+  it('falls back to KIMI_API_KEY when DEEPSEEK missing', () => {
+    delete process.env.DEEPSEEK_API_KEY;
+    process.env.KIMI_API_KEY = 'sk-kimi-test';
 
-    const result = controller.getAgentBootstrap();
+    const result = controller.getAgentKey();
 
-    expect(result.success).toBe(true);
-    expect(typeof result.data.provider).toBe('string');
+    expect(result).toEqual({
+      success: true,
+      data: { apiKey: 'sk-kimi-test', provider: 'kimi' },
+    });
   });
 
-  it('returns only the expected bootstrap fields (no upstream secrets)', () => {
-    // Regression guard: keep the response shape minimal and non-sensitive.
-    const result = controller.getAgentBootstrap();
-    expect(Object.keys(result.data).sort()).toEqual(['agentToken', 'expiresAt', 'provider'].sort());
+  it('throws when no API key configured', () => {
+    delete process.env.DEEPSEEK_API_KEY;
+    delete process.env.KIMI_API_KEY;
+
+    expect(() => controller.getAgentKey()).toThrow('No LLM API key configured');
   });
 });
 ```
@@ -1134,25 +1120,20 @@ import { EmailVerifiedGuard } from '../auth/guards/email-verified.guard';
 
 @Controller('config')
 export class ConfigController {
-  /**
-   * IMPORTANT: Do NOT return upstream provider secrets to desktop/mobile clients.
-   * Instead, return a short-lived, scoped bootstrap payload.
-   * The client can use this token to call your own server-side inference proxy endpoints.
-   */
-  @Get('agent-bootstrap')
+  @Get('agent-key')
   @UseGuards(JwtAuthGuard, EmailVerifiedGuard)
-  getAgentBootstrap(): {
-    success: boolean;
-    data: { provider: string; agentToken: string; expiresAt: string };
-  } {
-    const provider = process.env.DEFAULT_LLM_PROVIDER || 'deepseek';
+  getAgentKey(): { success: boolean; data: { apiKey: string; provider: string } } {
+    const deepseekKey = process.env.DEEPSEEK_API_KEY;
+    const kimiKey = process.env.KIMI_API_KEY;
 
-    // In real implementation: mint/sign a JWT (or similar) with tight scope + TTL.
-    // Keep the token opaque to clients; validate it on server-side proxy requests.
-    const agentToken = 'server_issued_token';
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min TTL
+    if (deepseekKey) {
+      return { success: true, data: { apiKey: deepseekKey, provider: 'deepseek' } };
+    }
+    if (kimiKey) {
+      return { success: true, data: { apiKey: kimiKey, provider: 'kimi' } };
+    }
 
-    return { success: true, data: { provider, agentToken, expiresAt } };
+    throw new Error('No LLM API key configured on server');
   }
 }
 ```
@@ -1202,7 +1183,7 @@ Expected: BUILD SUCCESS
 
 ```bash
 git add apps/server/src/config/ apps/server/src/app.module.ts
-git commit -m "feat(server): add GET /config/agent-bootstrap endpoint for agent bootstrap config"
+git commit -m "feat(server): add GET /config/agent-key endpoint for platform LLM key"
 ```
 
 ---
@@ -1565,14 +1546,14 @@ git commit -m "feat: zero-friction onboarding — OpenClaw + Hermes bundled offl
 | HermesAdapter (SSE) | Task 3 |
 | AgentProviderFactory + persistence | Task 4 |
 | HermesProcessService | Task 5 |
-| SetupService — bootstrap fetch | Task 6 |
-| Server GET /config/agent-bootstrap | Task 7 |
+| SetupService — API key fetch | Task 6 |
+| Server GET /config/agent-key | Task 7 |
 | Pre-warm sidecars on app ready | Task 8 (Step 3) |
 | IPC stream routed through AgentProvider | Task 8 (Step 7) |
 | Preload bridge for renderer | Task 8 (Step 6) |
 | Graceful Hermes shutdown on quit | Task 8 (Step 5) |
 | Error handling — sidecar crash auto-restart | Task 5 (exit handler + backoff) |
-| Error handling — bootstrap fetch failure | Task 6 (no setupComplete on failure) |
+| Error handling — API key fetch failure | Task 6 (no setupComplete on failure) |
 | Error handling — stream error yield | Task 3 (error chunk) |
 
 **No placeholders.** Every step has concrete code.
