@@ -116,3 +116,35 @@ describe('GatewayManagerService', () => {
     });
   });
 });
+
+describe('constructor — production token validation', () => {
+  it('should throw if OPENCLAW_GATEWAY_TOKEN is not set in production', () => {
+    const mockConfig = {
+      get: (key: string, defaultVal?: string) => {
+        if (key === 'NODE_ENV') return 'production';
+        if (key === 'OPENCLAW_MODE') return 'single';
+        if (key === 'OPENCLAW_GATEWAY_URL') return 'ws://127.0.0.1:18790';
+        if (key === 'OPENCLAW_GATEWAY_TOKEN') return undefined;
+        return defaultVal;
+      },
+    } as unknown as ConfigService;
+
+    expect(() => new GatewayManagerService(mockConfig)).toThrow(
+      'OPENCLAW_GATEWAY_TOKEN must be set in production',
+    );
+  });
+
+  it('should not throw if token is missing in development', () => {
+    const mockConfig = {
+      get: (key: string, defaultVal?: string) => {
+        if (key === 'NODE_ENV') return 'development';
+        if (key === 'OPENCLAW_MODE') return 'single';
+        if (key === 'OPENCLAW_GATEWAY_URL') return 'ws://127.0.0.1:18790';
+        if (key === 'OPENCLAW_GATEWAY_TOKEN') return undefined;
+        return defaultVal;
+      },
+    } as unknown as ConfigService;
+
+    expect(() => new GatewayManagerService(mockConfig)).not.toThrow();
+  });
+});

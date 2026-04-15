@@ -20,13 +20,27 @@ export class GatewayManagerService implements OnModuleDestroy {
   private readonly logger = new Logger(GatewayManagerService.name);
   private readonly strategy: GatewayStrategy;
 
-
   constructor(private readonly configService: ConfigService) {
-    // Initialize strategy based on mode
     const mode = this.configService.get<string>('OPENCLAW_MODE', 'single');
     this.strategy = this.createStrategy(mode);
-
     this.logger.log(`Gateway Manager initialized (mode: ${mode})`);
+  }
+
+  /**
+   * Returns the gateway token.
+   * In production, throws if OPENCLAW_GATEWAY_TOKEN is not set.
+   * In development, falls back to the dev default.
+   */
+  private getRequiredToken(): string {
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
+    const token = this.configService.get<string>('OPENCLAW_GATEWAY_TOKEN');
+
+    if (isProduction && !token) {
+      throw new Error('OPENCLAW_GATEWAY_TOKEN must be set in production');
+    }
+
+    return token ?? 'lc_dev_token_change_me';
   }
 
   private createStrategy(mode: string): GatewayStrategy {
@@ -36,10 +50,7 @@ export class GatewayManagerService implements OnModuleDestroy {
           'OPENCLAW_GATEWAY_URL',
           'ws://127.0.0.1:18790',
         );
-        const token = this.configService.get<string>(
-          'OPENCLAW_GATEWAY_TOKEN',
-          'lc_dev_token_change_me',
-        );
+        const token = this.getRequiredToken();
         return new SingleContainerStrategy(url, token);
       }
 
@@ -47,26 +58,23 @@ export class GatewayManagerService implements OnModuleDestroy {
       //
       // case 'per-user': {
       //   // One Docker container per user, dynamic port allocation
-      //   // See: memory/openclaw-architecture.md for design notes
       //   return new PerUserContainerStrategy(this.configService);
       // }
       //
       // case 'pool': {
       //   // N containers : M users with consistent hashing
-      //   // See: memory/openclaw-architecture.md for design notes
       //   return new PoolStrategy(this.configService);
       // }
 
       default:
-        this.logger.warn(`Unknown OPENCLAW_MODE "${mode}", falling back to "single"`);
+        this.logger.warn(
+          `Unknown OPENCLAW_MODE "${mode}", falling back to "single"`,
+        );
         const url = this.configService.get<string>(
           'OPENCLAW_GATEWAY_URL',
           'ws://127.0.0.1:18790',
         );
-        const token = this.configService.get<string>(
-          'OPENCLAW_GATEWAY_TOKEN',
-          'lc_dev_token_change_me',
-        );
+        const token = this.getRequiredToken();
         return new SingleContainerStrategy(url, token);
     }
   }
