@@ -24,6 +24,7 @@ import { UploadModule } from './upload/upload.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { I18nModule } from './i18n/i18n.module';
 import { MailModule } from './mail/mail.module';
+import { AppConfigModule } from './config/config.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 @Module({
@@ -56,6 +57,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     MetricsModule,
     I18nModule,
     MailModule,
+    AppConfigModule,
   ],
   controllers: [AppController],
   providers: [
