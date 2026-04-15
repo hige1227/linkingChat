@@ -57,4 +57,3 @@ jobs:
 
       - name: Security audit
         run: pnpm audit --audit-level=high
-        continue-on-error: true
