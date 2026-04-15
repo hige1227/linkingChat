@@ -79,6 +79,11 @@ enum DraftStatus {
   EXPIRED
 }
 
+enum DraftType {
+  MESSAGE
+  COMMAND
+}
+
 // ========== Models ==========
 
 model User {
@@ -362,7 +367,7 @@ model AiDraft {
   userId       String
   converseId   String
   botId        String?
-  draftType    String      // 'message' | 'command'
+  draftType    DraftType
   draftContent Json        // { content: string, action?: string, args?: any }
   editedContent Json?
   rejectReason String?

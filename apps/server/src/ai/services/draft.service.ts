@@ -4,6 +4,7 @@ import { BroadcastService } from '../../gateway/broadcast.service';
 import { LlmRouterService } from './llm-router.service';
 import { Redis } from 'ioredis';
 import type { DraftCreatedPayload, DraftExpiredPayload } from '@linkingchat/ws-protocol';
+import { DraftType } from '@prisma/client';
 
 /** 草稿内容结构 */
 export interface DraftContent {
@@ -47,7 +48,7 @@ export class DraftService {
     converseId: string;
     botId: string;
     botName: string;
-    draftType: 'message' | 'command';
+    draftType: DraftType;
     userIntent: string;
   }): Promise<string> {
     // 1. 调用 LLM 生成草稿内容
@@ -86,7 +87,7 @@ export class DraftService {
       converseId: params.converseId,
       botId: params.botId,
       botName: params.botName,
-      draftType: params.draftType,
+      draftType: params.draftType.toLowerCase() as 'message' | 'command',
       draftContent,
       expiresAt: expiresAt.toISOString(),
       createdAt: draft.createdAt.toISOString(),
@@ -240,11 +241,11 @@ export class DraftService {
    * 使用 LLM 生成草稿内容
    */
   private async generateDraftContent(
-    draftType: 'message' | 'command',
+    draftType: DraftType,
     userIntent: string,
   ): Promise<DraftContent> {
     const systemPrompt =
-      draftType === 'message'
+      draftType === DraftType.MESSAGE
         ? DRAFT_MESSAGE_PROMPT
         : DRAFT_COMMAND_PROMPT;
 
@@ -264,11 +265,11 @@ export class DraftService {
    */
   parseDraftContent(
     content: string,
-    draftType: 'message' | 'command',
+    draftType: DraftType,
   ): DraftContent {
     try {
       const parsed = JSON.parse(content);
-      if (draftType === 'command') {
+      if (draftType === DraftType.COMMAND) {
         return {
           content: parsed.description || parsed.content || content,
           action: parsed.command || parsed.action,

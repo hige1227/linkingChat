@@ -3,6 +3,7 @@ import { DraftService } from './draft.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BroadcastService } from '../../gateway/broadcast.service';
 import { LlmRouterService } from './llm-router.service';
+import { DraftType } from '@prisma/client';
 
 // ── 测试数据 ────────────────────────────
 
@@ -89,7 +90,7 @@ describe('DraftService', () => {
         converseId: mockConverseId,
         botId: mockBotId,
         botName: 'Coding Bot',
-        draftType: 'message',
+        draftType: DraftType.MESSAGE,
         userIntent: '帮我同意这个方案',
       });
 
@@ -102,7 +103,7 @@ describe('DraftService', () => {
             userId: mockUserId,
             converseId: mockConverseId,
             botId: mockBotId,
-            draftType: 'message',
+            draftType: DraftType.MESSAGE,
           }),
         }),
       );
@@ -138,7 +139,7 @@ describe('DraftService', () => {
       });
       mockPrisma.aiDraft.create.mockResolvedValue({
         ...mockDraftRecord,
-        draftType: 'command',
+        draftType: DraftType.COMMAND,
         draftContent: {
           content: '拉取最新代码',
           action: 'git pull origin main',
@@ -151,7 +152,7 @@ describe('DraftService', () => {
         converseId: mockConverseId,
         botId: mockBotId,
         botName: 'Coding Bot',
-        draftType: 'command',
+        draftType: DraftType.COMMAND,
         userIntent: '帮我拉取最新代码',
       });
 
@@ -325,7 +326,7 @@ describe('DraftService', () => {
     it('should parse message draft JSON', () => {
       const result = service.parseDraftContent(
         '{"content": "好的"}',
-        'message',
+        DraftType.MESSAGE,
       );
       expect(result).toEqual({ content: '好的' });
     });
@@ -333,7 +334,7 @@ describe('DraftService', () => {
     it('should parse command draft JSON', () => {
       const result = service.parseDraftContent(
         '{"description":"查看日志","command":"tail -f /var/log/app.log","args":{}}',
-        'command',
+        DraftType.COMMAND,
       );
       expect(result).toEqual({
         content: '查看日志',
@@ -343,7 +344,7 @@ describe('DraftService', () => {
     });
 
     it('should fall back to raw text when JSON fails', () => {
-      const result = service.parseDraftContent('plain text draft', 'message');
+      const result = service.parseDraftContent('plain text draft', DraftType.MESSAGE);
       expect(result).toEqual({ content: 'plain text draft' });
     });
   });

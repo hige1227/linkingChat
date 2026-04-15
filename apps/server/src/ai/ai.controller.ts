@@ -13,6 +13,7 @@ import { LlmRouterService } from './services/llm-router.service';
 import { DraftService } from './services/draft.service';
 import { PredictiveService } from './services/predictive.service';
 import { BroadcastService } from '../gateway/broadcast.service';
+import { DraftType } from '@prisma/client';
 
 @Controller('ai')
 export class AiController {
@@ -50,7 +51,7 @@ export class AiController {
       converseId: string;
       botId: string;
       botName: string;
-      draftType: 'message' | 'command';
+      draftType: DraftType;
       userIntent: string;
     },
   ) {
