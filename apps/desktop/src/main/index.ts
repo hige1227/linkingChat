@@ -3,7 +3,11 @@ import { join } from 'path';
 import { registerAuthIpc } from './ipc/auth.ipc';
 import { registerDeviceIpc } from './ipc/device.ipc';
 import { registerOpenClawIpc, connectToGateway, disconnectFromGateway } from './ipc/openclaw.ipc';
+import { registerAgentIpc } from './ipc/agent.ipc';
 import { openClawProcessService } from './services/openclaw-process.service';
+import { hermesProcessService } from './services/hermes-process.service';
+import { setupService } from './services/setup.service';
+import { AgentProviderFactory } from './agents/agent-provider.factory';
 import { WsClientService } from './services/ws-client.service';
 import { AuthStore } from './services/auth-store.service';
 
@@ -43,6 +47,15 @@ app.whenReady().then(() => {
   registerAuthIpc(wsClient);
   registerDeviceIpc(wsClient);
   registerOpenClawIpc();
+  registerAgentIpc();
+
+  // Pre-warm both sidecars before login screen (non-blocking)
+  openClawProcessService.start().catch((err: Error) =>
+    console.warn('[Main] OpenClaw sidecar start error:', err.message)
+  );
+  hermesProcessService.start().catch((err: Error) =>
+    console.warn('[Main] Hermes sidecar start error:', err.message)
+  );
 
   createWindow();
 
@@ -50,6 +63,15 @@ app.whenReady().then(() => {
   const tokens = AuthStore.load();
   if (tokens) {
     wsClient.connect();
+
+    // Initialize agent from persisted preference
+    AgentProviderFactory.active();
+
+    // First-launch setup (no-op if already done)
+    setupService.initialize('', tokens.accessToken).catch((err: Error) =>
+      console.warn('[Main] Setup error:', err.message)
+    );
+
     // Connect to OpenClaw Gateway with retry
     const mode = openClawProcessService.resolveMode();
     const MAX_RETRIES = 3;
@@ -80,10 +102,13 @@ app.whenReady().then(() => {
   });
 });
 
-// Ensure OpenClaw sidecar is stopped on quit (covers macOS Cmd+Q)
+// Ensure sidecars are stopped on quit (covers macOS Cmd+Q)
 app.on('before-quit', () => {
   openClawProcessService.stop().catch((err) => {
     console.warn('[Main] OpenClaw process stop error on quit:', err);
+  });
+  hermesProcessService.stop().catch((err) => {
+    console.warn('[Main] Hermes process stop error on quit:', err);
   });
 });
 

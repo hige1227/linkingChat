@@ -2,6 +2,7 @@ import { ipcMain, BrowserWindow, app } from 'electron';
 import { openClawClientService } from '../services/openclaw-client.service';
 import { openClawProcessService, type ProcessStatus } from '../services/openclaw-process.service';
 import { AuthStore } from '../services/auth-store.service';
+import { AgentProviderFactory } from '../agents/agent-provider.factory';
 
 const PROD_API = 'https://linkchat-api.matrix-ai.com.cn';
 const API_URL = process.env.API_URL || (process.env.VITE_API_URL ? `${process.env.VITE_API_URL}/api/v1` : '') || (app.isPackaged ? `${PROD_API}/api/v1` : 'http://localhost:3008/api/v1');
@@ -264,78 +265,35 @@ export function registerOpenClawIpc(): void {
   });
 
   // ── Streaming chat (for Bot conversations) ──
-  const activeStreams = new Map<string, { cancelled: boolean }>();
 
   ipcMain.handle(
     'openclaw:stream-start',
     async (event, message: string, sessionKey: string): Promise<{ requestId: string }> => {
-      if (!openClawClientService.isClientConnected()) {
-        throw new Error('Not connected to OpenClaw Gateway');
-      }
-      const client = openClawClientService.getClient();
-      if (!client) throw new Error('No OpenClaw client available');
-
       const requestId = `str-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      const control = { cancelled: false };
-      activeStreams.set(requestId, control);
       const win = BrowserWindow.fromWebContents(event.sender);
+
+      const provider = AgentProviderFactory.active();
 
       // Fire-and-forget: runs in background, pushes chunks to renderer
       (async () => {
         try {
-          let hasContent = false;
-          let emptyRetried = false;
-
-          const runStream = async (): Promise<void> => {
-            hasContent = false;
-            for await (const chunk of client.chat(message, { sessionKey, timeout: 300_000 })) {
-              if (control.cancelled) break;
-
-              // Track whether we got any real content
-              if (chunk.type === 'text' || chunk.type === 'tool_use') {
-                hasContent = true;
-              }
-
-              // Intercept empty-response error for auto-retry
-              if (
-                chunk.type === 'error' &&
-                !hasContent &&
-                !emptyRetried &&
-                chunk.text.includes('empty response')
-              ) {
-                emptyRetried = true;
-                console.log('[OpenClaw:Stream] Empty response detected, resetting session and retrying...');
-                try {
-                  await client.resetSession(sessionKey);
-                } catch (resetErr) {
-                  console.warn('[OpenClaw:Stream] Session reset failed:', resetErr);
-                }
-                // Notify renderer that we're retrying
-                win?.webContents.send('openclaw:stream-chunk', {
-                  requestId,
-                  chunk: { type: 'text', text: '' },
-                });
-                await runStream();
-                return;
-              }
-
-              win?.webContents.send('openclaw:stream-chunk', { requestId, chunk });
-            }
-          };
-
-          await runStream();
-        } catch (err) {
-          if (!control.cancelled) {
-            win?.webContents.send('openclaw:stream-chunk', {
-              requestId,
-              chunk: {
-                type: 'error',
-                text: err instanceof Error ? err.message : 'Stream error',
-              },
-            });
+          for await (const chunk of provider.chat({ botId: '', converseId: sessionKey, message, requestId })) {
+            // Normalize to the legacy renderer chunk format { type, text }
+            const legacyChunk = {
+              type: chunk.type,
+              text: chunk.content ?? chunk.error ?? '',
+            };
+            win?.webContents.send('openclaw:stream-chunk', { requestId, chunk: legacyChunk });
+            if (chunk.type === 'done' || chunk.type === 'error') break;
           }
-        } finally {
-          activeStreams.delete(requestId);
+        } catch (err) {
+          win?.webContents.send('openclaw:stream-chunk', {
+            requestId,
+            chunk: {
+              type: 'error',
+              text: err instanceof Error ? err.message : 'Stream error',
+            },
+          });
         }
       })();
 
@@ -346,11 +304,7 @@ export function registerOpenClawIpc(): void {
   ipcMain.handle(
     'openclaw:stream-cancel',
     (_event, requestId: string): { cancelled: boolean } => {
-      const ctrl = activeStreams.get(requestId);
-      if (ctrl) {
-        ctrl.cancelled = true;
-        activeStreams.delete(requestId);
-      }
+      AgentProviderFactory.active().cancelStream(requestId);
       return { cancelled: true };
     },
   );

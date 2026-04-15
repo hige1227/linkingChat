@@ -53,6 +53,12 @@ const electronAPI = {
     // Return a cleanup function that removes the exact wrapped listener
     return () => ipcRenderer.removeListener('openclaw:stream-chunk', wrapped);
   },
+
+  // Agent provider selection
+  getAgentType: (): Promise<string> =>
+    ipcRenderer.invoke('agent:get-type'),
+  setAgentType: (type: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('agent:set-type', type),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
