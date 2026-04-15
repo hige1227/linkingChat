@@ -1,0 +1,1 @@
+{"nodes": [{"id": "validators", "label": "validators.ts", "file_type": "code", "source_file": "packages/ws-protocol/src/validators.ts", "source_location": "L1"}], "edges": [{"source": "validators", "target": "zod", "relation": "imports_from", "confidence": "EXTRACTED", "source_file": "packages/ws-protocol/src/validators.ts", "source_location": "L1", "weight": 1.0}]}

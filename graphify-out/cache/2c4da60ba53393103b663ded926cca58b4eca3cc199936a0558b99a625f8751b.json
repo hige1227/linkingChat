@@ -1,0 +1,1 @@
+{"nodes": [{"id": "bot_templates", "label": "bot-templates.ts", "file_type": "code", "source_file": "apps/server/src/bots/bot-templates.ts", "source_location": "L1"}], "edges": [{"source": "bot_templates", "target": "client", "relation": "imports_from", "confidence": "EXTRACTED", "source_file": "apps/server/src/bots/bot-templates.ts", "source_location": "L1", "weight": 1.0}]}

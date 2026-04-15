@@ -1,0 +1,1 @@
+{"nodes": [{"id": "prepare_openclaw_sidecar", "label": "prepare-openclaw-sidecar.ps1", "file_type": "code", "source_file": "scripts/prepare-openclaw-sidecar.ps1", "source_location": "L1"}], "edges": []}

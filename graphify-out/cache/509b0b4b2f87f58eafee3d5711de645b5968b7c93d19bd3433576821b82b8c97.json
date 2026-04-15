@@ -1,0 +1,1 @@
+{"nodes": [{"id": "bot_schema", "label": "bot.schema.ts", "file_type": "code", "source_file": "packages/shared/src/schemas/bot.schema.ts", "source_location": "L1"}], "edges": [{"source": "bot_schema", "target": "zod", "relation": "imports_from", "confidence": "EXTRACTED", "source_file": "packages/shared/src/schemas/bot.schema.ts", "source_location": "L1", "weight": 1.0}]}

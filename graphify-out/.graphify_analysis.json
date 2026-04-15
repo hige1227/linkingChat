@@ -1,0 +1,1711 @@
+{
+  "communities": {
+    "0": [
+      "add_members_dto",
+      "add_members_dto_addmembersdto",
+      "ai_controller",
+      "ai_module",
+      "ai_module_aimodule",
+      "auth_email_verification_spec",
+      "ban_member_dto",
+      "ban_member_dto_banmemberdto",
+      "bot_communication_service",
+      "bot_communication_service_spec",
+      "bot_init_service",
+      "bot_init_service_spec",
+      "bot_init_service_spec_createmocktx",
+      "bot_templates",
+      "bots_controller",
+      "bots_module",
+      "bots_module_botsmodule",
+      "bots_service",
+      "bots_service_spec",
+      "broadcast_service",
+      "chat_gateway",
+      "chat_gateway_ai_spec",
+      "commands_service",
+      "confirm_upload_dto",
+      "confirm_upload_dto_confirmuploaddto",
+      "converses_controller",
+      "converses_module",
+      "converses_module_conversesmodule",
+      "converses_service",
+      "converses_service_spec",
+      "converses_service_spec_makememberdata",
+      "converses_service_spec_mockuser",
+      "create_bot_dto",
+      "create_bot_dto_createbotdto",
+      "create_group_dto",
+      "create_group_dto_creategroupdto",
+      "create_message_dto",
+      "create_message_dto_attachmentinput",
+      "create_message_dto_createmessagedto",
+      "current_user_decorator",
+      "device_gateway",
+      "devices_controller",
+      "devices_controller_spec",
+      "devices_module",
+      "devices_module_devicesmodule",
+      "devices_service",
+      "draft_service",
+      "draft_service_spec",
+      "friend_response_dto",
+      "friend_response_dto_friendresponsedto",
+      "friends_controller",
+      "friends_module",
+      "friends_module_friendsmodule",
+      "friends_service",
+      "friends_service_spec",
+      "gateway_module",
+      "gateway_module_gatewaymodule",
+      "group_permissions_spec",
+      "i18n_service",
+      "i18n_service_i18nservice",
+      "i18n_service_i18nservice_detectlocale",
+      "i18n_service_i18nservice_t",
+      "i18n_service_spec",
+      "jwt_auth_guard",
+      "jwt_auth_guard_jwtauthguard",
+      "llm_router_service",
+      "mention_interface",
+      "mentions_service",
+      "mentions_service_spec",
+      "messages_controller",
+      "messages_module",
+      "messages_module_messagesmodule",
+      "messages_service",
+      "messages_service_spec",
+      "metrics_service",
+      "metrics_service_spec",
+      "mute_member_dto",
+      "mute_member_dto_mutememberdto",
+      "predictive_service",
+      "predictive_service_spec",
+      "presence_service",
+      "presence_service_spec",
+      "presign_upload_dto",
+      "presign_upload_dto_presignuploaddto",
+      "prisma_service",
+      "prisma_service_prismaservice",
+      "prisma_service_prismaservice_onmoduledestroy",
+      "prisma_service_prismaservice_onmoduleinit",
+      "send_request_dto",
+      "send_request_dto_sendfriendrequestdto",
+      "supervisor_agent",
+      "supervisor_agent_spec",
+      "update_bot_dto",
+      "update_bot_dto_updatebotdto",
+      "update_group_dto",
+      "update_group_dto_updategroupdto",
+      "update_member_role_dto",
+      "update_member_role_dto_updatememberroledto",
+      "update_message_dto",
+      "update_message_dto_updatemessagedto",
+      "upload_controller",
+      "upload_module",
+      "upload_module_uploadmodule",
+      "upload_service",
+      "upload_service_spec",
+      "users_controller",
+      "users_module",
+      "users_module_usersmodule",
+      "users_service",
+      "users_service_usersservice",
+      "users_service_usersservice_constructor",
+      "users_service_usersservice_searchusers",
+      "whisper_service",
+      "whisper_service_spec",
+      "ws_auth_middleware",
+      "ws_auth_middleware_createwsauthmiddleware"
+    ],
+    "1": [
+      "addfrienddialog",
+      "addfrienddialog_handleinputchange",
+      "addfrienddialog_handlesend",
+      "aistore",
+      "app",
+      "botbadge",
+      "chatpage",
+      "chatpage_fetchconverses",
+      "chatpage_handlekeydown",
+      "chatstore",
+      "chatthread",
+      "chatthread_fetchmessages",
+      "chatthread_loadoldermessages",
+      "commandlog",
+      "config",
+      "confirmdialog",
+      "connectionstatus",
+      "conversationlist",
+      "creategroupdialog",
+      "creategroupdialog_handlecreate",
+      "creategroupdialog_loadfriends",
+      "creategroupdialog_toggleselect",
+      "dashboard",
+      "dashboard_dashboard",
+      "draftcard",
+      "draftcard_draftcard",
+      "dropzone",
+      "filemessage",
+      "filemessage_filemessage",
+      "filemessage_formatfilesize",
+      "filemessage_getfileicon",
+      "friendspage",
+      "friendspage_handleaccept",
+      "friendspage_handlefriendclick",
+      "friendspage_handlereject",
+      "friendsstore",
+      "friendsstore_getauthheaders",
+      "gateway_manager_service",
+      "gateway_manager_service_gatewaymanagerservice",
+      "gateway_manager_service_gatewaymanagerservice_acquire",
+      "gateway_manager_service_gatewaymanagerservice_constructor",
+      "gateway_manager_service_gatewaymanagerservice_createstrategy",
+      "gateway_manager_service_gatewaymanagerservice_health",
+      "gateway_manager_service_gatewaymanagerservice_onmoduledestroy",
+      "gateway_manager_service_gatewaymanagerservice_release",
+      "gateway_manager_service_spec",
+      "gateway_manager_service_spec_createmockconfigservice",
+      "imagemessage",
+      "login",
+      "login_handlesubmit",
+      "login_switchmode",
+      "mainlayout",
+      "mainlayout_mainlayout",
+      "messagecontextmenu",
+      "messagecontextmenu_handleclick",
+      "messagecontextmenu_handleesc",
+      "messageinput",
+      "messageinput_async",
+      "messageinput_handleairequest",
+      "messageinput_handlechange",
+      "messageinput_handlefileselect",
+      "messageinput_handlekeydown",
+      "messageinput_handlesend",
+      "notificationcard",
+      "notificationcard_formatduration",
+      "notificationcard_handleaction",
+      "openclaw_controller",
+      "openclaw_controller_openclawcontroller",
+      "openclaw_controller_openclawcontroller_constructor",
+      "openclaw_controller_openclawcontroller_getadminstatus",
+      "openclaw_controller_openclawcontroller_getconnectinfo",
+      "openclaw_controller_openclawcontroller_getgatewaystatus",
+      "openclaw_controller_openclawcontroller_startgateway",
+      "openclaw_controller_openclawcontroller_stopgateway",
+      "openclaw_module",
+      "openclaw_module_openclawmodule",
+      "predictiveactioncard",
+      "predictiveactioncard_handleconfirm",
+      "predictiveactioncard_handledismiss",
+      "predictiveactioncard_handleexecute",
+      "profilepage",
+      "profilepage_changelanguage",
+      "profilepage_fetchprofile",
+      "profilepage_handleavatarupload",
+      "profilepage_handlelogout",
+      "profilepage_handlestatuschange",
+      "profilepage_handleupdatename",
+      "searchpanel",
+      "searchpanel_formatdate",
+      "searchpanel_handlechange",
+      "searchpanel_handleesc",
+      "searchpanel_highlighttext",
+      "toolcallblock",
+      "uploadservice",
+      "uploadservice_uploadfile",
+      "usechatsocket",
+      "usechatsocket_getuseridfromtoken",
+      "usechatsocket_initsocket",
+      "usechatsocket_notifyconnected",
+      "usechatsocket_usechatsocket",
+      "useopenclawchat",
+      "useopenclawchat_useopenclawchat",
+      "voicemessage",
+      "voicemessage_formattime",
+      "voicemessage_handleseek",
+      "voicemessage_toggleplay",
+      "voicerecorder",
+      "voicerecorder_voicerecorder",
+      "whisperbar",
+      "whisperbar_whisperbar"
+    ],
+    "2": [
+      "app_controller",
+      "app_controller_appcontroller",
+      "app_controller_appcontroller_constructor",
+      "app_controller_appcontroller_gethealth",
+      "app_controller_appcontroller_gethello",
+      "app_controller_spec",
+      "app_e2e_spec",
+      "app_module",
+      "app_module_appmodule",
+      "app_service",
+      "app_service_appservice",
+      "app_service_appservice_gethello",
+      "friend_events_spec",
+      "group_events_spec",
+      "i18n_module",
+      "i18n_module_i18nmodule",
+      "logging_interceptor",
+      "logging_interceptor_logginginterceptor",
+      "logging_interceptor_logginginterceptor_constructor",
+      "logging_interceptor_logginginterceptor_intercept",
+      "logging_interceptor_logginginterceptor_normalizeroute",
+      "logging_interceptor_spec",
+      "logging_interceptor_spec_createmockcontext",
+      "main",
+      "main_bootstrap",
+      "main_wwinmain",
+      "mentions_module",
+      "mentions_module_mentionsmodule",
+      "message_events_spec",
+      "metrics_controller",
+      "metrics_controller_metricscontroller",
+      "metrics_controller_metricscontroller_constructor",
+      "metrics_controller_metricscontroller_getmetrics",
+      "metrics_module",
+      "metrics_module_metricsmodule",
+      "prisma_module",
+      "prisma_module_prismamodule",
+      "redis_io_adapter",
+      "redis_io_adapter_redisioadapter",
+      "redis_io_adapter_redisioadapter_connecttoredis",
+      "redis_io_adapter_redisioadapter_constructor",
+      "redis_io_adapter_redisioadapter_createioserver",
+      "redis_module",
+      "redis_module_redismodule",
+      "socket_client",
+      "socket_client_assertnoevent",
+      "socket_client_connectsocket",
+      "socket_client_disconnectsocket",
+      "socket_client_waitforevent",
+      "test_app",
+      "test_app_createtestapp",
+      "test_users",
+      "test_users_cleanuptestusers",
+      "test_users_registertestuser",
+      "utils",
+      "utils_createandattachconsole",
+      "utils_getcommandlinearguments",
+      "utils_utf8fromutf16"
+    ],
+    "3": [
+      "auth_ipc",
+      "auth_ipc_registerauthipc",
+      "auth_store_service",
+      "auth_store_service_authstore",
+      "auth_store_service_authstore_clear",
+      "auth_store_service_authstore_load",
+      "auth_store_service_authstore_save",
+      "command_blacklist",
+      "command_blacklist_isdangerouscommand",
+      "command_executor_service",
+      "command_executor_service_commandexecutor",
+      "command_executor_service_commandexecutor_execute",
+      "command_executor_service_commandexecutor_executeviaopenclaw",
+      "command_executor_service_commandexecutor_executewithchildprocess",
+      "command_executor_service_commandexecutor_inferexitcode",
+      "command_executor_service_commandexecutor_runagentchat",
+      "device_ipc",
+      "device_ipc_registerdeviceipc",
+      "index",
+      "index_createwindow",
+      "openclaw_client_service",
+      "openclaw_ipc",
+      "openclaw_ipc_connecttogateway",
+      "openclaw_ipc_connectviadocker",
+      "openclaw_ipc_connectviaprocess",
+      "openclaw_ipc_disconnectfromgateway",
+      "openclaw_ipc_notifystatuschange",
+      "openclaw_ipc_refreshandretry",
+      "openclaw_ipc_registeropenclawipc",
+      "openclaw_ipc_restartgateway",
+      "openclaw_process_service",
+      "openclaw_process_service_openclawprocessservice",
+      "openclaw_process_service_openclawprocessservice_checkhealth",
+      "openclaw_process_service_openclawprocessservice_cleanup",
+      "openclaw_process_service_openclawprocessservice_forcekill",
+      "openclaw_process_service_openclawprocessservice_getconnectionconfig",
+      "openclaw_process_service_openclawprocessservice_getmode",
+      "openclaw_process_service_openclawprocessservice_getstatus",
+      "openclaw_process_service_openclawprocessservice_gracefulshutdown",
+      "openclaw_process_service_openclawprocessservice_isportinuse",
+      "openclaw_process_service_openclawprocessservice_isprocessrunning",
+      "openclaw_process_service_openclawprocessservice_killsync",
+      "openclaw_process_service_openclawprocessservice_resolvemode",
+      "openclaw_process_service_openclawprocessservice_resolvepaths",
+      "openclaw_process_service_openclawprocessservice_rotatelogs",
+      "openclaw_process_service_openclawprocessservice_setuplogstream",
+      "openclaw_process_service_openclawprocessservice_spawnprocess",
+      "openclaw_process_service_openclawprocessservice_start",
+      "openclaw_process_service_openclawprocessservice_stop",
+      "openclaw_process_service_openclawprocessservice_waitforhealth",
+      "openclaw_process_service_openclawprocessservice_waitforwsready",
+      "platform",
+      "platform_getdeviceid",
+      "platform_getdevicename",
+      "platform_getplatform",
+      "ws_client_service"
+    ],
+    "4": [
+      "agent_orchestrator_service",
+      "agent_orchestrator_service_spec",
+      "agent_orchestrator_service_spec_createmockagent",
+      "agents_module",
+      "agents_module_agentsmodule",
+      "agents_module_agentsmodule_constructor",
+      "agents_module_agentsmodule_onmoduleinit",
+      "base_agent",
+      "base_agent_addtomemory",
+      "base_agent_constructor",
+      "base_agent_getmemory",
+      "base_agent_gettools",
+      "base_agent_getworkspace",
+      "batch_trigger_service",
+      "batch_trigger_service_batchtriggerservice",
+      "batch_trigger_service_batchtriggerservice_addevent",
+      "batch_trigger_service_batchtriggerservice_constructor",
+      "batch_trigger_service_batchtriggerservice_flushevents",
+      "batch_trigger_service_batchtriggerservice_flushnow",
+      "batch_trigger_service_batchtriggerservice_onmoduledestroy",
+      "batch_trigger_service_batchtriggerservice_resettimer",
+      "batch_trigger_service_spec",
+      "bot_event_listener",
+      "bot_event_listener_boteventlistener",
+      "bot_event_listener_boteventlistener_constructor",
+      "bot_event_listener_boteventlistener_handleagentdispatch",
+      "bot_event_listener_boteventlistener_handledeviceresultcomplete",
+      "memory_service",
+      "memory_service_agentmemoryservice",
+      "memory_service_agentmemoryservice_addcommandresult",
+      "memory_service_agentmemoryservice_addshorttermmemory",
+      "memory_service_agentmemoryservice_clearmemory",
+      "memory_service_agentmemoryservice_constructor",
+      "memory_service_agentmemoryservice_createemptyworkingmemory",
+      "memory_service_agentmemoryservice_getshorttermkey",
+      "memory_service_agentmemoryservice_getshorttermmemory",
+      "memory_service_agentmemoryservice_getworkingkey",
+      "memory_service_agentmemoryservice_getworkingmemory",
+      "memory_service_agentmemoryservice_parseentry",
+      "memory_service_agentmemoryservice_updateworkingmemory",
+      "memory_service_spec",
+      "workspace_service",
+      "workspace_service_agentworkspaceservice",
+      "workspace_service_agentworkspaceservice_constructor",
+      "workspace_service_agentworkspaceservice_getconfig",
+      "workspace_service_agentworkspaceservice_getconfigkey",
+      "workspace_service_agentworkspaceservice_getdefaultconfig",
+      "workspace_service_agentworkspaceservice_getsessionid",
+      "workspace_service_agentworkspaceservice_getsessionkey",
+      "workspace_service_agentworkspaceservice_getstate",
+      "workspace_service_agentworkspaceservice_getstatekey",
+      "workspace_service_agentworkspaceservice_getworkspace",
+      "workspace_service_agentworkspaceservice_setconfig",
+      "workspace_service_agentworkspaceservice_setstate",
+      "workspace_service_agentworkspaceservice_updatestate",
+      "workspace_service_spec"
+    ],
+    "5": [
+      "auth_controller",
+      "auth_controller_authcontroller",
+      "auth_controller_authcontroller_constructor",
+      "auth_controller_authcontroller_forgotpassword",
+      "auth_controller_authcontroller_login",
+      "auth_controller_authcontroller_logout",
+      "auth_controller_authcontroller_refresh",
+      "auth_controller_authcontroller_register",
+      "auth_controller_authcontroller_resendverification",
+      "auth_controller_authcontroller_resetpassword",
+      "auth_controller_authcontroller_verifyemail",
+      "auth_module",
+      "auth_module_authmodule",
+      "auth_service",
+      "auth_service_authservice",
+      "auth_service_authservice_constructor",
+      "auth_service_authservice_forgotpassword",
+      "auth_service_authservice_generatetokenpair",
+      "auth_service_authservice_generateverificationcode",
+      "auth_service_authservice_login",
+      "auth_service_authservice_logout",
+      "auth_service_authservice_refresh",
+      "auth_service_authservice_register",
+      "auth_service_authservice_resendverification",
+      "auth_service_authservice_resetpassword",
+      "auth_service_authservice_storerefreshtoken",
+      "auth_service_authservice_verifyemail",
+      "jwt_strategy",
+      "jwt_strategy_jwtstrategy",
+      "jwt_strategy_jwtstrategy_constructor",
+      "jwt_strategy_jwtstrategy_validate",
+      "login_dto",
+      "login_dto_logindto",
+      "mail_module",
+      "mail_module_mailmodule",
+      "mail_service",
+      "mail_service_mailservice",
+      "mail_service_mailservice_constructor",
+      "mail_service_mailservice_getinlinetemplate",
+      "mail_service_mailservice_rendertemplate",
+      "mail_service_mailservice_sendpasswordresetemail",
+      "mail_service_mailservice_sendverificationemail",
+      "mail_service_spec",
+      "refresh_dto",
+      "refresh_dto_refreshdto",
+      "register_dto",
+      "register_dto_registerdto"
+    ],
+    "6": [
+      "gen_ppt",
+      "gen_ppt_add_multiline",
+      "gen_ppt_add_slide",
+      "gen_ppt_add_text",
+      "gen_ppt_arrow_right",
+      "gen_ppt_build_overview",
+      "gen_ppt_build_visuals",
+      "gen_ppt_card_with_label",
+      "gen_ppt_corner_marks",
+      "gen_ppt_designsystem",
+      "gen_ppt_draw_circle",
+      "gen_ppt_draw_line",
+      "gen_ppt_draw_rect",
+      "gen_ppt_ghost_card",
+      "gen_ppt_page_accent_line",
+      "gen_ppt_rationale_1",
+      "gen_ppt_rationale_103",
+      "gen_ppt_rationale_118",
+      "gen_ppt_rationale_132",
+      "gen_ppt_rationale_155",
+      "gen_ppt_rationale_175",
+      "gen_ppt_rationale_199",
+      "gen_ppt_rationale_220",
+      "gen_ppt_rationale_240",
+      "gen_ppt_rationale_249",
+      "gen_ppt_rationale_255",
+      "gen_ppt_rationale_263",
+      "gen_ppt_rationale_279",
+      "gen_ppt_rationale_33",
+      "gen_ppt_rationale_63",
+      "gen_ppt_rationale_78",
+      "gen_ppt_rationale_86",
+      "gen_ppt_rationale_94",
+      "gen_ppt_section_number",
+      "gen_ppt_set_font",
+      "gen_ppt_set_slide_bg",
+      "gen_ppt_set_slide_master_bg",
+      "gen_ppt_txbox"
+    ],
+    "7": [
+      "flutter_window",
+      "flutter_window_flutterwindow",
+      "flutter_window_messagehandler",
+      "flutter_window_oncreate",
+      "flutter_window_ondestroy",
+      "generated_plugin_registrant",
+      "generated_plugin_registrant_fl_register_plugins",
+      "generated_plugin_registrant_registerplugins",
+      "resource",
+      "win32_window",
+      "win32_window_create",
+      "win32_window_destroy",
+      "win32_window_enablefulldpisupportifavailable",
+      "win32_window_getclientarea",
+      "win32_window_gethandle",
+      "win32_window_getthisfromhandle",
+      "win32_window_getwindowclass",
+      "win32_window_messagehandler",
+      "win32_window_oncreate",
+      "win32_window_ondestroy",
+      "win32_window_scale",
+      "win32_window_setchildcontent",
+      "win32_window_setquitonclose",
+      "win32_window_show",
+      "win32_window_unregisterwindowclass",
+      "win32_window_updatetheme",
+      "win32_window_win32window",
+      "win32_window_windowclassregistrar",
+      "win32_window_windowclassregistrar_windowclassregistrar",
+      "win32_window_wndproc"
+    ],
+    "8": [
+      "converses_service_conversesservice",
+      "converses_service_conversesservice_addmembers",
+      "converses_service_conversesservice_banmember",
+      "converses_service_conversesservice_checkbanned",
+      "converses_service_conversesservice_checkmuted",
+      "converses_service_conversesservice_constructor",
+      "converses_service_conversesservice_creategroup",
+      "converses_service_conversesservice_deletegroup",
+      "converses_service_conversesservice_finduserconverses",
+      "converses_service_conversesservice_getgroupbans",
+      "converses_service_conversesservice_getmemberids",
+      "converses_service_conversesservice_getunreadcount",
+      "converses_service_conversesservice_leavegroup",
+      "converses_service_conversesservice_mutemember",
+      "converses_service_conversesservice_removemember",
+      "converses_service_conversesservice_requiregrouprole",
+      "converses_service_conversesservice_unbanmember",
+      "converses_service_conversesservice_unmutemember",
+      "converses_service_conversesservice_updategroup",
+      "converses_service_conversesservice_updatememberrole",
+      "converses_service_conversesservice_verifymembership"
+    ],
+    "9": [
+      "openclaw_ws_client",
+      "openclaw_ws_client_base64url",
+      "openclaw_ws_client_openclawwsclient",
+      "openclaw_ws_client_openclawwsclient_chat",
+      "openclaw_ws_client_openclawwsclient_chatsync",
+      "openclaw_ws_client_openclawwsclient_connect",
+      "openclaw_ws_client_openclawwsclient_constructor",
+      "openclaw_ws_client_openclawwsclient_disconnect",
+      "openclaw_ws_client_openclawwsclient_generateid",
+      "openclaw_ws_client_openclawwsclient_handlemessage",
+      "openclaw_ws_client_openclawwsclient_health",
+      "openclaw_ws_client_openclawwsclient_isconnected",
+      "openclaw_ws_client_openclawwsclient_loadorcreatedeviceidentity",
+      "openclaw_ws_client_openclawwsclient_off",
+      "openclaw_ws_client_openclawwsclient_on",
+      "openclaw_ws_client_openclawwsclient_request",
+      "openclaw_ws_client_openclawwsclient_resetsession",
+      "openclaw_ws_client_openclawwsclient_send",
+      "openclaw_ws_client_openclawwsclient_sendconnectrequest"
+    ],
+    "10": [
+      "ws_client_service_wsclientservice",
+      "ws_client_service_wsclientservice_addcommandlog",
+      "ws_client_service_wsclientservice_attempttokenrefresh",
+      "ws_client_service_wsclientservice_connect",
+      "ws_client_service_wsclientservice_disconnect",
+      "ws_client_service_wsclientservice_emitresult",
+      "ws_client_service_wsclientservice_getcommandlog",
+      "ws_client_service_wsclientservice_getdeviceinfo",
+      "ws_client_service_wsclientservice_getstatus",
+      "ws_client_service_wsclientservice_handlecommandexecute",
+      "ws_client_service_wsclientservice_registerdevice",
+      "ws_client_service_wsclientservice_scheduletokenrefresh",
+      "ws_client_service_wsclientservice_setmainwindow",
+      "ws_client_service_wsclientservice_setupeventlisteners",
+      "ws_client_service_wsclientservice_startheartbeat",
+      "ws_client_service_wsclientservice_stopheartbeat",
+      "ws_client_service_wsclientservice_stoprefreshtimer",
+      "ws_client_service_wsclientservice_updatelastcommandlog",
+      "ws_client_service_wsclientservice_updatestatus"
+    ],
+    "11": [
+      "deepseek_provider",
+      "deepseek_provider_deepseekprovider",
+      "deepseek_provider_deepseekprovider_buildrequestbody",
+      "deepseek_provider_deepseekprovider_complete",
+      "deepseek_provider_deepseekprovider_constructor",
+      "deepseek_provider_deepseekprovider_parseresponse",
+      "deepseek_provider_deepseekprovider_stream",
+      "kimi_provider",
+      "kimi_provider_kimiprovider",
+      "kimi_provider_kimiprovider_buildrequestbody",
+      "kimi_provider_kimiprovider_complete",
+      "kimi_provider_kimiprovider_constructor",
+      "kimi_provider_kimiprovider_parseresponse",
+      "kimi_provider_kimiprovider_stream",
+      "llm_provider_interface",
+      "llm_request_dto",
+      "llm_request_dto_llmmessagedto",
+      "llm_request_dto_llmrequestdto",
+      "llm_router_service_spec"
+    ],
+    "12": [
+      "profile_controller",
+      "profile_controller_profilecontroller",
+      "profile_controller_profilecontroller_constructor",
+      "profile_controller_profilecontroller_getcurrentuser",
+      "profile_controller_profilecontroller_updateprofile",
+      "profile_controller_profilecontroller_uploadavatar",
+      "profile_controller_spec",
+      "profile_module",
+      "profile_module_profilemodule",
+      "profile_service",
+      "profile_service_profileservice",
+      "profile_service_profileservice_constructor",
+      "profile_service_profileservice_getuserprofile",
+      "profile_service_profileservice_updateavatar",
+      "profile_service_profileservice_updateprofile",
+      "profile_service_spec",
+      "update_profile_dto",
+      "update_profile_dto_updateprofiledto"
+    ],
+    "13": [
+      "chat_gateway_chatgateway",
+      "chat_gateway_chatgateway_afterinit",
+      "chat_gateway_chatgateway_broadcastpresencechange",
+      "chat_gateway_chatgateway_constructor",
+      "chat_gateway_chatgateway_handleconnection",
+      "chat_gateway_chatgateway_handledisconnect",
+      "chat_gateway_chatgateway_handledraftapprove",
+      "chat_gateway_chatgateway_handledraftedit",
+      "chat_gateway_chatgateway_handledraftreject",
+      "chat_gateway_chatgateway_handlejoin",
+      "chat_gateway_chatgateway_handleleave",
+      "chat_gateway_chatgateway_handlemessageread",
+      "chat_gateway_chatgateway_handlepredictivedismiss",
+      "chat_gateway_chatgateway_handlepredictiveexecute",
+      "chat_gateway_chatgateway_handlepresenceupdate",
+      "chat_gateway_chatgateway_handletyping",
+      "chat_gateway_chatgateway_handlewhisperaccept",
+      "chat_gateway_chatgateway_handlewhisperrequest"
+    ],
+    "14": [
+      "grouppanel",
+      "grouppanel_canremove",
+      "grouppanel_getmuteminutes",
+      "grouppanel_getrolebadge",
+      "grouppanel_gettoken",
+      "grouppanel_handleaddmembers",
+      "grouppanel_handleban",
+      "grouppanel_handledeletegroup",
+      "grouppanel_handleleavegroup",
+      "grouppanel_handlemute",
+      "grouppanel_handleremovemember",
+      "grouppanel_handleunmute",
+      "grouppanel_handleupdategroup",
+      "grouppanel_handleupdaterole",
+      "grouppanel_openaddmember",
+      "grouppanel_refreshconverses",
+      "grouppanel_togglefriendselection"
+    ],
+    "15": [
+      "converses_controller_conversescontroller",
+      "converses_controller_conversescontroller_addmembers",
+      "converses_controller_conversescontroller_banmember",
+      "converses_controller_conversescontroller_constructor",
+      "converses_controller_conversescontroller_creategroup",
+      "converses_controller_conversescontroller_deletegroup",
+      "converses_controller_conversescontroller_findall",
+      "converses_controller_conversescontroller_getgroupbans",
+      "converses_controller_conversescontroller_leavegroup",
+      "converses_controller_conversescontroller_mutemember",
+      "converses_controller_conversescontroller_removemember",
+      "converses_controller_conversescontroller_unbanmember",
+      "converses_controller_conversescontroller_unmutemember",
+      "converses_controller_conversescontroller_updategroup",
+      "converses_controller_conversescontroller_updatememberrole"
+    ],
+    "16": [
+      "devices_controller_devicescontroller",
+      "devices_controller_devicescontroller_constructor",
+      "devices_controller_devicescontroller_findall",
+      "devices_controller_devicescontroller_findone",
+      "devices_controller_devicescontroller_remove",
+      "devices_controller_devicescontroller_update",
+      "devices_service_devicesservice",
+      "devices_service_devicesservice_constructor",
+      "devices_service_devicesservice_findallbyuser",
+      "devices_service_devicesservice_findonebyid",
+      "devices_service_devicesservice_remove",
+      "devices_service_devicesservice_setoffline",
+      "devices_service_devicesservice_update",
+      "devices_service_devicesservice_updatelastseen",
+      "devices_service_devicesservice_upsertdevice"
+    ],
+    "17": [
+      "sorter",
+      "sorter_addsearchbox",
+      "sorter_addsortindicators",
+      "sorter_enableui",
+      "sorter_getnthcolumn",
+      "sorter_gettable",
+      "sorter_gettablebody",
+      "sorter_gettableheader",
+      "sorter_loadcolumns",
+      "sorter_loaddata",
+      "sorter_loadrowdata",
+      "sorter_onfilterinput",
+      "sorter_removesortindicators",
+      "sorter_sortbyindex"
+    ],
+    "18": [
+      "upload_service_uploadservice",
+      "upload_service_uploadservice_confirmupload",
+      "upload_service_uploadservice_constructor",
+      "upload_service_uploadservice_deletefile",
+      "upload_service_uploadservice_ensurebucket",
+      "upload_service_uploadservice_getcategoryfromkey",
+      "upload_service_uploadservice_getextfromfilename",
+      "upload_service_uploadservice_getfileurl",
+      "upload_service_uploadservice_getmaxsize",
+      "upload_service_uploadservice_presignupload",
+      "upload_service_uploadservice_uploadbuffer",
+      "upload_service_uploadservice_uploadimage",
+      "upload_service_uploadservice_validatemimetype"
+    ],
+    "19": [
+      "prettify",
+      "prettify_a",
+      "prettify_b",
+      "prettify_c",
+      "prettify_d",
+      "prettify_g",
+      "prettify_i",
+      "prettify_k",
+      "prettify_o",
+      "prettify_q",
+      "prettify_y"
+    ],
+    "20": [
+      "bot_communication_service_botcommunicationservice",
+      "bot_communication_service_botcommunicationservice_checkchaindepth",
+      "bot_communication_service_botcommunicationservice_checkratelimit",
+      "bot_communication_service_botcommunicationservice_constructor",
+      "bot_communication_service_botcommunicationservice_detectcycle",
+      "bot_communication_service_botcommunicationservice_findbotdmconverse",
+      "bot_communication_service_botcommunicationservice_getratelimitcount",
+      "bot_communication_service_botcommunicationservice_parserouteresult",
+      "bot_communication_service_botcommunicationservice_resetratelimits",
+      "bot_communication_service_botcommunicationservice_routeviasupervisor",
+      "bot_communication_service_botcommunicationservice_sendbotmessage"
+    ],
+    "21": [
+      "bots_service_botsservice",
+      "bots_service_botsservice_constructor",
+      "bots_service_botsservice_create",
+      "bots_service_botsservice_createwithtx",
+      "bots_service_botsservice_delete",
+      "bots_service_botsservice_findbyowner",
+      "bots_service_botsservice_findone",
+      "bots_service_botsservice_findsupervisorbyuserid",
+      "bots_service_botsservice_getorcreatesupervisorconverse",
+      "bots_service_botsservice_savebotreply",
+      "bots_service_botsservice_update"
+    ],
+    "22": [
+      "messages_service_messagesservice",
+      "messages_service_messagesservice_cleanupattachments",
+      "messages_service_messagesservice_constructor",
+      "messages_service_messagesservice_create",
+      "messages_service_messagesservice_detectbotrecipient",
+      "messages_service_messagesservice_extractfilekey",
+      "messages_service_messagesservice_findbyconverse",
+      "messages_service_messagesservice_handlementions",
+      "messages_service_messagesservice_search",
+      "messages_service_messagesservice_softdelete",
+      "messages_service_messagesservice_update"
+    ],
+    "23": [
+      "predictive_service_predictiveservice",
+      "predictive_service_predictiveservice_analyzetrigger",
+      "predictive_service_predictiveservice_classifydangerlevel",
+      "predictive_service_predictiveservice_constructor",
+      "predictive_service_predictiveservice_detecttrigger",
+      "predictive_service_predictiveservice_dismissaction",
+      "predictive_service_predictiveservice_executeaction",
+      "predictive_service_predictiveservice_generateactions",
+      "predictive_service_predictiveservice_isdangerouscommand",
+      "predictive_service_predictiveservice_iswarningcommand",
+      "predictive_service_predictiveservice_parseactions"
+    ],
+    "24": [
+      "draft_service_draftservice",
+      "draft_service_draftservice_approvedraft",
+      "draft_service_draftservice_constructor",
+      "draft_service_draftservice_createdraft",
+      "draft_service_draftservice_editandapprovedraft",
+      "draft_service_draftservice_expiredraft",
+      "draft_service_draftservice_generatedraftcontent",
+      "draft_service_draftservice_getvaliddraft",
+      "draft_service_draftservice_parsedraftcontent",
+      "draft_service_draftservice_rejectdraft",
+      "draft_service_draftservice_scheduleexpiration"
+    ],
+    "25": [
+      "friends_service_friendsservice",
+      "friends_service_friendsservice_accept",
+      "friends_service_friendsservice_blockuser",
+      "friends_service_friendsservice_constructor",
+      "friends_service_friendsservice_getfriendids",
+      "friends_service_friendsservice_getfriendlist",
+      "friends_service_friendsservice_getpendingrequests",
+      "friends_service_friendsservice_normalizefriendshipids",
+      "friends_service_friendsservice_reject",
+      "friends_service_friendsservice_removefriend",
+      "friends_service_friendsservice_sendrequest"
+    ],
+    "26": [
+      "device_gateway_devicegateway",
+      "device_gateway_devicegateway_afterinit",
+      "device_gateway_devicegateway_constructor",
+      "device_gateway_devicegateway_handlecommandcancel",
+      "device_gateway_devicegateway_handlecommandsend",
+      "device_gateway_devicegateway_handleconnection",
+      "device_gateway_devicegateway_handledisconnect",
+      "device_gateway_devicegateway_handleheartbeat",
+      "device_gateway_devicegateway_handleregister",
+      "device_gateway_devicegateway_handleresultcomplete",
+      "device_gateway_isdangerouscommand"
+    ],
+    "27": [
+      "broadcast_service_broadcastservice",
+      "broadcast_service_broadcastservice_chatlistcast",
+      "broadcast_service_broadcastservice_chatunicast",
+      "broadcast_service_broadcastservice_emittoroom",
+      "broadcast_service_broadcastservice_getns",
+      "broadcast_service_broadcastservice_listcast",
+      "broadcast_service_broadcastservice_setnamespace",
+      "broadcast_service_broadcastservice_toroom",
+      "broadcast_service_broadcastservice_toroomifnotin",
+      "broadcast_service_broadcastservice_unicast",
+      "broadcast_service_broadcastservice_validatepayload"
+    ],
+    "28": [
+      "openclaw_client_service_openclawclientservice",
+      "openclaw_client_service_openclawclientservice_autoapprovedevice",
+      "openclaw_client_service_openclawclientservice_connect",
+      "openclaw_client_service_openclawclientservice_disconnect",
+      "openclaw_client_service_openclawclientservice_getclient",
+      "openclaw_client_service_openclawclientservice_getconnectioninfo",
+      "openclaw_client_service_openclawclientservice_handleunexpectedclose",
+      "openclaw_client_service_openclawclientservice_isclientconnected",
+      "openclaw_client_service_openclawclientservice_sendmessage",
+      "openclaw_client_service_openclawclientservice_setstatuschangehandler"
+    ],
+    "29": [
+      "bots_controller_botscontroller",
+      "bots_controller_botscontroller_constructor",
+      "bots_controller_botscontroller_create",
+      "bots_controller_botscontroller_findall",
+      "bots_controller_botscontroller_findone",
+      "bots_controller_botscontroller_remove",
+      "bots_controller_botscontroller_savebotreply",
+      "bots_controller_botscontroller_testcrossnotify",
+      "bots_controller_botscontroller_testsupervisorroute",
+      "bots_controller_botscontroller_update"
+    ],
+    "30": [
+      "supervisor_agent_supervisoragent",
+      "supervisor_agent_supervisoragent_buildprompt",
+      "supervisor_agent_supervisoragent_constructor",
+      "supervisor_agent_supervisoragent_generateactions",
+      "supervisor_agent_supervisoragent_generateresponse",
+      "supervisor_agent_supervisoragent_handlecrossbotnotify",
+      "supervisor_agent_supervisoragent_handledeviceresults",
+      "supervisor_agent_supervisoragent_handleevent",
+      "supervisor_agent_supervisoragent_handleusermessage",
+      "supervisor_agent_supervisoragent_sendnotification"
+    ],
+    "31": [
+      "presence_service_presenceservice",
+      "presence_service_presenceservice_constructor",
+      "presence_service_presenceservice_getonlinecount",
+      "presence_service_presenceservice_getstatus",
+      "presence_service_presenceservice_getstatuses",
+      "presence_service_presenceservice_isonline",
+      "presence_service_presenceservice_refreshttl",
+      "presence_service_presenceservice_setoffline",
+      "presence_service_presenceservice_setonline",
+      "presence_service_presenceservice_updatestatus"
+    ],
+    "32": [
+      "agent_orchestrator_service_agentorchestratorservice",
+      "agent_orchestrator_service_agentorchestratorservice_broadcast",
+      "agent_orchestrator_service_agentorchestratorservice_constructor",
+      "agent_orchestrator_service_agentorchestratorservice_dispatchevent",
+      "agent_orchestrator_service_agentorchestratorservice_getagent",
+      "agent_orchestrator_service_agentorchestratorservice_getallagents",
+      "agent_orchestrator_service_agentorchestratorservice_onmoduleinit",
+      "agent_orchestrator_service_agentorchestratorservice_registeragent",
+      "agent_orchestrator_service_agentorchestratorservice_unregisteragent"
+    ],
+    "33": [
+      "whisper_service_whisperservice",
+      "whisper_service_whisperservice_acceptsuggestion",
+      "whisper_service_whisperservice_constructor",
+      "whisper_service_whisperservice_extractcontext",
+      "whisper_service_whisperservice_generatesuggestions",
+      "whisper_service_whisperservice_handlewhisperrequest",
+      "whisper_service_whisperservice_handlewhispertrigger",
+      "whisper_service_whisperservice_iswhispertrigger",
+      "whisper_service_whisperservice_parsesuggestions"
+    ],
+    "34": [
+      "friends_controller_friendscontroller",
+      "friends_controller_friendscontroller_acceptrequest",
+      "friends_controller_friendscontroller_blockuser",
+      "friends_controller_friendscontroller_constructor",
+      "friends_controller_friendscontroller_getfriendlist",
+      "friends_controller_friendscontroller_getpendingrequests",
+      "friends_controller_friendscontroller_rejectrequest",
+      "friends_controller_friendscontroller_removefriend",
+      "friends_controller_friendscontroller_sendrequest"
+    ],
+    "35": [
+      "gateway_strategy_interface",
+      "single_container_strategy",
+      "single_container_strategy_singlecontainerstrategy",
+      "single_container_strategy_singlecontainerstrategy_acquire",
+      "single_container_strategy_singlecontainerstrategy_constructor",
+      "single_container_strategy_singlecontainerstrategy_destroy",
+      "single_container_strategy_singlecontainerstrategy_health",
+      "single_container_strategy_singlecontainerstrategy_release"
+    ],
+    "36": [
+      "mentions_service_mentionservice",
+      "mentions_service_mentionservice_constructor",
+      "mentions_service_mentionservice_deduplicate",
+      "mentions_service_mentionservice_parse",
+      "mentions_service_mentionservice_route",
+      "mentions_service_mentionservice_routetobot",
+      "mentions_service_mentionservice_routetosupervisor",
+      "mentions_service_mentionservice_validate"
+    ],
+    "37": [
+      "ai_controller_aicontroller",
+      "ai_controller_aicontroller_constructor",
+      "ai_controller_aicontroller_health",
+      "ai_controller_aicontroller_testdraft",
+      "ai_controller_aicontroller_testdraftapprove",
+      "ai_controller_aicontroller_testdraftreject",
+      "ai_controller_aicontroller_testpredictive",
+      "ai_controller_aicontroller_testpredictivemock"
+    ],
+    "38": [
+      "messages_controller_messagescontroller",
+      "messages_controller_messagescontroller_constructor",
+      "messages_controller_messagescontroller_create",
+      "messages_controller_messagescontroller_findbyconverse",
+      "messages_controller_messagescontroller_remove",
+      "messages_controller_messagescontroller_search",
+      "messages_controller_messagescontroller_update"
+    ],
+    "39": [
+      "llm_router_service_llmrouterservice",
+      "llm_router_service_llmrouterservice_complete",
+      "llm_router_service_llmrouterservice_constructor",
+      "llm_router_service_llmrouterservice_getfallbackprovider",
+      "llm_router_service_llmrouterservice_logmetrics",
+      "llm_router_service_llmrouterservice_selectprovider",
+      "llm_router_service_llmrouterservice_stream"
+    ],
+    "40": [
+      "check_ws_coverage",
+      "check_ws_coverage_extractdesktopevents",
+      "check_ws_coverage_extractmobileevents",
+      "check_ws_coverage_main",
+      "check_ws_coverage_readfile"
+    ],
+    "41": [
+      "ai_payloads",
+      "chat_payloads",
+      "device_payloads",
+      "envelope",
+      "typed_socket"
+    ],
+    "42": [
+      "block_navigation",
+      "block_navigation_gotonext",
+      "block_navigation_gotoprevious",
+      "block_navigation_makecurrent",
+      "block_navigation_toggleclass"
+    ],
+    "43": [
+      "commands_service_commandsservice",
+      "commands_service_commandsservice_complete",
+      "commands_service_commandsservice_constructor",
+      "commands_service_commandsservice_create",
+      "commands_service_commandsservice_findbyuser"
+    ],
+    "44": [
+      "generatedpluginregistrant",
+      "generatedpluginregistrant_generatedpluginregistrant",
+      "generatedpluginregistrant_generatedpluginregistrant_registerwith",
+      "generatedpluginregistrant_generatedpluginregistrant_registerwithregistry",
+      "generatedpluginregistrant_registergeneratedplugins"
+    ],
+    "45": [
+      "metrics_service_metricsservice",
+      "metrics_service_metricsservice_getcontenttype",
+      "metrics_service_metricsservice_getmetrics",
+      "metrics_service_metricsservice_onmoduleinit"
+    ],
+    "46": [
+      "bot_init_service_botinitservice",
+      "bot_init_service_botinitservice_constructor",
+      "bot_init_service_botinitservice_createbotwithdm",
+      "bot_init_service_botinitservice_createdefaultbots"
+    ],
+    "47": [
+      "email_verified_guard",
+      "email_verified_guard_emailverifiedguard",
+      "email_verified_guard_emailverifiedguard_canactivate",
+      "email_verified_guard_emailverifiedguard_constructor"
+    ],
+    "48": [
+      "agent_interface",
+      "events_interface",
+      "memory_interface",
+      "workspace_interface"
+    ],
+    "49": [
+      "users_controller_userscontroller",
+      "users_controller_userscontroller_constructor",
+      "users_controller_userscontroller_getonlinestatuses",
+      "users_controller_userscontroller_searchusers"
+    ],
+    "50": [
+      "upload_controller_uploadcontroller",
+      "upload_controller_uploadcontroller_confirm",
+      "upload_controller_uploadcontroller_constructor",
+      "upload_controller_uploadcontroller_presign"
+    ],
+    "51": [
+      "flutter_lldb_helper",
+      "flutter_lldb_helper_handle_new_rx_page",
+      "flutter_lldb_helper_lldb_init_module",
+      "flutter_lldb_helper_rationale_8"
+    ],
+    "52": [
+      "seed",
+      "seed_main"
+    ],
+    "53": [
+      "search_messages_dto",
+      "search_messages_dto_searchmessagesdto"
+    ],
+    "54": [
+      "message_response_dto",
+      "message_response_dto_messageresponsedto"
+    ],
+    "55": [
+      "verify_sprint2"
+    ],
+    "56": [
+      "update"
+    ],
+    "57": [
+      "prepare_openclaw_sidecar"
+    ],
+    "58": [
+      "bot_notification"
+    ],
+    "59": [
+      "user_schema"
+    ],
+    "60": [
+      "bot_schema"
+    ],
+    "61": [
+      "group_schema"
+    ],
+    "62": [
+      "device_schema"
+    ],
+    "63": [
+      "bot_notification_schema"
+    ],
+    "64": [
+      "validators"
+    ],
+    "65": [
+      "events"
+    ],
+    "66": [
+      "electron_vite_config"
+    ],
+    "67": [
+      "env_d"
+    ],
+    "68": [
+      "jest_integration_config"
+    ],
+    "69": [
+      "bot_response_dto"
+    ],
+    "70": [
+      "validator_compat_spec"
+    ],
+    "71": [
+      "claude_md_jwt_rs256"
+    ],
+    "72": [
+      "claude_md_refresh_token"
+    ],
+    "73": [
+      "claude_md_env_secrets"
+    ],
+    "74": [
+      "claude_md_rbac"
+    ],
+    "75": [
+      "claude_md_wss_transport"
+    ],
+    "76": [
+      "claude_md_email_verification"
+    ],
+    "77": [
+      "claude_md_password_reset"
+    ],
+    "78": [
+      "claude_md_shell_exec"
+    ],
+    "79": [
+      "claude_md_draft_verify"
+    ],
+    "80": [
+      "claude_md_dangerous_cmd_block"
+    ],
+    "81": [
+      "claude_md_ipc_preload"
+    ],
+    "82": [
+      "claude_md_openclaw_gateway"
+    ],
+    "83": [
+      "phase5_token_auth"
+    ],
+    "84": [
+      "phase5_jwt_gateway_token_exchange"
+    ],
+    "85": [
+      "phase5_dangerous_cmd_detection"
+    ],
+    "86": [
+      "phase5_cmd_whitelist"
+    ],
+    "87": [
+      "phase5_auth_modes"
+    ],
+    "88": [
+      "phase5_child_process_fallback"
+    ],
+    "89": [
+      "phase5_dynamic_port"
+    ],
+    "90": [
+      "phase5_per_user_gateway"
+    ],
+    "91": [
+      "phase5_impl_hmac_token"
+    ],
+    "92": [
+      "phase5_impl_gateway_api"
+    ],
+    "93": [
+      "phase5_impl_desktop_connect"
+    ],
+    "94": [
+      "phase6_agent_memory_redis"
+    ],
+    "95": [
+      "phase6_bot_workspace_config"
+    ],
+    "96": [
+      "phase6_agent_session_isolation"
+    ],
+    "97": [
+      "phase7_rate_limit"
+    ],
+    "98": [
+      "phase7_bot_loop_prevention"
+    ],
+    "99": [
+      "sprint3_ai_danger_level"
+    ],
+    "100": [
+      "sprint3_no_auto_action"
+    ],
+    "101": [
+      "openclaw_arch_auth_none_unsafe"
+    ],
+    "102": [
+      "research_im_signal_protocol"
+    ],
+    "103": [
+      "phase6_memory_service"
+    ],
+    "104": [
+      "phase6_agent_orchestrator"
+    ],
+    "105": [
+      "realtest0308_logout_token_leak"
+    ],
+    "106": [
+      "realtest0318_dangerous_command_filter"
+    ],
+    "107": [
+      "realtest0318_cross_bot_security"
+    ],
+    "108": [
+      "realtest0318_email_verification"
+    ],
+    "109": [
+      "realtest0405_device_signature"
+    ],
+    "110": [
+      "realtest0405_token_auto_refresh"
+    ],
+    "111": [
+      "realtest0405_auth_none_local"
+    ],
+    "112": [
+      "realtest0309_double_submit_guard"
+    ],
+    "113": [
+      "realtest0309_resend_rate_limit"
+    ],
+    "114": [
+      "realtest0309_req_user_id_fix"
+    ],
+    "115": [
+      "realtest0407_ipc_listener_leak"
+    ],
+    "116": [
+      "rush_ref_manual_scopes"
+    ],
+    "117": [
+      "rush_ref_manual_exec_approval"
+    ],
+    "118": [
+      "rush_ref_manual_device_auth"
+    ],
+    "119": [
+      "autotest_ws_namespace_risk"
+    ],
+    "120": [
+      "rush_tool_visibility_toolrecord"
+    ],
+    "121": [
+      "rush_gbk_fix_raw_buffer"
+    ],
+    "122": [
+      "techdecv2_jwt_auth"
+    ],
+    "123": [
+      "techdecv2_exec_approvals"
+    ],
+    "124": [
+      "techdecv2_command_blacklist"
+    ],
+    "125": [
+      "techdecv2_draft_verify"
+    ],
+    "126": [
+      "techdecv2_rate_limiting"
+    ],
+    "127": [
+      "zeroclaw_sandbox"
+    ],
+    "128": [
+      "zeroclaw_allowlist"
+    ],
+    "129": [
+      "zeroclaw_forbidden_paths"
+    ],
+    "130": [
+      "userstories_dangerous_cmd_intercept"
+    ],
+    "131": [
+      "userstories_faceid_dangerous"
+    ],
+    "132": [
+      "userguide_rate_limits_table"
+    ],
+    "133": [
+      "userguide_password_reset_logout"
+    ],
+    "134": [
+      "userguide_verification_lockout"
+    ],
+    "135": [
+      "sprint3_token_rotation"
+    ],
+    "136": [
+      "sprint3_jti_collision"
+    ],
+    "137": [
+      "sprint1_phase1_jwt_rs256"
+    ],
+    "138": [
+      "sprint1_phase1_argon2"
+    ],
+    "139": [
+      "sprint1_phase1_dangerous_command_blacklist"
+    ],
+    "140": [
+      "sprint1_phase1_timing_attack_defense"
+    ],
+    "141": [
+      "sprint3_lineb_review_jwt_algorithm_mismatch"
+    ],
+    "142": [
+      "sprint3_lineb_review_admin_no_auth"
+    ],
+    "143": [
+      "sprint3_lineb_review_bot_member_bypass"
+    ],
+    "144": [
+      "sprint3_lineb_review_file_extension_injection"
+    ],
+    "145": [
+      "sprint3_lineb_review_avatar_url_bypass"
+    ],
+    "146": [
+      "sprint3_lineb_review_desktop_logout_incomplete"
+    ],
+    "147": [
+      "sprint3_lineb_review_gateway_token_cli_exposed"
+    ],
+    "148": [
+      "sprint5_plan_email_verification"
+    ],
+    "149": [
+      "sprint5_plan_verification_brute_force"
+    ],
+    "150": [
+      "sprint5_plan_forgot_password_anti_enum"
+    ],
+    "151": [
+      "sprint5_plan_reset_revoke_refresh_tokens"
+    ],
+    "152": [
+      "sprint2_phase6_bot_user_non_loginable"
+    ],
+    "153": [
+      "sprint2_phase2_membership_verification"
+    ],
+    "154": [
+      "sprint2_phase2_non_member_403"
+    ],
+    "155": [
+      "sprint0_mark_flutter_secure_storage"
+    ],
+    "156": [
+      "sprint0_mark_rs256_vs_hs256"
+    ],
+    "157": [
+      "sprint6_cve_2026_25253"
+    ],
+    "158": [
+      "sprint6_docker_network_isolation"
+    ],
+    "159": [
+      "sprint6_dangerous_cmd_triple_layer"
+    ],
+    "160": [
+      "sprint6_server_cmd_blacklist"
+    ],
+    "161": [
+      "sprint6_desktop_cmd_blacklist"
+    ],
+    "162": [
+      "sprint6_exec_approvals"
+    ],
+    "163": [
+      "sprint6_gateway_token_security"
+    ],
+    "164": [
+      "sprint6_openclaw_version_pin"
+    ],
+    "165": [
+      "prod_deploy_nginx_rate_limiting"
+    ],
+    "166": [
+      "prod_deploy_cors_hardening"
+    ],
+    "167": [
+      "prod_deploy_tls_ssl"
+    ],
+    "168": [
+      "prod_deploy_ufw_firewall"
+    ],
+    "169": [
+      "onboarding_agent_provider_interface"
+    ],
+    "170": [
+      "onboarding_openclaw_adapter"
+    ],
+    "171": [
+      "onboarding_hermes_adapter"
+    ],
+    "172": [
+      "onboarding_offline_bundling"
+    ],
+    "173": [
+      "server_jwt_auth_guard"
+    ],
+    "174": [
+      "server_email_verified_guard"
+    ],
+    "175": [
+      "desktop_ipc_pattern"
+    ],
+    "176": [
+      "mobile_api_client_jwt_attach"
+    ]
+  },
+  "cohesion": {
+    "0": 0.04,
+    "1": 0.02,
+    "2": 0.04,
+    "3": 0.06,
+    "4": 0.06,
+    "5": 0.06,
+    "6": 0.11,
+    "7": 0.11,
+    "8": 0.14,
+    "9": 0.17,
+    "10": 0.16,
+    "11": 0.15,
+    "12": 0.13,
+    "13": 0.13,
+    "14": 0.27,
+    "15": 0.13,
+    "16": 0.16,
+    "17": 0.27,
+    "18": 0.29,
+    "19": 0.35,
+    "20": 0.27,
+    "21": 0.27,
+    "22": 0.29,
+    "23": 0.25,
+    "24": 0.31,
+    "25": 0.27,
+    "26": 0.18,
+    "27": 0.38,
+    "28": 0.24,
+    "29": 0.2,
+    "30": 0.36,
+    "31": 0.2,
+    "32": 0.25,
+    "33": 0.36,
+    "34": 0.22,
+    "35": 0.25,
+    "36": 0.36,
+    "37": 0.25,
+    "38": 0.29,
+    "39": 0.48,
+    "40": 0.8,
+    "41": 0.4,
+    "42": 0.7,
+    "43": 0.4,
+    "44": 0.5,
+    "45": 0.5,
+    "46": 0.67,
+    "47": 0.5,
+    "48": 0.5,
+    "49": 0.5,
+    "50": 0.5,
+    "51": 0.5,
+    "52": 1.0,
+    "53": 1.0,
+    "54": 1.0,
+    "55": 1.0,
+    "56": 1.0,
+    "57": 1.0,
+    "58": 1.0,
+    "59": 1.0,
+    "60": 1.0,
+    "61": 1.0,
+    "62": 1.0,
+    "63": 1.0,
+    "64": 1.0,
+    "65": 1.0,
+    "66": 1.0,
+    "67": 1.0,
+    "68": 1.0,
+    "69": 1.0,
+    "70": 1.0,
+    "71": 1.0,
+    "72": 1.0,
+    "73": 1.0,
+    "74": 1.0,
+    "75": 1.0,
+    "76": 1.0,
+    "77": 1.0,
+    "78": 1.0,
+    "79": 1.0,
+    "80": 1.0,
+    "81": 1.0,
+    "82": 1.0,
+    "83": 1.0,
+    "84": 1.0,
+    "85": 1.0,
+    "86": 1.0,
+    "87": 1.0,
+    "88": 1.0,
+    "89": 1.0,
+    "90": 1.0,
+    "91": 1.0,
+    "92": 1.0,
+    "93": 1.0,
+    "94": 1.0,
+    "95": 1.0,
+    "96": 1.0,
+    "97": 1.0,
+    "98": 1.0,
+    "99": 1.0,
+    "100": 1.0,
+    "101": 1.0,
+    "102": 1.0,
+    "103": 1.0,
+    "104": 1.0,
+    "105": 1.0,
+    "106": 1.0,
+    "107": 1.0,
+    "108": 1.0,
+    "109": 1.0,
+    "110": 1.0,
+    "111": 1.0,
+    "112": 1.0,
+    "113": 1.0,
+    "114": 1.0,
+    "115": 1.0,
+    "116": 1.0,
+    "117": 1.0,
+    "118": 1.0,
+    "119": 1.0,
+    "120": 1.0,
+    "121": 1.0,
+    "122": 1.0,
+    "123": 1.0,
+    "124": 1.0,
+    "125": 1.0,
+    "126": 1.0,
+    "127": 1.0,
+    "128": 1.0,
+    "129": 1.0,
+    "130": 1.0,
+    "131": 1.0,
+    "132": 1.0,
+    "133": 1.0,
+    "134": 1.0,
+    "135": 1.0,
+    "136": 1.0,
+    "137": 1.0,
+    "138": 1.0,
+    "139": 1.0,
+    "140": 1.0,
+    "141": 1.0,
+    "142": 1.0,
+    "143": 1.0,
+    "144": 1.0,
+    "145": 1.0,
+    "146": 1.0,
+    "147": 1.0,
+    "148": 1.0,
+    "149": 1.0,
+    "150": 1.0,
+    "151": 1.0,
+    "152": 1.0,
+    "153": 1.0,
+    "154": 1.0,
+    "155": 1.0,
+    "156": 1.0,
+    "157": 1.0,
+    "158": 1.0,
+    "159": 1.0,
+    "160": 1.0,
+    "161": 1.0,
+    "162": 1.0,
+    "163": 1.0,
+    "164": 1.0,
+    "165": 1.0,
+    "166": 1.0,
+    "167": 1.0,
+    "168": 1.0,
+    "169": 1.0,
+    "170": 1.0,
+    "171": 1.0,
+    "172": 1.0,
+    "173": 1.0,
+    "174": 1.0,
+    "175": 1.0,
+    "176": 1.0
+  },
+  "gods": [
+    {
+      "id": "converses_service_conversesservice",
+      "label": "ConversesService",
+      "edges": 21
+    },
+    {
+      "id": "openclaw_process_service_openclawprocessservice",
+      "label": "OpenClawProcessService",
+      "edges": 20
+    },
+    {
+      "id": "ws_client_service_wsclientservice",
+      "label": "WsClientService",
+      "edges": 19
+    },
+    {
+      "id": "chat_gateway_chatgateway",
+      "label": "ChatGateway",
+      "edges": 18
+    },
+    {
+      "id": "openclaw_ws_client_openclawwsclient",
+      "label": "OpenClawWsClient",
+      "edges": 17
+    },
+    {
+      "id": "converses_controller_conversescontroller",
+      "label": "ConversesController",
+      "edges": 15
+    },
+    {
+      "id": "gen_ppt_build_overview",
+      "label": "build_overview()",
+      "edges": 13
+    },
+    {
+      "id": "gen_ppt_build_visuals",
+      "label": "build_visuals()",
+      "edges": 13
+    },
+    {
+      "id": "auth_service_authservice",
+      "label": "AuthService",
+      "edges": 13
+    },
+    {
+      "id": "workspace_service_agentworkspaceservice",
+      "label": "AgentWorkspaceService",
+      "edges": 13
+    }
+  ],
+  "surprises": [],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `ConversesService` connect `Community 8` to `Community 0`?",
+      "why": "High betweenness centrality (0.025) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `ChatGateway` connect `Community 13` to `Community 0`?",
+      "why": "High betweenness centrality (0.022) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `ConversesController` connect `Community 15` to `Community 0`?",
+      "why": "High betweenness centrality (0.018) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `LinkingChat PPT Generator \u2014 \"Herm\u00e8s Tech\" Design System Generates two presentati`, `Strict color + typography tokens.`, `Lock background on every slide layout via the slide master.` to the rest of the system?",
+      "why": "169 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 0` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.04 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 1` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.02 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 2` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.04 - nodes in this community are weakly interconnected."
+    }
+  ]
+}
