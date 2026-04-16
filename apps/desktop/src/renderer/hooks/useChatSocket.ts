@@ -423,6 +423,9 @@ export function useChatSocket() {
     emitWhisperAccept: (suggestionId: string, selectedIndex: number) => {
       sharedSocket?.emit('ai:whisper:accept', { suggestionId, selectedIndex });
     },
+    emitWhisperDismiss: (suggestionId: string) => {
+      sharedSocket?.emit('ai:whisper:dismiss', { suggestionId });
+    },
     emitDraftApprove: (draftId: string) => {
       sharedSocket?.emit('ai:draft:approve', { draftId });
     },

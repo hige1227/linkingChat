@@ -9,7 +9,7 @@ interface WhisperBarProps {
 export function WhisperBar({ converseId, onAccept }: WhisperBarProps) {
   const suggestion = useAiStore((s) => s.whisper[converseId]);
   const { dismissWhisper, toggleWhisperAlternatives } = useAiStore();
-  const { emitWhisperAccept } = useChatSocket();
+  const { emitWhisperAccept, emitWhisperDismiss } = useChatSocket();
 
   if (!suggestion) return null;
 
@@ -19,9 +19,14 @@ export function WhisperBar({ converseId, onAccept }: WhisperBarProps) {
     onAccept(text);
   };
 
+  const handleDismiss = () => {
+    emitWhisperDismiss(suggestion.suggestionId);
+    dismissWhisper(converseId);
+  };
+
   return (
     <div className="whisper-bar">
-      <span className="whisper-label">@ai</span>
+      <span className="whisper-label">✨ Jarvis</span>
       <div className="whisper-chips">
         <button
           className="whisper-chip whisper-chip-primary"
@@ -43,7 +48,7 @@ export function WhisperBar({ converseId, onAccept }: WhisperBarProps) {
 
         <button
           className="whisper-dismiss-btn"
-          onClick={() => dismissWhisper(converseId)}
+          onClick={handleDismiss}
           title="Dismiss"
         >
           ×

@@ -6,6 +6,7 @@ import { useChatSocket } from '../../hooks/useChatSocket';
 import { useOpenClawChat } from '../../hooks/useOpenClawChat';
 import { uploadFile } from '../../services/uploadService';
 import { VoiceRecorder } from './VoiceRecorder';
+import { WhisperBar } from './WhisperBar';
 import { API_BASE_URL } from '@renderer/config';
 import type { MessageResponse } from '@linkingchat/ws-protocol';
 
@@ -276,6 +277,15 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
 
   return (
     <div className="message-input-container">
+      {!isGroup && !isBotConverse && (
+        <WhisperBar
+          converseId={converseId}
+          onAccept={(text) => {
+            setText(text);
+            requestAnimationFrame(() => textareaRef.current?.focus());
+          }}
+        />
+      )}
       {isBotConverse && !openClawConnected && (
         <div className="bot-offline-hint">
           ⚠ AI assistant offline — restart Desktop to reconnect
