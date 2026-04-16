@@ -95,9 +95,9 @@ export class SupervisorAgent extends BaseAgent {
     // Build LLM context from history (oldest first, exclude the trigger @ai message)
     const contextMessages = recentMessages
       .reverse()
-      .filter((m) => m.content && !m.content.match(/(?<!\w)@ai\b/i))
+      .filter((m: (typeof recentMessages)[number]) => m.content && !m.content.match(/(?<!\w)@ai\b/i))
       .slice(-20)
-      .map((m) => {
+      .map((m: (typeof recentMessages)[number]) => {
         const name = m.author?.displayName ?? 'Unknown';
         return `${name}: ${m.content}`;
       });

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BotsService } from './bots.service';
 import { DEFAULT_BOT_TEMPLATES, type BotTemplate } from './bot-templates';
@@ -38,7 +39,7 @@ export class BotInitService {
     userId: string,
     template: BotTemplate,
   ): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Step 1: 创建 Bot（含 Bot 专用 User 记录）
       const { bot } = await this.botsService.createWithTx(tx, userId, {
         name: template.name,

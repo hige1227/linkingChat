@@ -194,7 +194,7 @@ export class BotCommunicationService {
 
       // 2. Build bot catalog for LLM
       const botCatalog = bots
-        .map((b) => `- ${b.name} (${b.type}): ${b.description || 'No description'}`)
+        .map((b: (typeof bots)[number]) => `- ${b.name} (${b.type}): ${b.description || 'No description'}`)
         .join('\n');
 
       // 3. Ask LLM to route

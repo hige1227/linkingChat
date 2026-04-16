@@ -228,7 +228,7 @@ export class WhisperService {
     messages.reverse();
 
     return messages
-      .map((m) => `${m.author.displayName}: ${m.content ?? ''}`)
+      .map((m: (typeof messages)[number]) => `${m.author.displayName}: ${m.content ?? ''}`)
       .join('\n');
   }
 
