@@ -348,6 +348,39 @@ describe('WhisperService', () => {
     });
   });
 
+  // ── shouldTrigger() ────────────────────────────
+
+  describe('shouldTrigger', () => {
+    it('returns false for null content', () => {
+      expect(service.shouldTrigger(null)).toBe(false);
+    });
+
+    it('returns false for empty string', () => {
+      expect(service.shouldTrigger('')).toBe(false);
+    });
+
+    it('returns false for content shorter than 3 chars', () => {
+      expect(service.shouldTrigger('hi')).toBe(false);
+      expect(service.shouldTrigger('ok')).toBe(false);
+    });
+
+    it('returns false for pure emoji content', () => {
+      expect(service.shouldTrigger('👍')).toBe(false);
+      expect(service.shouldTrigger('😂😂😂')).toBe(false);
+      expect(service.shouldTrigger('  👍  ')).toBe(false);
+    });
+
+    it('returns true for normal text', () => {
+      expect(service.shouldTrigger('今天开会吗')).toBe(true);
+      expect(service.shouldTrigger('好的，明天见')).toBe(true);
+      expect(service.shouldTrigger('Hello there')).toBe(true);
+    });
+
+    it('returns true for text with emoji mixed in', () => {
+      expect(service.shouldTrigger('好的👍')).toBe(true);
+    });
+  });
+
   // ── acceptSuggestion() ────────────────────────────
 
   describe('acceptSuggestion', () => {

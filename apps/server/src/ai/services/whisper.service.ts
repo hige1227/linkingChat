@@ -207,6 +207,19 @@ export class WhisperService {
   }
 
   /**
+   * Quality gate — determines whether a received message should trigger Whisper.
+   * Skips: null/empty content, too-short messages, pure emoji.
+   */
+  shouldTrigger(content: string | null): boolean {
+    if (!content) return false;
+    const stripped = content.trim();
+    if (stripped.length < 3) return false;
+    // Pure emoji (no alphabetic or CJK characters)
+    if (/^[\p{Emoji}\s]+$/u.test(stripped)) return false;
+    return true;
+  }
+
+  /**
    * 提取聊天上下文（最近 N 条消息）
    */
   async extractContext(converseId: string): Promise<string> {
