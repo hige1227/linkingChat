@@ -8,6 +8,8 @@ import { BroadcastService } from '../../gateway/broadcast.service';
 import { BotsService } from '../../bots/bots.service';
 import { MessageType } from '../../messages/dto/create-message.dto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DraftService } from '../../ai/services/draft.service';
+import { DraftType } from '@prisma/client';
 import {
   AgentEvent,
   AgentResponse,
@@ -34,6 +36,7 @@ export class SupervisorAgent extends BaseAgent {
     private readonly broadcastService: BroadcastService,
     private readonly botsService: BotsService,
     private readonly prisma: PrismaService,
+    private readonly draftService: DraftService,
   ) {
     super(memoryService, workspaceService);
   }
@@ -84,50 +87,96 @@ export class SupervisorAgent extends BaseAgent {
       return;
     }
 
-    // Fetch recent conversation history for context (up to 20 messages, excluding the @ai message itself)
+    // Build conversation context (last 20 messages, exclude @ai trigger)
     const recentMessages = await this.prisma.message.findMany({
       where: { converseId: payload.converseId, deletedAt: null },
       orderBy: { createdAt: 'desc' },
-      take: 21, // extra 1 in case the @ai message is included
+      take: 21,
       include: { author: { select: { id: true, displayName: true } } },
     });
 
-    // Build LLM context from history (oldest first, exclude the trigger @ai message)
     const contextMessages = recentMessages
       .reverse()
-      .filter((m: (typeof recentMessages)[number]) => m.content && !m.content.match(/(?<!\w)@ai\b/i))
+      .filter((m: (typeof recentMessages)[number]) =>
+        m.content && !m.content.match(/(?<!\w)@ai\b/i),
+      )
       .slice(-20)
       .map((m: (typeof recentMessages)[number]) => {
         const name = m.author?.displayName ?? 'Unknown';
         return `${name}: ${m.content}`;
       });
 
-    const conversationContext = contextMessages.length > 0
-      ? `以下是最近的对话记录：\n${contextMessages.join('\n')}\n\n`
-      : '';
+    const conversationContext =
+      contextMessages.length > 0
+        ? `最近的对话记录：\n${contextMessages.join('\n')}\n\n`
+        : '';
 
+    // Single LLM call: classify intent + generate response/draft
     const llmResponse = await this.llmRouter.complete({
       taskType: 'chat',
-      systemPrompt:
-        '你是 Supervisor，用户的 AI 助手。用户在对话中 @ai 向你提问，请根据对话上下文回答。简洁、友好，回复不超过 150 字。',
-      messages: [{
-        role: 'user',
-        content: `${conversationContext}用户的请求：${payload.content.replace(/(?<!\w)@ai\b/i, '').trim()}`,
-      }],
-      maxTokens: 300,
+      systemPrompt: SUPERVISOR_INTENT_PROMPT,
+      messages: [
+        {
+          role: 'user',
+          content: `${conversationContext}用户的请求：${payload.content.replace(/(?<!\w)@ai\b/i, '').trim()}`,
+        },
+      ],
+      maxTokens: 512,
     });
 
-    await this.messagesService.create(
-      supervisorBot.userId,
-      {
-        converseId: payload.converseId,
-        content: llmResponse.content,
-        type: MessageType.TEXT,
-      },
-      { skipMembershipCheck: true }, // Bot may not be a member of group chats
-    );
+    // Parse intent from LLM response
+    const parsed = this.parseIntentResponse(llmResponse.content);
 
-    this.logger.log(`Replied to USER_MESSAGE in converse ${payload.converseId}`);
+    if (parsed.intent === 'draft' && parsed.draftContent) {
+      // Draft & Verify flow
+      await this.draftService.createDraft({
+        userId,
+        converseId: payload.converseId,
+        botId: supervisorBot.id,
+        botName: supervisorBot.name,
+        draftType: DraftType.MESSAGE,
+        userIntent: parsed.draftContent,
+      });
+      this.logger.log(`Draft created for user ${userId} in converse ${payload.converseId}`);
+    } else {
+      // Chat reply flow (default)
+      const replyContent = parsed.response ?? llmResponse.content;
+      await this.messagesService.create(
+        supervisorBot.userId,
+        {
+          converseId: payload.converseId,
+          content: replyContent,
+          type: MessageType.TEXT,
+        },
+        { skipMembershipCheck: true },
+      );
+      this.logger.log(`Chat reply sent to converse ${payload.converseId}`);
+    }
+  }
+
+  /**
+   * Parse the merged intent+response JSON from LLM.
+   * Falls back gracefully to chat intent on malformed output.
+   */
+  private parseIntentResponse(content: string): {
+    intent: 'chat' | 'draft';
+    response?: string;
+    draftContent?: string;
+  } {
+    try {
+      let cleaned = content.trim();
+      if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+      }
+      const parsed = JSON.parse(cleaned);
+      if (parsed.intent === 'draft') {
+        return { intent: 'draft', draftContent: String(parsed.draftContent ?? '') };
+      }
+      return { intent: 'chat', response: String(parsed.response ?? content) };
+    } catch {
+      // Malformed JSON → treat entire content as chat reply
+      return { intent: 'chat', response: content };
+    }
   }
 
   private async handleCrossBotNotify(event: AgentEvent, userId: string): Promise<void> {
@@ -306,3 +355,22 @@ ${tasksSummary}
     }
   }
 }
+
+const SUPERVISOR_INTENT_PROMPT = `你是 Jarvis，用户的智能私人助手。分析用户输入，返回以下 JSON：
+
+{
+  "intent": "chat" | "draft",
+  "response": "直接回复的内容（intent=chat 时必填）",
+  "draftContent": "代为起草的消息内容（intent=draft 时必填）"
+}
+
+draft 意图判断标准（满足以下任一）：
+- 用户明确要求帮写/帮回复某人某事
+- 含关键词：帮我回复、帮我写、替我说、帮我发、draft、write for me、代我回复
+
+其他情况统一使用 chat。
+
+chat 回复要求：简洁友好，不超过 150 字。
+draft 内容要求：语言自然流畅，直接可发送，符合商务/社交场景。
+
+直接输出 JSON，不要包裹在 markdown 代码块中。`;

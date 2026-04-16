@@ -7,6 +7,7 @@ import { MessagesService } from '../../messages/messages.service';
 import { BroadcastService } from '../../gateway/broadcast.service';
 import { BotsService } from '../../bots/bots.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DraftService } from '../../ai/services/draft.service';
 import { AgentEvent } from '../interfaces';
 
 describe('SupervisorAgent', () => {
@@ -18,6 +19,7 @@ describe('SupervisorAgent', () => {
   let mockBroadcastService: any;
   let mockBotsService: any;
   let mockPrisma: any;
+  let mockDraftService: any;
 
   beforeEach(async () => {
     mockMemoryService = {
@@ -51,6 +53,9 @@ describe('SupervisorAgent', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
     };
+    mockDraftService = {
+      createDraft: jest.fn().mockResolvedValue('draft-id-1'),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -62,6 +67,7 @@ describe('SupervisorAgent', () => {
         { provide: BroadcastService, useValue: mockBroadcastService },
         { provide: BotsService, useValue: mockBotsService },
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: DraftService, useValue: mockDraftService },
       ],
     }).compile();
 
@@ -242,6 +248,75 @@ describe('SupervisorAgent', () => {
           content: '[From Coding Bot]: file_created',
         }),
       );
+    });
+  });
+
+  describe('handleUserMessage — intent routing', () => {
+    const userMessageEvent = (content: string) => ({
+      type: 'USER_MESSAGE' as const,
+      payload: {
+        converseId: 'converse-1',
+        content,
+        userId: 'user-1',
+      },
+      timestamp: new Date(),
+      source: { userId: 'user-1' },
+    });
+
+    it('routes chat intent to bot message reply', async () => {
+      mockLlmRouter.complete.mockResolvedValueOnce({
+        content: JSON.stringify({ intent: 'chat', response: '明天见！' }),
+        model: 'deepseek-chat',
+      });
+      mockPrisma.message.findMany.mockResolvedValue([]);
+
+      await agent.handleEvent([userMessageEvent('你好')]);
+
+      expect(mockMessagesService.create).toHaveBeenCalledWith(
+        'user-supervisor-1',
+        expect.objectContaining({ content: '明天见！' }),
+        expect.anything(),
+      );
+      expect(mockDraftService.createDraft).not.toHaveBeenCalled();
+    });
+
+    it('routes draft intent to DraftService', async () => {
+      mockLlmRouter.complete.mockResolvedValueOnce({
+        content: JSON.stringify({
+          intent: 'draft',
+          draftContent: '张总您好，周五开会没问题，期待与您的交流。',
+        }),
+        model: 'deepseek-chat',
+      });
+      mockPrisma.message.findMany.mockResolvedValue([]);
+
+      await agent.handleEvent([userMessageEvent('帮我回复张总说周五开会没问题')]);
+
+      expect(mockDraftService.createDraft).toHaveBeenCalledWith(
+        expect.objectContaining({
+          draftType: 'MESSAGE',
+          userId: 'user-1',
+        }),
+      );
+      expect(mockMessagesService.create).not.toHaveBeenCalledWith(
+        'user-supervisor-1',
+        expect.objectContaining({ content: expect.any(String) }),
+        expect.anything(),
+      );
+    });
+
+    it('falls back to chat reply when LLM returns malformed JSON', async () => {
+      mockLlmRouter.complete.mockResolvedValueOnce({
+        content: '这是一个回复',
+        model: 'deepseek-chat',
+      });
+      mockPrisma.message.findMany.mockResolvedValue([]);
+
+      await agent.handleEvent([userMessageEvent('你好')]);
+
+      // Fallback: send the raw content as chat reply
+      expect(mockMessagesService.create).toHaveBeenCalled();
+      expect(mockDraftService.createDraft).not.toHaveBeenCalled();
     });
   });
 });
