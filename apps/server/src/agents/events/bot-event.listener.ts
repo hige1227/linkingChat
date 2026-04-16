@@ -1,8 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { Redis } from 'ioredis';
 import { BatchTriggerService } from './batch-trigger.service';
 import { BotsService } from '../../bots/bots.service';
 import { AgentOrchestratorService } from '../orchestrator/agent-orchestrator.service';
+import { PredictiveService } from '../../ai/services/predictive.service';
 import { AgentEvent } from '../interfaces';
 
 /** Well-known botId for the singleton SupervisorAgent */
@@ -31,6 +33,8 @@ export class BotEventListener {
     private readonly batchTrigger: BatchTriggerService,
     private readonly botsService: BotsService,
     private readonly orchestrator: AgentOrchestratorService,
+    private readonly predictiveService: PredictiveService,
+    @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
 
   /**
@@ -81,5 +85,34 @@ export class BotEventListener {
     // Use the well-known singleton botId — SupervisorAgent resolves
     // the actual per-user bot inside handleEvent()
     this.batchTrigger.addEvent(SUPERVISOR_AGENT_BOT_ID, event);
+
+    // Predictive Actions: analyze error output, push to Supervisor converse
+    if (payload.status === 'error') {
+      const rateLimitKey = `predictive:${payload.userId}:${payload.deviceId}`;
+      const isRateLimited = await this.redis.exists(rateLimitKey);
+
+      if (!isRateLimited) {
+        await this.redis.setex(rateLimitKey, 60, '1');
+
+        const errorOutput = payload.error ?? payload.output ?? '';
+        const category = this.predictiveService.detectTrigger(errorOutput);
+
+        if (category) {
+          const supervisorConverse =
+            await this.botsService.getOrCreateSupervisorConverse(payload.userId);
+
+          this.predictiveService
+            .analyzeTrigger({
+              userId: payload.userId,
+              converseId: supervisorConverse.id,
+              triggerOutput: errorOutput,
+              triggerCategory: category,
+            })
+            .catch((err) =>
+              this.logger.error(`Predictive analysis failed: ${err.message}`),
+            );
+        }
+      }
+    }
   }
 }
