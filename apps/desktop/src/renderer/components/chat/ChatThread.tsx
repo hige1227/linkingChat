@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import Markdown from 'react-markdown';
 import { useChatStore } from '../../stores/chatStore';
 import { useAiStore } from '../../stores/aiStore';
-import type { DraftItem } from '../../stores/aiStore';
+import type { DraftItem, PredictiveSuggestion } from '../../stores/aiStore';
 import { API_BASE_URL } from '@renderer/config';
 import { NotificationCard } from '../NotificationCard';
 import { ImageMessage } from './ImageMessage';
@@ -11,6 +11,7 @@ import { VoiceMessage } from './VoiceMessage';
 import { MessageContextMenu } from './MessageContextMenu';
 import { ToolCallBlock } from './ToolCallBlock';
 import { DraftCard } from './DraftCard';
+import { PredictiveActionCard } from './PredictiveActionCard';
 import type { MessageResponse, ConverseResponse } from '@linkingchat/ws-protocol';
 import type { ChatState, StreamingMessage, ToolRecord } from '../../stores/chatStore';
 
@@ -41,6 +42,8 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
   const pendingDrafts = drafts.filter(
     (d) => d.status === 'pending' || d.status === 'approved' || d.status === 'rejected',
   );
+  const predictions = useAiStore((s) => s.predictions[converseId] ?? []) as PredictiveSuggestion[];
+  const activePredictions = predictions.filter((p) => !p.dismissed);
 
   const msgs = messages[converseId] ?? [];
   const typing = typingUsers[converseId] ?? [];
@@ -405,6 +408,11 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
         {/* Draft cards from Jarvis */}
         {pendingDrafts.map((draft) => (
           <DraftCard key={draft.draftId} draft={draft} converseId={converseId} />
+        ))}
+
+        {/* Predictive action cards from Jarvis */}
+        {activePredictions.map((suggestion) => (
+          <PredictiveActionCard key={suggestion.suggestionId} suggestion={suggestion} converseId={converseId} />
         ))}
 
         <div ref={bottomRef} />
