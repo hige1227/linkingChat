@@ -8,6 +8,7 @@ import { MentionService } from '../mentions/mentions.service';
 import { UploadService } from '../upload/upload.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { I18nService } from '../i18n/i18n.service';
+import { WhisperService } from '../ai/services/whisper.service';
 import {
   NotFoundException,
   ForbiddenException,
@@ -85,6 +86,11 @@ describe('MessagesService', () => {
     detectLocale: jest.fn(() => 'en'),
   };
 
+  const mockWhisperService = {
+    shouldTrigger: jest.fn().mockReturnValue(true),
+    handleWhisperRequest: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -97,6 +103,7 @@ describe('MessagesService', () => {
         { provide: MetricsService, useValue: mockMetricsService },
         { provide: I18nService, useValue: mockI18nService },
         { provide: EventEmitter2, useValue: { emit: jest.fn() } },
+        { provide: WhisperService, useValue: mockWhisperService },
       ],
     }).compile();
 
@@ -658,6 +665,76 @@ describe('MessagesService', () => {
     });
   });
 
+  describe('Whisper auto-trigger', () => {
+    const directDto = { converseId: 'conv1', content: 'Hello there!' };
+
+    beforeEach(() => {
+      mockConverses.verifyMembership.mockResolvedValue({});
+      mockPrisma.message.create.mockResolvedValue({
+        id: 'msg1',
+        content: 'Hello there!',
+        type: 'TEXT',
+        authorId: 'user1',
+        converseId: 'conv1',
+        replyToId: null,
+        metadata: null,
+        attachments: [],
+        author: { id: 'user1', displayName: 'Alice', avatarUrl: null },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      mockPrisma.$transaction.mockResolvedValue([null, null]);
+      mockPrisma.converse.findUnique.mockResolvedValue({ type: 'DM' });
+      mockConverses.getMemberIds.mockResolvedValue(['user1', 'user2']);
+    });
+
+    it('triggers Whisper for DIRECT TEXT message (receiver side)', async () => {
+      await service.create('user1', directDto);
+
+      expect(mockWhisperService.shouldTrigger).toHaveBeenCalledWith('Hello there!');
+      expect(mockWhisperService.handleWhisperRequest).toHaveBeenCalledWith(
+        'user2', // receiver, not sender
+        'conv1',
+      );
+    });
+
+    it('does NOT trigger Whisper for GROUP converse', async () => {
+      mockPrisma.converse.findUnique.mockResolvedValue({ type: 'GROUP' });
+
+      await service.create('user1', directDto);
+
+      expect(mockWhisperService.handleWhisperRequest).not.toHaveBeenCalled();
+    });
+
+    it('does NOT trigger Whisper when shouldTrigger returns false', async () => {
+      mockWhisperService.shouldTrigger.mockReturnValueOnce(false);
+
+      await service.create('user1', directDto);
+
+      expect(mockWhisperService.handleWhisperRequest).not.toHaveBeenCalled();
+    });
+
+    it('does NOT trigger Whisper for non-TEXT message type', async () => {
+      mockPrisma.message.create.mockResolvedValueOnce({
+        id: 'msg1',
+        content: '',
+        type: 'VOICE',
+        authorId: 'user1',
+        converseId: 'conv1',
+        replyToId: null,
+        metadata: null,
+        attachments: [],
+        author: { id: 'user1', displayName: 'Alice', avatarUrl: null },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await service.create('user1', { converseId: 'conv1', content: '' });
+
+      expect(mockWhisperService.handleWhisperRequest).not.toHaveBeenCalled();
+    });
+  });
+
   describe('detectBotRecipient', () => {
     const mockEventEmitter = { emit: jest.fn() };
 
@@ -680,6 +757,7 @@ describe('MessagesService', () => {
           { provide: MetricsService, useValue: mockMetricsService },
           { provide: I18nService, useValue: mockI18nService },
           { provide: EventEmitter2, useValue: mockEventEmitter },
+          { provide: WhisperService, useValue: mockWhisperService },
         ],
       }).compile();
       const svc = module.get<MessagesService>(Svc);
@@ -730,6 +808,7 @@ describe('MessagesService', () => {
           { provide: MetricsService, useValue: mockMetricsService },
           { provide: I18nService, useValue: mockI18nService },
           { provide: EventEmitter2, useValue: mockEventEmitter },
+          { provide: WhisperService, useValue: mockWhisperService },
         ],
       }).compile();
       const svc = module.get<MessagesService>(Svc);

@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Prisma } from '@prisma/client';
+import { Prisma, ConverseType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BroadcastService } from '../gateway/broadcast.service';
 import { ConversesService } from '../converses/converses.service';
@@ -14,6 +14,7 @@ import { MentionService } from '../mentions/mentions.service';
 import { UploadService } from '../upload/upload.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { I18nService } from '../i18n/i18n.service';
+import { WhisperService } from '../ai/services/whisper.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 
@@ -41,6 +42,7 @@ export class MessagesService {
     private readonly metricsService: MetricsService,
     private readonly i18n: I18nService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly whisperService: WhisperService,
   ) {}
 
   /**
@@ -191,6 +193,24 @@ export class MessagesService {
       this.detectBotRecipient(userId, dto.converseId, message).catch((err) =>
         this.logger.error(`detectBotRecipient failed: ${err.message}`, err.stack),
       );
+    }
+
+    // Whisper auto-trigger: DIRECT TEXT messages only, fire-and-forget
+    if (message.type === 'TEXT') {
+      const converse = await this.prisma.converse.findUnique({
+        where: { id: dto.converseId },
+        select: { type: true },
+      });
+      if (converse?.type === ConverseType.DM) {
+        const receiverId = memberIds.find((id) => id !== userId);
+        if (receiverId && this.whisperService.shouldTrigger(message.content)) {
+          this.whisperService
+            .handleWhisperRequest(receiverId, dto.converseId)
+            .catch((err) =>
+              this.logger.error(`Whisper trigger failed: ${err.message}`),
+            );
+        }
+      }
     }
 
     return message;
