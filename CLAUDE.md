@@ -48,27 +48,43 @@ Required `.env` in `apps/server/`:
 
 Technical decisions are in `docs/decisions/decision-checklist.md` and `docs/decisions/tech-decisions-v2.md`.
 
-## Active Work (2026-04-06)
+## Active Work (2026-04-16)
 
-In-progress plans in `docs/superpowers/plans/`:
+**Current priority: Wake up Jarvis — wire AI services into real user flows.**
+
+See `plan.md` for complete iteration plan (aligned via Steve Jobs product review 2026-04-16).
+
+Key next steps:
+1. Wire WhisperService to auto-trigger on every received message (AI-native social's soul)
+2. Wire DraftService into Bot conversation flow (Jarvis drafts messages for you)
+3. Design system with "AI presence" visual language (users must feel Jarvis is there)
+
+Previous plans in `docs/superpowers/plans/`:
 - `2026-04-06-bot-ai-pipeline-routing.md` — Wire Bot DM → EventEmitter2 → AgentOrchestrator (server-side)
 - `2026-04-06-openclaw-bot-chat-integration.md` — Desktop: OpenClaw streaming chat UI (largely done per recent commits)
 
 ## What This Project IS
 
-LinkingChat is a **new AI-native social app** (similar in form to Discord/Telegram/WhatsApp) with deep integration of OpenClaw remote-control capabilities. It is **NOT** about attaching to or automating existing apps like WeChat/Slack.
+LinkingChat is an **AI-native social app** — a WeChat/Telegram-style messenger where every user has a **Jarvis (贾维斯)** living inside their chat. The interface clones WeChat (zero learning curve for anyone), but social interactions are AI-native: Jarvis helps users communicate with higher EQ, greater efficiency, and less friction.
+
+> This is **NOT** a remote-control tool with chat bolted on. It is **NOT** another AI chatbot app (like Character.AI). It is a **real social app for real human-to-human conversations**, with AI woven into every interaction.
 
 > Note: The original design docs (prd.md, architecture.md) have been archived to `docs/_archive/` — they describe a superseded "parasitic Desktop Bridge" direction.
 
-**Dual functionality:**
-1. **Social**: Chat, groups, friends — a standalone messaging platform
-2. **Remote Control**: Cloud-integrated OpenClaw can command desktop workers to execute tasks (shell, file ops, automation)
+**Product essence:**
+1. **AI-native Social**: Every chat has AI presence — smart reply suggestions, draft generation, high-EQ communication assistance. Users chat with real people, but Jarvis helps them do it better
+2. **Jarvis as a Teammate**: A pinned Bot (Supervisor) acts as the user's personal Jarvis — can draft messages, execute tasks on their computer, anticipate needs
+3. **Remote Control** (secondary): Cloud-integrated OpenClaw enables desktop command execution via mobile — powerful but not the primary differentiator
 
-**AI-native features:**
-- Smart reply suggestions (The Whisper)
-- Draft & Verify — bot generates drafts, user confirms before sending
-- Predictive Actions — bot anticipates next steps from context (e.g., error → fix command)
-- Proactive reminders and recommendations
+**Three core AI interaction patterns:**
+- **The Whisper (耳语建议)** [P0] — Jarvis automatically suggests replies when you receive messages. AI-native social's soul
+- **Draft & Verify (代理草稿)** [P0] — Tell Jarvis "帮我回复张总", get a polished draft, confirm before sending
+- **Predictive Actions (预测执行)** [P1] — After task execution, Jarvis anticipates next steps
+
+**AI integration status (honest assessment, 2026-04-16):**
+- WhisperService: code complete, UI complete, **not auto-triggered** (manual button only). Needs wiring to auto-suggest on every received message
+- DraftService: code complete, UI complete, **not triggered in real flow** (test endpoint only). Needs wiring to Bot conversation flow
+- PredictiveService: code complete, UI complete, **not triggered** (detectTrigger never called). Needs wiring to device execution errors
 
 ## Architecture Overview
 
@@ -147,9 +163,9 @@ Mobile sends a work command → Desktop executes → Desktop reports completion 
 
 ## Three Core Interaction Patterns
 
-1. **Draft & Verify (代理草稿)** [P0]: User sends intent → bot generates draft → user confirms before execution. Bot **never** acts autonomously.
-2. **The Whisper (耳语建议)** [P1]: User triggers via `@ai` → cloud generates 1 best reply (pre-filled in input) + `···` to expand 2 alternatives. Auto-push chips **rejected** (too generic). Ghost text completion planned for v2+ (local small model).
-3. **Predictive Actions (预测执行)** [P0]: Bot analyzes context (e.g., shell errors) → generates action card → dangerous commands blocked or flagged.
+1. **The Whisper (耳语建议)** [P0 — AI-native social's soul]: User receives message → Jarvis **automatically** suggests 1 best reply + 2 alternatives below the input box. No @ai trigger needed — Jarvis is always there, quietly ready to help. Ghost text completion planned for v2+ (local small model).
+2. **Draft & Verify (代理草稿)** [P0]: User tells Jarvis "帮我回复张总，说周五开会没问题" → Jarvis generates polished, high-EQ draft → user confirms before sending. Bot **never** acts autonomously.
+3. **Predictive Actions (预测执行)** [P1]: Bot analyzes context (e.g., shell errors) → generates action card → dangerous commands blocked or flagged.
 
 ## Performance Targets
 
@@ -159,19 +175,19 @@ Mobile sends a work command → Desktop executes → Desktop reports completion 
 
 ## Mobile UI Direction
 
-- WeChat/WhatsApp style, less is more
-- Bot = fixed pinned system contact (like WeChat "File Transfer Assistant")
-- Multi-bot framework from MVP, but only remote execution capability initially
-- Each bot maps to an OpenClaw agent config
+- WeChat/WhatsApp style, less is more — **mobile is the primary interface**
+- Bot = fixed pinned system contact (like WeChat "File Transfer Assistant") — this is Jarvis
+- Zero barrier: anyone who can use WeChat can use LinkingChat
+- AI presence must be visible — Whisper suggestions appear naturally in every conversation
+- Design quality must match WeChat level as baseline, then surpass with AI-native features
 
 ## Multi-Bot Architecture
 
-- MVP: bot CRUD + routing framework, only remote execution capability
-- Auto-create on registration: Supervisor Bot (pinned, undeletable) + Coding Bot (pinned, configurable)
+- **MVP: one Jarvis only** — Supervisor Bot, pinned, undeletable. Do one bot insanely well before adding more
+- Auto-create on registration: Supervisor Bot (the user's Jarvis)
 - v1.x: add bot types per demand (social media, data analysis, etc.)
 - v2.0: open custom bot creation
-- Supervisor Bot = notification aggregator + smart concierge (not the only entry point)
-- Supervisor chat UI: normal chat flow + BOT_NOTIFICATION cards (no tabs)
+- Supervisor Bot = notification aggregator + smart concierge + the user's AI social coach
 
 ## Bot Communication Rules
 
