@@ -38,12 +38,18 @@ export function ChatThread({ converseId, onGroupInfoClick }: ChatThreadProps) {
     () => Object.values(streamingMessagesMap).filter((sm) => sm.converseId === converseId),
     [streamingMessagesMap, converseId],
   );
-  const drafts = useAiStore((s) => s.drafts[converseId] ?? []) as DraftItem[];
-  const pendingDrafts = drafts.filter(
-    (d) => d.status === 'pending' || d.status === 'approved' || d.status === 'rejected',
+  const drafts = useAiStore((s) => s.drafts[converseId]) as DraftItem[] | undefined;
+  const pendingDrafts = useMemo(
+    () => (drafts ?? []).filter(
+      (d) => d.status === 'pending' || d.status === 'approved' || d.status === 'rejected',
+    ),
+    [drafts],
   );
-  const predictions = useAiStore((s) => s.predictions[converseId] ?? []) as PredictiveSuggestion[];
-  const activePredictions = predictions.filter((p) => !p.dismissed);
+  const predictions = useAiStore((s) => s.predictions[converseId]) as PredictiveSuggestion[] | undefined;
+  const activePredictions = useMemo(
+    () => (predictions ?? []).filter((p) => !p.dismissed),
+    [predictions],
+  );
 
   const msgs = messages[converseId] ?? [];
   const typing = typingUsers[converseId] ?? [];

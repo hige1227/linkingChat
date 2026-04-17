@@ -27,27 +27,66 @@ export class HermesProcessService {
   resolveBinaryPath(): string | null {
     const resourcesPath = (process as any).resourcesPath || join(app.getAppPath(), '..', '..', 'resources');
     const isWin = process.platform === 'win32';
-    const binaryName = isWin ? 'hermes.exe' : 'hermes';
     const subdir = isWin ? 'Scripts' : 'bin';
-    const candidate = join(resourcesPath, 'hermes-env', 'lib', subdir, binaryName);
+    const binaryName = isWin ? 'hermes.exe' : 'hermes';
 
+    // 1. Try bundled venv binary first (production: resources/hermes-env/lib/Scripts/hermes.exe)
+    const venvCandidate = join(resourcesPath, 'hermes-env', 'lib', subdir, binaryName);
     try {
-      accessSync(candidate);
-      return candidate;
-    } catch {
-      this.lastError = `Hermes binary not found at: ${candidate}`;
-      return null;
+      accessSync(venvCandidate);
+      return venvCandidate;
+    } catch { /* not bundled, try next */ }
+
+    // 2. Try system PATH hermes (Windows native Python pip install)
+    // On Windows the hermes.exe is in Python's Scripts directory
+    if (isWin) {
+      const systemCandidate = join(
+        process.env.LOCALAPPDATA ?? '',
+        'Programs', 'Python', 'Python313', 'Scripts', 'hermes.exe',
+      );
+      try {
+        accessSync(systemCandidate);
+        return systemCandidate;
+      } catch { /* not found */ }
     }
+
+    this.lastError = `Hermes binary not found (tried: ${venvCandidate}, system PATH)`;
+    return null;
   }
 
   async start(): Promise<boolean> {
     if (this.isProcessRunning()) return true;
 
+    // Windows dev mode (unpackaged): probe for running gateway.
+    // Hermes runs natively on Windows Python, but devs may start it manually.
+    if (process.platform === 'win32' && !app.isPackaged) {
+      const healthy = await this.checkHealth();
+      if (healthy) {
+        console.log(`[Hermes:Process] Gateway detected on port ${PORT} (external)`);
+        return true;
+      }
+      // Try to find and spawn system hermes
+      const binaryPath = this.resolveBinaryPath();
+      if (!binaryPath) {
+        console.warn(`[Hermes:Process] No gateway on port ${PORT} and no hermes binary found.`);
+        console.warn(`[Hermes:Process] Install: pip install -e ".[web,pty]" then run: hermes gateway run`);
+        return false;
+      }
+      // Fall through to spawn logic below
+      return this.spawnGateway(binaryPath);
+    }
+
+    // macOS / Linux / Windows production: spawn local binary
     const binaryPath = this.resolveBinaryPath();
     if (!binaryPath) {
       console.error(`[Hermes:Process] ${this.lastError}`);
       return false;
     }
+
+    return this.spawnGateway(binaryPath);
+  }
+
+  private async spawnGateway(binaryPath: string): Promise<boolean> {
 
     this.setupLogStream();
 
@@ -116,6 +155,15 @@ export class HermesProcessService {
     try {
       process.kill(this.process.pid!, 0);
       return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async checkHealth(): Promise<boolean> {
+    try {
+      const res = await fetch(`http://127.0.0.1:${PORT}/health`);
+      return res.ok;
     } catch {
       return false;
     }

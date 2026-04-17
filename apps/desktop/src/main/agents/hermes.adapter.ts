@@ -44,7 +44,7 @@ export class HermesAdapter implements AgentProvider {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'hermes',
+          model: 'hermes-agent',
           messages: [{ role: 'user', content: params.message }],
           stream: true,
         }),
