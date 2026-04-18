@@ -14,7 +14,7 @@ export function AddFriendDialog({ open, onClose }: AddFriendDialogProps) {
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const { searchUsers, sendRequest } = useFriendsStore();
 

@@ -3,6 +3,7 @@ import { createConnection } from 'net';
 import { randomBytes } from 'crypto';
 import { app } from 'electron';
 import { join } from 'path';
+import * as fs from 'fs';
 import { createWriteStream, mkdirSync, readdirSync, unlinkSync, type WriteStream } from 'fs';
 
 // ── Types ──
@@ -80,7 +81,7 @@ export class OpenClawProcessService {
     // local mode — reuse running process or spawn new
     if (this.isProcessRunning()) {
       console.log(`[OpenClaw:Process] Reusing existing process PID=${this.process?.pid}`);
-      return { url: `ws://${BIND_HOST}:${PORT}`, token: this.token };
+      return { url: `ws://${BIND_HOST}:${PORT}`, token: this.token! };
     }
     return this.spawnProcess();
   }
@@ -399,7 +400,7 @@ export class OpenClawProcessService {
     const start = Date.now();
     while (Date.now() - start < maxWait) {
       const ok = await new Promise<boolean>((resolve) => {
-        const ws = new (require('ws') as typeof import('ws'))(`ws://${BIND_HOST}:${PORT}`);
+        const ws = new (require('ws') as { new(url: string): import('ws').WebSocket })(`ws://${BIND_HOST}:${PORT}`);
         const timer = setTimeout(() => { ws.close(); resolve(false); }, 2000);
         ws.on('open', () => { clearTimeout(timer); ws.close(); resolve(true); });
         ws.on('error', () => { clearTimeout(timer); resolve(false); });

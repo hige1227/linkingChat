@@ -1,4 +1,5 @@
-import { create } from 'zustand';
+import { createBoundStore } from './createBoundStore';
+import type { StateCreator } from 'zustand/vanilla';
 import type {
   UserBrief,
   FriendRequestPayload,
@@ -67,7 +68,7 @@ async function getAuthHeaders(): Promise<HeadersInit | null> {
   };
 }
 
-export const useFriendsStore = create<FriendsState>((set, get) => ({
+const _friendsStoreCreator: StateCreator<FriendsState> = (set, get) => ({
   friends: [],
   receivedRequests: [],
   sentRequests: [],
@@ -231,4 +232,5 @@ export const useFriendsStore = create<FriendsState>((set, get) => ({
       friends: state.friends.filter((f) => f.id !== userId),
     }));
   },
-}));
+});
+export const useFriendsStore = createBoundStore(_friendsStoreCreator);

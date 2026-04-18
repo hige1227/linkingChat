@@ -1,4 +1,5 @@
-import { create } from 'zustand';
+import { createBoundStore } from './createBoundStore';
+import type { StateCreator } from 'zustand/vanilla';
 
 // ── Types ──
 
@@ -59,7 +60,7 @@ interface AiState {
   dismissPrediction: (converseId: string, suggestionId: string) => void;
 }
 
-export const useAiStore = create<AiState>((set) => ({
+const _aiStoreCreator: StateCreator<AiState> = (set) => ({
   // ── Whisper ──
   whisper: {},
 
@@ -156,4 +157,5 @@ export const useAiStore = create<AiState>((set) => ({
         ),
       },
     })),
-}));
+});
+export const useAiStore = createBoundStore(_aiStoreCreator);

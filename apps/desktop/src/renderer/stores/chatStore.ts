@@ -1,4 +1,5 @@
-import { create } from 'zustand';
+import { createBoundStore } from './createBoundStore';
+import type { StateCreator } from 'zustand/vanilla';
 import type { ConverseResponse, MessageResponse } from '@linkingchat/ws-protocol';
 
 export interface ToolRecord {
@@ -58,7 +59,7 @@ export interface ChatState {
   removeStreamingMessage: (requestId: string) => void;
 }
 
-export const useChatStore = create<ChatState>((set) => ({
+const _chatStoreCreator: StateCreator<ChatState> = (set) => ({
   currentUserId: null,
   converses: [],
   activeConverseId: null,
@@ -295,4 +296,5 @@ export const useChatStore = create<ChatState>((set) => ({
       const { [requestId]: _removed, ...rest } = state.streamingMessages;
       return { streamingMessages: rest };
     }),
-}));
+});
+export const useChatStore = createBoundStore(_chatStoreCreator);
