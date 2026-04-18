@@ -28,14 +28,61 @@ export function ConversationList() {
       return (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '');
     });
 
+  // Split bot converses from regular — bots get fixed dock, regulars sort by time
+  const botConverses = filtered.filter((c) => (c as any).isBot);
+  const regularConverses = filtered.filter((c) => !(c as any).isBot);
+
+  const renderItem = (c: ConverseResponse, extraClass?: string) => (
+    <div
+      key={c.id}
+      className={`conversation-item ${extraClass ?? ''} ${activeConverseId === c.id ? 'active' : ''}`}
+      onClick={() => {
+        markConverseRead(c.id);
+        navigate(`/chat/${c.id}`);
+      }}
+    >
+      {(c as any).isBot ? (
+        <BotBadge>
+          <div className="conversation-avatar">
+            {getAvatarLetter(c, currentUserId)}
+          </div>
+        </BotBadge>
+      ) : (
+        <div className="conversation-avatar">
+          {getAvatarLetter(c, currentUserId)}
+        </div>
+      )}
+      <div className="conversation-info">
+        <div className="conversation-name-row">
+          <span className="conversation-name">{getConverseName(c, currentUserId)}</span>
+          {c.lastMessage && (
+            <span className="conversation-time">
+              {formatTime(c.lastMessage.createdAt)}
+            </span>
+          )}
+        </div>
+        <div className="conversation-preview-row">
+          <span className="conversation-preview">
+            {c.lastMessage?.content ?? ''}
+          </span>
+          {(c.unreadCount ?? 0) > 0 && (
+            <span className="unread-badge">
+              {(c.unreadCount ?? 0) > 99 ? '99+' : c.unreadCount}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="conversation-list">
       <div className="conversation-list-header">
-        <h2>Chats</h2>
+        <h2>消息</h2>
         <button
           className="create-group-btn"
           onClick={() => setShowCreateGroup(true)}
-          title="Create Group"
+          title="创建群聊"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" />
@@ -48,57 +95,29 @@ export function ConversationList() {
       <div className="conversation-search">
         <input
           type="text"
-          placeholder="Search..."
+          placeholder="搜索..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
       <div className="conversation-items">
-        {filtered.length === 0 && (
-          <div className="conversation-empty">No conversations</div>
+        {botConverses.length > 0 && (
+          <section className="ai-dock">
+            <div className="conversation-section-label">贾维斯</div>
+            {botConverses.map((c) => renderItem(c, 'jarvis-conversation-item'))}
+          </section>
         )}
-        {filtered.map((c) => (
-          <div
-            key={c.id}
-            className={`conversation-item ${activeConverseId === c.id ? 'active' : ''}`}
-            onClick={() => {
-              markConverseRead(c.id);
-              navigate(`/chat/${c.id}`);
-            }}
-          >
-            {(c as any).isBot ? (
-              <BotBadge>
-                <div className="conversation-avatar">
-                  {getAvatarLetter(c, currentUserId)}
-                </div>
-              </BotBadge>
-            ) : (
-              <div className="conversation-avatar">
-                {getAvatarLetter(c, currentUserId)}
-              </div>
+        {regularConverses.length > 0 && (
+          <>
+            {botConverses.length > 0 && (
+              <div className="conversation-section-label">消息</div>
             )}
-            <div className="conversation-info">
-              <div className="conversation-name-row">
-                <span className="conversation-name">{getConverseName(c, currentUserId)}</span>
-                {c.lastMessage && (
-                  <span className="conversation-time">
-                    {formatTime(c.lastMessage.createdAt)}
-                  </span>
-                )}
-              </div>
-              <div className="conversation-preview-row">
-                <span className="conversation-preview">
-                  {c.lastMessage?.content ?? ''}
-                </span>
-                {(c.unreadCount ?? 0) > 0 && (
-                  <span className="unread-badge">
-                    {(c.unreadCount ?? 0) > 99 ? '99+' : c.unreadCount}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
+            {regularConverses.map((c) => renderItem(c))}
+          </>
+        )}
+        {filtered.length === 0 && (
+          <div className="conversation-empty">暂无会话</div>
+        )}
       </div>
       <CreateGroupDialog
         open={showCreateGroup}
