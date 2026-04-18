@@ -39,7 +39,7 @@ export class HermesAdapter implements AgentProvider {
     this.activeStreams.set(params.requestId, controller);
 
     try {
-      const res = await fetch(`${HERMES_BASE_URL}/v1/chat/completions`, {
+      const res = await fetch(`${HERMES_CONFIG.baseUrl}/v1/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
