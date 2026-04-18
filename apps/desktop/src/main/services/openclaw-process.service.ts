@@ -5,6 +5,7 @@ import { app } from 'electron';
 import { join } from 'path';
 import * as fs from 'fs';
 import { createWriteStream, mkdirSync, readdirSync, unlinkSync, type WriteStream } from 'fs';
+import { OPENCLAW_LOCAL, OPENCLAW_PROTOCOL } from '../openclaw/openclaw.config';
 
 // ── Types ──
 
@@ -20,8 +21,8 @@ export interface ProcessStatus {
 
 // ── Constants ──
 
-const PORT = 18789;
-const BIND_HOST = '127.0.0.1';
+const PORT = OPENCLAW_LOCAL.port;
+const BIND_HOST = OPENCLAW_LOCAL.bindHost;
 const HEALTH_POLL_INTERVAL = 500;
 const HEALTH_POLL_TIMEOUT = 30_000;
 const GRACEFUL_SHUTDOWN_MS = 3_000;
@@ -184,7 +185,7 @@ export class OpenClawProcessService {
 
     const spawnArgs = [
       ...(cliPath ? [cliPath] : []),
-      'gateway', 'run', '--allow-unconfigured', '--dev', '--port', String(PORT), '--bind', 'loopback', '--auth', 'none',
+      ...OPENCLAW_LOCAL.cliArgs, '--port', String(PORT), '--bind', 'loopback', '--auth', 'none',
     ];
     console.log(`[OpenClaw:Process] Spawning: ${nodePath} ${spawnArgs.join(' ')}`);
 
@@ -304,7 +305,7 @@ export class OpenClawProcessService {
 
     // Production: bundled sidecar, or fall back to globally installed openclaw
     const resourcesPath = (process as any).resourcesPath || join(app.getAppPath(), '..', '..', 'resources');
-    const sidecarPath = join(resourcesPath, 'openclaw-sidecar', 'cli.js');
+    const sidecarPath = join(resourcesPath, OPENCLAW_LOCAL.sidecarPath);
 
     // Check bundled sidecar first
     try {
