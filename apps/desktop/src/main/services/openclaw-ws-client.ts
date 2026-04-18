@@ -2,6 +2,7 @@ import WebSocket from 'ws';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { OPENCLAW_PROTOCOL } from '../openclaw/openclaw.config';
 
 // ── Types ──
 
@@ -50,7 +51,7 @@ function base64url(buf: Buffer): string {
 
 // ── Constants ──
 
-const PROTOCOL_VERSION = 3;
+const PROTOCOL_VERSION = OPENCLAW_PROTOCOL.version;
 const CONNECT_TIMEOUT = 30_000;
 const REQUEST_TIMEOUT = 30_000;
 

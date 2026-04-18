@@ -1,6 +1,5 @@
 import { spawn, execSync, type ChildProcess } from 'child_process';
 import { createConnection } from 'net';
-import { randomBytes } from 'crypto';
 import { app } from 'electron';
 import { join } from 'path';
 import * as fs from 'fs';
