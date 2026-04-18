@@ -9,16 +9,16 @@ interface PredictiveActionCardProps {
   converseId: string;
 }
 
-const DANGER_COLORS: Record<string, string> = {
-  safe: '#4caf50',
-  warning: '#f59e0b',
-  dangerous: '#f44336',
+const DANGER_RISK_LABELS: Record<string, string> = {
+  safe: '安全',
+  warning: '注意',
+  dangerous: '危险',
 };
 
-const DANGER_ICONS: Record<string, string> = {
-  safe: '🟢',
-  warning: '🟡',
-  dangerous: '🔴',
+const DANGER_CSS_CLASSES: Record<string, string> = {
+  safe: 'predictive-safe',
+  warning: 'predictive-caution',
+  dangerous: 'predictive-danger',
 };
 
 export function PredictiveActionCard({ suggestion, converseId }: PredictiveActionCardProps) {
@@ -64,8 +64,8 @@ export function PredictiveActionCard({ suggestion, converseId }: PredictiveActio
     <>
       <div className="predictive-card">
         <div className="predictive-card-header">
-          <span>✨ Suggested Actions</span>
-          <button className="predictive-dismiss-btn" onClick={handleDismiss} title="Dismiss">×</button>
+          <span>✦ 建议操作</span>
+          <button className="predictive-dismiss-btn" onClick={handleDismiss} title="关闭">×</button>
         </div>
         <div className="predictive-card-trigger">{suggestion.trigger}</div>
 
@@ -73,10 +73,9 @@ export function PredictiveActionCard({ suggestion, converseId }: PredictiveActio
           {suggestion.actions.map((action, i) => (
             <div
               key={i}
-              className={`predictive-action-row predictive-action-row--${action.dangerLevel}`}
-              style={{ borderLeftColor: DANGER_COLORS[action.dangerLevel] }}
+              className={`predictive-action-row ${DANGER_CSS_CLASSES[action.dangerLevel] ?? ''}`}
             >
-              <span className="predictive-action-icon">{DANGER_ICONS[action.dangerLevel]}</span>
+              <span className="predictive-risk-label">{DANGER_RISK_LABELS[action.dangerLevel] ?? ''}</span>
               <div className="predictive-action-info">
                 <span className="predictive-action-desc">{action.description}</span>
                 {action.type === 'shell' && (
@@ -85,10 +84,9 @@ export function PredictiveActionCard({ suggestion, converseId }: PredictiveActio
               </div>
               <button
                 className="predictive-run-btn"
-                style={{ color: DANGER_COLORS[action.dangerLevel] }}
                 onClick={() => handleExecute(i)}
               >
-                Run
+                执行
               </button>
             </div>
           ))}

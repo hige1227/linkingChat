@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinkingChat — UI Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script type="module" src="https://cdn.jsdelivr.net/npm/ionicons@7/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://cdn.jsdelivr.net/npm/ionicons@7/dist/ionicons/ionicons.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Lora', Georgia, serif; background: #faf9f5; color: #141413; overflow: hidden; -webkit-font-smoothing: antialiased; }
+
+  /* ─── NAV ─── */
+  .nav { display: flex; gap: 4px; padding: 10px 16px; background: #141413; border-bottom: 1px solid #2a2a28; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; }
+  .nav-group { display: flex; gap: 4px; align-items: center; }
+  .nav-label { color: #b0aea5; font-size: 10px; padding: 0 6px; font-family: 'Poppins', sans-serif; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+  .nav-btn { padding: 5px 13px; border-radius: 20px; border: none; cursor: pointer; font-size: 12px; font-weight: 500; font-family: 'Poppins', sans-serif; background: rgba(255,255,255,0.08); color: #b0aea5; transition: all .15s; }
+  .nav-btn:hover { background: rgba(255,255,255,0.14); color: #faf9f5; }
+  .nav-btn.active { background: #d97757; color: #fff; }
+  .sep { width: 1px; height: 20px; background: #2a2a28; margin: 0 4px; }
+
+  /* ─── FRAME WRAPPER ─── */
+  .frames { position: relative; width: 100%; height: calc(100vh - 56px); }
+  .frame { display: none; width: 100%; height: 100%; overflow: auto; }
+  .frame.active { display: block; }
+
+  /* ═══════════════════════════════════════════════════════
+     DESKTOP DARK THEME VARIABLES
+  ═══════════════════════════════════════════════════════ */
+  :root {
+    /* Anthropic Brand Palette */
+    --bg-primary:    #faf9f5;
+    --bg-secondary:  #ffffff;
+    --bg-tertiary:   #f0eeea;
+    --bg-hover:      #e8e6dc;
+    --accent:        #d97757;
+    --accent-hover:  #c5673d;
+    --ai:            #788c5d;
+    --ai-dim:        rgba(120,140,93,0.12);
+    --ai-glow:       rgba(120,140,93,0.25);
+    --secondary-color: #6a9bcc;
+    --text-primary:  #141413;
+    --text-secondary:#6b6966;
+    --text-muted:    #b0aea5;
+    --border:        #e8e6dc;
+    --green:         #788c5d;
+    --red:           #c0392b;
+    --amber:         #c87941;
+    --sidebar-dark:  #141413;
+    --sidebar-width: 272px;
+    --icon-bar-width: 60px;
+    --font-ui: 'Poppins', Arial, sans-serif;
+    --font-body: 'Lora', Georgia, serif;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     DESKTOP — LOGIN PAGE
+  ═══════════════════════════════════════════════════════ */
+  .d-login-page {
+    width: 100%; height: 100%;
+    background: #faf9f5;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  /* Warm orange ambient glow top */
+  .d-login-page::before {
+    content: ''; position: absolute;
+    width: 500px; height: 300px;
+    background: radial-gradient(ellipse, rgba(217,119,87,0.15) 0%, transparent 70%);
+    top: -60px; left: 50%; transform: translateX(-50%);
+    animation: ambient-pulse 6s ease-in-out infinite;
+  }
+  /* Olive green subtle glow bottom-right */
+  .d-login-page::after {
+    content: ''; position: absolute;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(120,140,93,0.10) 0%, transparent 70%);
+    bottom: 0; right: 0; pointer-events: none;
+  }
+  @keyframes ambient-pulse {
+    0%,100% { opacity: 0.6; transform: translateX(-50%) scale(1); }
+    50%      { opacity: 1; transform: translateX(-50%) scale(1.08); }
+  }
+  .d-login-card {
+    background: transparent;
+    padding: 40px 36px;
+    width: 360px;
+    position: relative;
+    z-index: 1;
+  }
+  .d-login-logo {
+    text-align: center; margin-bottom: 36px;
+  }
+  .d-login-logo-icon {
+    width: 52px; height: 52px;
+    background: rgba(120,140,93,0.12);
+    border: 1px solid rgba(120,140,93,0.30);
+    border-radius: 16px; margin: 0 auto 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 20px rgba(120,140,93,0.20);
+  }
+  .d-login-logo h1 { font-family: var(--font-ui); font-size: 1.8rem; font-weight: 700; color: #141413; letter-spacing: -0.025em; }
+  .d-login-logo p { font-family: var(--font-ui); font-size: 0.68rem; color: #b0aea5; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 500; }
+  .d-field { margin-bottom: 16px; }
+  .d-field label { display: block; font-family: var(--font-ui); font-size: 0.65rem; color: #6b6966; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+  .d-field input {
+    width: 100%; padding: 11px 14px; background: #ffffff;
+    border: 1.5px solid #e8e6dc; border-radius: 10px; color: #141413;
+    font-family: var(--font-body); font-size: 14px; outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .d-field input:focus { border-color: #d97757; box-shadow: 0 0 0 3px rgba(217,119,87,0.12); }
+  .d-field input::placeholder { color: #d4d2cb; }
+  .d-btn-primary {
+    width: 100%; padding: 12px; background: #d97757; color: #fff;
+    border: none; border-radius: 10px; font-family: var(--font-ui); font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    margin-top: 8px; transition: background .15s, box-shadow .2s; letter-spacing: 0.02em;
+  }
+  .d-btn-primary:hover { background: #c5673d; box-shadow: 0 4px 16px rgba(217,119,87,0.35); }
+  .d-link-btn { display: block; text-align: center; color: #d97757; font-family: var(--font-body); font-size: 13px; margin-top: 14px; cursor: pointer; background: none; border: none; width: 100%; transition: color .15s; }
+  .d-link-btn:hover { color: #c5673d; }
+
+  /* ═══════════════════════════════════════════════════════
+     DESKTOP — MAIN LAYOUT (sidebar + chat)
+  ═══════════════════════════════════════════════════════ */
+  .d-app {
+    display: flex; width: 100%; height: 100%;
+    background: var(--bg-primary); overflow: hidden;
+  }
+
+  .d-icon-bar {
+    width: var(--icon-bar-width); background: #141413;
+    border-right: 1px solid #2a2a28;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px 0; gap: 4px; flex-shrink: 0;
+  }
+  .d-icon-btn {
+    width: 40px; height: 40px; border-radius: 10px; display: flex;
+    align-items: center; justify-content: center; cursor: pointer;
+    color: #6b6966; transition: all .15s; position: relative;
+    background: none; border: none;
+  }
+  .d-icon-btn:hover { background: rgba(255,255,255,0.08); color: #b0aea5; }
+  .d-icon-btn.active { background: rgba(217,119,87,0.18); color: #d97757; }
+  .d-icon-btn svg { width: 20px; height: 20px; }
+  .d-icon-spacer { flex: 1; }
+  .d-avatar-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #d97757, #c5673d);
+    display: flex; align-items: center; justify-content: center; font-family: var(--font-ui); font-size: 14px; font-weight: 700;
+    cursor: pointer; border: 2px solid #2a2a28; color: #fff;
+  }
+  .d-status-dot {
+    width: 9px; height: 9px; border-radius: 50%; background: #788c5d;
+    border: 2px solid #141413; position: absolute; bottom: 2px; right: 2px;
+    box-shadow: 0 0 5px rgba(120,140,93,0.5);
+  }
+
+  /* Chat sidebar */
+  .d-chat-sidebar {
+    width: var(--sidebar-width); background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  .d-sidebar-header { padding: 16px 16px 10px; display: flex; align-items: center; justify-content: space-between; }
+  .d-sidebar-header h2 { font-family: var(--font-ui); font-size: 1rem; font-weight: 700; color: #141413; letter-spacing: -0.01em; }
+  .d-sidebar-action { width: 28px; height: 28px; background: none; border: none; color: #b0aea5; cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+  .d-sidebar-action:hover { background: #f0eeea; color: #6b6966; }
+  .d-search-wrap { padding: 4px 12px 10px; }
+  .d-search {
+    width: 100%; padding: 7px 12px; background: #f0eeea;
+    border: 1.5px solid transparent; border-radius: 999px; color: #6b6966;
+    font-family: var(--font-body); font-size: 13px; outline: none; transition: border-color .2s, background .2s;
+  }
+  .d-search::placeholder { color: #b0aea5; }
+  .d-search:focus { border-color: #d97757; background: #fff; }
+  .d-conv-list { flex: 1; overflow-y: auto; }
+  .d-conv-item {
+    display: flex; align-items: center; padding: 9px 12px; gap: 10px; cursor: pointer;
+    border-radius: 10px; margin: 2px 6px; transition: background .12s;
+  }
+  .d-conv-item:hover { background: #f0eeea; }
+  .d-conv-item.active { background: rgba(217,119,87,0.10); }
+  .d-conv-avatar {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-ui); font-size: 15px; font-weight: 700; color: #fff; position: relative;
+  }
+  .d-conv-info { flex: 1; overflow: hidden; }
+  .d-conv-name { font-family: var(--font-ui); font-size: 0.875rem; font-weight: 600; color: #141413; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.005em; }
+  .d-conv-last { font-family: var(--font-body); font-size: 0.78rem; color: #b0aea5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .d-conv-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .d-conv-time { font-family: var(--font-ui); font-size: 11px; color: #b0aea5; }
+  .d-badge { background: #d97757; color: #fff; font-family: var(--font-ui); font-size: 11px; border-radius: 10px; padding: 1px 6px; font-weight: 700; min-width: 18px; text-align: center; }
+  .d-bot-ring { border: 2px solid #788c5d; box-shadow: 0 0 8px rgba(120,140,93,0.30); }
+  .d-bot-tag { position: absolute; bottom: -2px; right: -2px; background: #788c5d; border-radius: 4px; font-family: var(--font-ui); font-size: 8px; font-weight: 700; color: #fff; padding: 1px 3px; }
+
+  /* Chat main area */
+  .d-chat-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .d-chat-header {
+    padding: 11px 20px; background: #ffffff; border-bottom: 1.5px solid #e8e6dc;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .d-chat-header-name { font-family: var(--font-ui); font-size: 0.9rem; font-weight: 700; color: #141413; flex: 1; letter-spacing: -0.01em; }
+  .d-chat-header-status { font-size: 12px; color: #788c5d; font-family: var(--font-ui); }
+  .d-header-btn { width: 28px; height: 28px; background: none; border: none; color: #b0aea5; cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+  .d-header-btn:hover { background: #f0eeea; color: #6b6966; }
+
+  .d-msg-area {
+    flex: 1; overflow-y: auto; padding: 20px 20px 8px;
+    display: flex; flex-direction: column; gap: 4px;
+    background: #faf9f5;
+  }
+  .d-msg-group { display: flex; gap: 10px; margin-bottom: 8px; }
+  .d-msg-group.own { flex-direction: row-reverse; }
+  .d-msg-avatar { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-ui); font-size: 13px; font-weight: 700; color: #fff; }
+  .d-msg-bubbles { display: flex; flex-direction: column; gap: 2px; max-width: 520px; }
+  .d-msg-sender { font-family: var(--font-ui); font-size: 11px; color: #b0aea5; margin-bottom: 3px; padding-left: 2px; font-weight: 500; }
+  .d-msg-group.own .d-msg-sender { text-align: right; padding-right: 2px; padding-left: 0; }
+  .d-bubble {
+    padding: 9px 13px; border-radius: 12px; font-family: var(--font-body); font-size: 14px; line-height: 1.55;
+    color: #141413; background: #e8e6dc; max-width: 100%; word-break: break-word;
+  }
+  .d-msg-group.own .d-bubble { background: #d97757; color: #fff; }
+  .d-bubble.bot-bubble { background: rgba(120,140,93,0.10); border: 1px solid rgba(120,140,93,0.20); color: #141413; }
+  .d-msg-time { font-family: var(--font-ui); font-size: 10px; color: #b0aea5; margin-top: 3px; padding-left: 2px; }
+  .d-msg-group.own .d-msg-time { text-align: right; padding-right: 2px; padding-left: 0; }
+
+  /* Date divider */
+  .d-date-div { text-align: center; position: relative; margin: 16px 0; }
+  .d-date-div span { background: #f0eeea; color: #b0aea5; font-family: var(--font-ui); font-size: 11px; padding: 2px 12px; border-radius: 10px; position: relative; z-index: 1; border: 1px solid #e8e6dc; }
+
+  /* Typing indicator */
+  .d-typing { display: flex; gap: 4px; align-items: center; padding: 4px 0 0 8px; }
+  .d-typing span { width: 6px; height: 6px; border-radius: 50%; background: #b0aea5; animation: bounce 1.2s infinite; }
+  .d-typing span:nth-child(2) { animation-delay: .2s; }
+  .d-typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+  /* AI Cards area */
+  .d-ai-area { padding: 0 12px 4px; display: flex; flex-direction: column; gap: 6px; }
+
+  /* Whisper bar — Jarvis Olive Green */
+  .d-whisper {
+    background: rgba(120,140,93,0.07);
+    border-top: 1.5px solid rgba(120,140,93,0.20);
+    padding: 8px 16px; margin: 0;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    position: relative;
+  }
+  .d-whisper::before {
+    content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;
+    width: 3px; background: #788c5d; border-radius: 0 2px 2px 0;
+  }
+  .d-whisper-label { font-family: var(--font-ui); font-size: 0.62rem; font-weight: 700; color: #788c5d; white-space: nowrap; background: rgba(120,140,93,0.12); padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .d-whisper-chip {
+    background: #788c5d; color: #fff;
+    padding: 4px 14px; border-radius: 999px;
+    font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .12s; border: none;
+  }
+  .d-whisper-chip:hover { background: #6a7d51; box-shadow: 0 2px 8px rgba(120,140,93,0.30); }
+  .d-whisper-chip.alt { background: #f0eeea; border: 1.5px solid #e8e6dc; color: #6b6966; font-size: 12px; }
+  .d-whisper-chip.alt:hover { background: #e8e6dc; border-color: #788c5d; }
+  .d-whisper-close { margin-left: auto; background: none; border: none; color: #b0aea5; cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 4px; border-radius: 4px; transition: all .15s; }
+  .d-whisper-close:hover { color: #c0392b; background: rgba(192,57,43,0.08); }
+
+  /* Draft card */
+  .d-draft-card {
+    background: #ffffff; border: 1.5px solid rgba(120,140,93,0.25);
+    border-radius: 10px; padding: 12px 14px; margin: 0 12px 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .d-draft-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .d-draft-bot-name { font-family: var(--font-ui); font-size: 0.62rem; color: #788c5d; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+  .d-draft-timer { margin-left: auto; font-family: var(--font-ui); font-size: 12px; color: #c87941; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .d-draft-content { font-family: var(--font-body); font-size: 14px; color: #141413; line-height: 1.6; padding: 8px 10px; background: #faf9f5; border-radius: 6px; border: 1px solid #e8e6dc; margin-bottom: 10px; }
+  .d-draft-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .d-draft-btn { padding: 6px 14px; border-radius: 6px; font-family: var(--font-ui); font-size: 0.75rem; font-weight: 600; cursor: pointer; border: none; }
+  .d-draft-btn.reject { background: #f0eeea; color: #6b6966; }
+  .d-draft-btn.edit { background: rgba(120,140,93,0.10); color: #788c5d; border: 1px solid rgba(120,140,93,0.25); }
+  .d-draft-btn.approve { background: #788c5d; color: #fff; }
+
+  /* Predictive action card */
+  .d-pred-card {
+    background: var(--bg-secondary); border: 1px solid rgba(210,153,34,.25);
+    border-radius: 12px; padding: 12px 14px; margin: 0 12px 4px;
+  }
+  .d-pred-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .d-pred-title { font-size: 12px; font-weight: 700; color: #d29922; }
+  .d-pred-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; }
+  .d-pred-trigger { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+  .d-pred-action {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border-radius: 8px; border-left: 3px solid; margin-bottom: 4px;
+    background: rgba(255,255,255,.03);
+  }
+  .d-pred-desc { font-size: 13px; color: var(--text-primary); flex: 1; }
+  .d-pred-cmd { display: block; font-size: 11px; font-family: monospace; color: var(--text-muted); margin-top: 2px; }
+  .d-pred-run { background: none; border: 1px solid; border-radius: 6px; font-size: 12px; font-weight: 600; padding: 3px 10px; cursor: pointer; }
+
+  /* Message input */
+  .d-input-area {
+    padding: 8px 14px 12px; background: #ffffff; border-top: 1.5px solid #e8e6dc;
+  }
+  .d-input-bar {
+    display: flex; align-items: flex-end; gap: 8px;
+    background: #faf9f5; border: 1.5px solid #e8e6dc;
+    border-radius: 12px; padding: 8px 10px; transition: border-color .2s;
+  }
+  .d-input-bar:focus-within { border-color: #d97757; }
+  .d-input-bar textarea {
+    flex: 1; background: none; border: none; outline: none; color: #141413;
+    font-family: var(--font-body); font-size: 14px; line-height: 1.5; resize: none; max-height: 120px; min-height: 22px;
+  }
+  .d-input-bar textarea::placeholder { color: #b0aea5; }
+  .d-input-btn { width: 32px; height: 32px; border-radius: 8px; border: none; background: none; color: #b0aea5; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s; }
+  .d-input-btn:hover { background: #f0eeea; color: #6b6966; }
+  .d-send-btn { width: 34px; height: 34px; background: #d97757; border: none; border-radius: 8px; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s, box-shadow .2s; }
+  .d-send-btn:hover { background: #c5673d; box-shadow: 0 2px 8px rgba(217,119,87,0.35); }
+  .d-jarvis-btn { width: 32px; height: 32px; border-radius: 8px; border: 1.5px solid rgba(120,140,93,0.30); background: rgba(120,140,93,0.08); color: #788c5d; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--font-ui); font-size: 12px; font-weight: 700; flex-shrink: 0; transition: all .15s; }
+  .d-jarvis-btn:hover { background: rgba(120,140,93,0.16); }
+
+  /* ═══════════════════════════════════════════════════════
+     DESKTOP — FRIENDS PAGE
+  ═══════════════════════════════════════════════════════ */
+  .d-friends-page {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #faf9f5;
+  }
+  .d-friends-header {
+    padding: 16px 24px 14px; border-bottom: 1.5px solid #e8e6dc; background: #ffffff;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .d-friends-header h2 { font-family: var(--font-ui); font-size: 1rem; font-weight: 700; color: #141413; }
+  .d-add-btn {
+    display: flex; align-items: center; gap: 6px; padding: 7px 14px;
+    background: #d97757; color: #fff; border: none; border-radius: 8px;
+    font-family: var(--font-ui); font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s;
+  }
+  .d-add-btn:hover { background: #c5673d; }
+  .d-friends-content { flex: 1; overflow-y: auto; padding: 16px; }
+  .d-section-title { font-family: var(--font-ui); font-size: 10px; font-weight: 700; color: #b0aea5; text-transform: uppercase; letter-spacing: .08em; padding: 8px 4px 10px; }
+  .d-request-card {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    background: #ffffff; border: 1.5px solid #e8e6dc;
+    border-radius: 10px; margin-bottom: 6px; transition: border-color .15s;
+  }
+  .d-request-card:hover { border-color: #d97757; }
+  .d-req-name { font-family: var(--font-ui); font-size: 14px; font-weight: 600; color: #141413; }
+  .d-req-msg { font-family: var(--font-body); font-size: 12px; color: #b0aea5; margin-top: 2px; }
+  .d-req-actions { display: flex; gap: 6px; margin-left: auto; }
+  .d-req-accept { width: 30px; height: 30px; border-radius: 8px; background: rgba(120,140,93,0.12); border: 1.5px solid rgba(120,140,93,0.30); color: #788c5d; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+  .d-req-accept:hover { background: #788c5d; color: #fff; }
+  .d-req-reject { width: 30px; height: 30px; border-radius: 8px; background: #f0eeea; border: 1.5px solid #e8e6dc; color: #b0aea5; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+  .d-req-reject:hover { color: #c0392b; border-color: rgba(192,57,43,0.30); }
+  .d-friend-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border-radius: 10px; cursor: pointer; transition: background .12s; margin-bottom: 2px;
+  }
+  .d-friend-item:hover { background: #f0eeea; }
+  .d-friend-name { font-family: var(--font-ui); font-size: 14px; font-weight: 600; color: #141413; }
+  .d-friend-uname { font-family: var(--font-body); font-size: 12px; color: #b0aea5; }
+  .d-online { color: #788c5d; font-family: var(--font-ui); font-size: 11px; font-weight: 500; }
+  .d-offline { color: #b0aea5; font-family: var(--font-ui); font-size: 11px; }
+
+  /* ═══════════════════════════════════════════════════════
+     DESKTOP — PROFILE PAGE
+  ═══════════════════════════════════════════════════════ */
+  .d-profile-page {
+    flex: 1; overflow-y: auto; background: #faf9f5; padding: 24px;
+  }
+  .d-profile-content { max-width: 480px; margin: 0 auto; }
+  .d-profile-header { text-align: center; padding: 24px 0; }
+  .d-profile-avatar-wrap { position: relative; display: inline-block; margin-bottom: 16px; }
+  .d-profile-avatar {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: linear-gradient(135deg, #d97757, #c5673d);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-ui); font-size: 28px; font-weight: 700; color: #fff;
+    border: 3px solid #fff; box-shadow: 0 2px 12px rgba(217,119,87,0.25);
+  }
+  .d-avatar-edit {
+    position: absolute; bottom: 0; right: 0;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #d97757; border: 2px solid #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: #fff;
+  }
+  .d-profile-name { font-family: var(--font-ui); font-size: 20px; font-weight: 700; color: #141413; letter-spacing: -0.02em; }
+  .d-profile-status-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(120,140,93,0.10); border: 1.5px solid rgba(120,140,93,0.25);
+    color: #788c5d; font-family: var(--font-ui); font-size: 12px; padding: 4px 12px; border-radius: 20px; margin-top: 8px;
+  }
+  .d-profile-card {
+    background: #ffffff; border: 1.5px solid #e8e6dc;
+    border-radius: 12px; overflow: hidden; margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .d-profile-row {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer;
+    transition: background .12s;
+  }
+  .d-profile-row:hover { background: #faf9f5; }
+  .d-profile-row + .d-profile-row { border-top: 1px solid #f0eeea; }
+  .d-row-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(217,119,87,0.10); display: flex; align-items: center; justify-content: center; color: #d97757; flex-shrink: 0; }
+  .d-row-label { font-family: var(--font-ui); font-size: 11px; color: #b0aea5; font-weight: 500; }
+  .d-row-value { font-family: var(--font-body); font-size: 14px; color: #141413; font-weight: 500; }
+  .d-row-chevron { margin-left: auto; color: #b0aea5; }
+  .d-logout-btn {
+    width: 100%; padding: 12px; background: transparent; border: 1.5px solid rgba(192,57,43,0.30);
+    color: #c0392b; border-radius: 10px; font-family: var(--font-ui); font-size: 14px; font-weight: 600; cursor: pointer;
+    margin-top: 8px; transition: background .15s;
+  }
+  .d-logout-btn:hover { background: rgba(192,57,43,0.06); }
+  .d-version { text-align: center; font-family: var(--font-ui); font-size: 11px; color: #b0aea5; margin-top: 16px; }
+
+  /* ═══════════════════════════════════════════════════════
+     MOBILE STYLES — Anthropic Brand
+  ═══════════════════════════════════════════════════════ */
+  .m-frame {
+    width: 100%; height: 100%;
+    background: #e8e6dc; display: flex; align-items: center; justify-content: center;
+    gap: 24px; padding: 20px; flex-wrap: wrap; overflow: auto;
+  }
+  .m-phone {
+    width: 375px; height: 780px;
+    border-radius: 44px; overflow: hidden;
+    box-shadow: 0 30px 80px rgba(20,20,19,.35), 0 0 0 10px #141413, 0 0 0 12px #2a2a28;
+    flex-shrink: 0; background: #faf9f5;
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  .m-status-bar {
+    background: #faf9f5; padding: 12px 20px 4px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600; color: #141413; flex-shrink: 0;
+  }
+  .m-status-icons { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+  .m-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* Mobile nav bar */
+  .m-navbar {
+    background: #ffffff; border-bottom: 1px solid #e8e6dc;
+    padding: 10px 16px; display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0; position: relative;
+  }
+  .m-navbar-title { font-family: 'Poppins', sans-serif; font-size: 16px; font-weight: 700; color: #141413; flex: 1; text-align: center; }
+  .m-back-btn { color: #d97757; font-size: 20px; background: none; border: none; cursor: pointer; padding: 4px; line-height: 1; display: flex; align-items: center; }
+  .m-nav-action { color: #d97757; font-size: 16px; background: none; border: none; cursor: pointer; padding: 4px; font-weight: 500; font-family: 'Poppins', sans-serif; display: flex; align-items: center; }
+
+  /* Mobile tab bar */
+  .m-tabbar {
+    background: #ffffff; border-top: 1px solid #e8e6dc;
+    display: flex; flex-shrink: 0; padding-bottom: 8px;
+  }
+  .m-tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    padding: 8px 0 0; gap: 3px; cursor: pointer;
+  }
+  .m-tab-icon { font-size: 22px; color: #b0aea5; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .m-tab-icon ion-icon { font-size: 22px; color: inherit; }
+  .m-tab-icon.active ion-icon { color: #d97757; }
+  .m-tab-icon.active { color: #d97757; }
+  .m-tab-label { font-family: 'Poppins', sans-serif; font-size: 10px; font-weight: 500; color: #b0aea5; }
+  .m-tab-label.active { color: #d97757; font-weight: 600; }
+
+  /* Mobile chat list */
+  .m-chat-list { flex: 1; overflow-y: auto; background: #ffffff; }
+  .m-chat-item {
+    display: flex; align-items: center; padding: 12px 16px; gap: 12px;
+    border-bottom: 1px solid #f0eeea; cursor: pointer; transition: background .12s;
+  }
+  .m-chat-item:hover { background: #faf9f5; }
+  .m-avatar-wrap { position: relative; }
+  .m-avatar {
+    width: 50px; height: 50px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 700; color: #fff;
+  }
+  .m-jarvis-border { border: 2px solid #788c5d; box-shadow: 0 0 8px rgba(120,140,93,0.25); }
+  .m-avatar-badge {
+    position: absolute; top: -4px; right: -4px;
+    background: #d97757; color: #fff; font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700;
+    border-radius: 10px; padding: 1px 5px; border: 2px solid #fff;
+  }
+  .m-chat-info { flex: 1; overflow: hidden; }
+  .m-chat-name { font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 600; color: #141413; }
+  .m-chat-last { font-family: 'Lora', Georgia, serif; font-size: 13px; color: #b0aea5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+  .m-chat-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .m-chat-time { font-family: 'Poppins', sans-serif; font-size: 11px; color: #b0aea5; }
+  .m-chat-unread { background: #d97757; color: #fff; font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700; border-radius: 10px; padding: 1px 6px; min-width: 18px; text-align: center; }
+
+  /* Mobile chat thread */
+  .m-thread { flex: 1; overflow-y: auto; background: #faf9f5; padding: 12px 12px 8px; display: flex; flex-direction: column; gap: 8px; }
+  .m-msg-row { display: flex; gap: 8px; align-items: flex-end; }
+  .m-msg-row.own { flex-direction: row-reverse; }
+  .m-msg-ava { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 700; color: #fff; }
+  .m-bubble {
+    max-width: 240px; padding: 9px 12px; border-radius: 14px;
+    font-family: 'Lora', Georgia, serif; font-size: 14px; line-height: 1.55; color: #141413; background: #e8e6dc;
+    word-break: break-word;
+  }
+  .m-msg-row.own .m-bubble { background: #d97757; color: #fff; }
+  .m-bubble.bot { background: rgba(120,140,93,0.10); border: 1px solid rgba(120,140,93,0.22); color: #141413; }
+
+  /* Mobile whisper */
+  .m-whisper {
+    background: #ffffff; border-top: 1.5px solid rgba(120,140,93,0.20); padding: 8px 14px;
+    position: relative;
+  }
+  .m-whisper::before {
+    content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;
+    width: 3px; background: #788c5d; border-radius: 0 2px 2px 0;
+  }
+  .m-whisper-label { font-family: 'Poppins', sans-serif; font-size: 10px; color: #788c5d; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .m-whisper-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .m-whisper-chip {
+    background: #788c5d; border: none;
+    color: #fff; padding: 5px 13px; border-radius: 16px;
+    font-family: 'Lora', Georgia, serif; font-size: 13px; cursor: pointer; transition: all .12s;
+  }
+  .m-whisper-chip:hover { background: #6a7d51; }
+  .m-whisper-chip.alt { background: #f0eeea; border: 1.5px solid #e8e6dc; color: #6b6966; font-size: 12px; }
+  .m-whisper-chip.alt:hover { background: #e8e6dc; }
+
+  /* Mobile draft card */
+  .m-draft {
+    background: #fff; border-top: 1.5px solid rgba(120,140,93,0.20); padding: 10px 14px;
+  }
+  .m-draft-header { display: flex; align-items: center; margin-bottom: 6px; }
+  .m-draft-title { font-family: 'Poppins', sans-serif; font-size: 11px; color: #788c5d; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+  .m-draft-timer { margin-left: auto; font-family: 'Poppins', sans-serif; font-size: 12px; color: #c87941; font-weight: 600; }
+  .m-draft-text { font-family: 'Lora', Georgia, serif; font-size: 14px; color: #141413; background: #faf9f5; border: 1px solid #e8e6dc; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; line-height: 1.55; }
+  .m-draft-actions { display: flex; gap: 8px; }
+  .m-draft-btn { flex: 1; padding: 9px; border-radius: 8px; font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; border: none; text-align: center; }
+  .m-draft-reject { background: #f0eeea; color: #6b6966; }
+  .m-draft-approve { background: #788c5d; color: #fff; }
+
+  /* Mobile input */
+  .m-input-area { background: #fff; border-top: 1px solid #e8e6dc; padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .m-input { flex: 1; background: #f0eeea; border: none; border-radius: 20px; padding: 9px 14px; font-family: 'Lora', Georgia, serif; font-size: 14px; outline: none; color: #141413; }
+  .m-input::placeholder { color: #b0aea5; }
+  .m-voice-btn { width: 36px; height: 36px; border-radius: 50%; background: #f0eeea; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #b0aea5; font-size: 18px; transition: color .15s; }
+  .m-voice-btn:hover { color: #6b6966; }
+  .m-send-btn { width: 36px; height: 36px; border-radius: 50%; background: #d97757; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .15s; }
+  .m-send-btn:hover { background: #c5673d; }
+
+  /* Mobile login */
+  .m-login { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; background: #faf9f5; }
+  .m-login-logo { width: 72px; height: 72px; background: linear-gradient(135deg, #788c5d, #5f7048); border-radius: 22px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: 0 4px 16px rgba(120,140,93,0.30); }
+  .m-login h1 { font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 700; color: #141413; margin-bottom: 28px; letter-spacing: -0.02em; }
+  .m-login-field { width: 100%; margin-bottom: 14px; }
+  .m-login-field label { font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 600; color: #b0aea5; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .m-login-field input { width: 100%; padding: 12px 14px; background: #ffffff; border: 1.5px solid #e8e6dc; border-radius: 10px; font-family: 'Lora', Georgia, serif; font-size: 15px; outline: none; color: #141413; transition: border-color .2s; }
+  .m-login-field input:focus { border-color: #d97757; }
+  .m-login-btn { width: 100%; padding: 14px; background: #d97757; border: none; border-radius: 12px; font-family: 'Poppins', sans-serif; font-size: 16px; font-weight: 700; color: #fff; cursor: pointer; margin-top: 8px; transition: background .15s; letter-spacing: 0.02em; }
+  .m-login-btn:hover { background: #c5673d; }
+  .m-login-alt { color: #d97757; font-family: 'Lora', Georgia, serif; font-size: 14px; margin-top: 14px; cursor: pointer; background: none; border: none; }
+
+  /* Mobile friends */
+  .m-friends-list { flex: 1; overflow-y: auto; background: #fff; }
+  .m-friend-item { display: flex; align-items: center; padding: 12px 16px; gap: 12px; border-bottom: 1px solid #f0eeea; }
+  .m-friend-ava { width: 46px; height: 46px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-size: 17px; font-weight: 700; color: #fff; }
+  .m-friend-name { font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 600; color: #141413; }
+  .m-friend-status { font-family: 'Lora', Georgia, serif; font-size: 13px; color: #b0aea5; }
+
+  /* Mobile profile */
+  .m-profile { flex: 1; overflow-y: auto; background: #faf9f5; }
+  .m-profile-header { background: #fff; padding: 20px 16px; border-bottom: 1px solid #e8e6dc; }
+  .m-profile-ava { width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(135deg, #d97757, #c5673d); display: inline-flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 0; box-shadow: 0 2px 10px rgba(217,119,87,0.30); flex-shrink: 0; }
+  .m-profile-name { font-family: 'Poppins', sans-serif; font-size: 19px; font-weight: 700; color: #141413; letter-spacing: -0.02em; }
+  .m-profile-tag { font-family: 'Lora', Georgia, serif; font-size: 13px; color: #b0aea5; margin-top: 3px; }
+  .m-profile-card { background: #fff; margin: 12px 14px 0; border-radius: 12px; overflow: hidden; border: 1.5px solid #e8e6dc; }
+  .m-profile-row { display: flex; align-items: center; padding: 13px 14px; border-bottom: 1px solid #f0eeea; }
+  .m-profile-row:last-child { border-bottom: none; }
+  .m-profile-row-label { font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 500; color: #141413; flex: 1; }
+  .m-profile-row-value { font-family: 'Lora', Georgia, serif; font-size: 13px; color: #b0aea5; margin-right: 6px; }
+  .m-profile-chevron { color: #b0aea5; font-size: 14px; }
+  .m-logout-btn { display: block; margin: 12px 14px 24px; padding: 13px; text-align: center; background: #fff; border-radius: 12px; border: 1.5px solid rgba(192,57,43,0.25); font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 600; color: #c0392b; cursor: pointer; width: calc(100% - 28px); transition: background .15s; }
+  .m-logout-btn:hover { background: rgba(192,57,43,0.05); }
+
+  /* helpers — avatar color palette (warm earthy tones) */
+  .g1 { background: linear-gradient(135deg, #d97757, #c5673d); }
+  .g2 { background: linear-gradient(135deg, #788c5d, #5f7048); }
+  .g3 { background: linear-gradient(135deg, #c87941, #a86030); }
+  .g4 { background: linear-gradient(135deg, #6a9bcc, #4a7aad); }
+  .g5 { background: linear-gradient(135deg, #9e7eaf, #7a5c8d); }
+  .g6 { background: linear-gradient(135deg, #5a9e8a, #3d7d6a); }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <span class="nav-label">DESKTOP</span>
+  <div class="nav-group">
+    <button class="nav-btn active" onclick="show('d-login')">登录</button>
+    <button class="nav-btn" onclick="show('d-register')">注册</button>
+    <button class="nav-btn" onclick="show('d-chat')">聊天主界面</button>
+    <button class="nav-btn" onclick="show('d-chat-ai')">聊天+AI卡片</button>
+    <button class="nav-btn" onclick="show('d-friends')">联系人</button>
+    <button class="nav-btn" onclick="show('d-profile')">个人资料</button>
+  </div>
+  <div class="sep"></div>
+  <span class="nav-label">MOBILE</span>
+  <div class="nav-group">
+    <button class="nav-btn" onclick="show('m-login')">登录</button>
+    <button class="nav-btn" onclick="show('m-chatlist')">会话列表</button>
+    <button class="nav-btn" onclick="show('m-thread')">聊天线程</button>
+    <button class="nav-btn" onclick="show('m-thread-ai')">聊天+AI</button>
+    <button class="nav-btn" onclick="show('m-friends')">好友</button>
+    <button class="nav-btn" onclick="show('m-profile')">我的</button>
+  </div>
+</div>
+
+<div class="frames">
+
+<!-- ═══════════════════ DESKTOP: LOGIN ═══════════════════ -->
+<div id="d-login" class="frame active">
+  <div class="d-login-page">
+    <div class="d-login-card">
+      <div class="d-login-logo">
+        <div class="d-login-logo-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#788c5d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div>
+        <h1>LinkingChat</h1>
+        <p>Desktop Client</p>
+      </div>
+      <div class="d-field">
+        <label>EMAIL</label>
+        <input type="email" placeholder="your@email.com" value="zeno@example.com">
+      </div>
+      <div class="d-field">
+        <label>PASSWORD</label>
+        <input type="password" placeholder="••••••••" value="password">
+      </div>
+      <button class="d-btn-primary">Login</button>
+      <button class="d-link-btn">Don't have an account? Register</button>
+      <button class="d-link-btn" style="margin-top:4px;opacity:.6;font-size:12px">Forgot password?</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ DESKTOP: REGISTER ═══════════════════ -->
+<div id="d-register" class="frame">
+  <div class="d-login-page">
+    <div class="d-login-card">
+      <div class="d-login-logo">
+        <div class="d-login-logo-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#788c5d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div>
+        <h1>LinkingChat</h1>
+        <p>Create Account</p>
+      </div>
+      <div class="d-field"><label>EMAIL</label><input type="email" placeholder="your@email.com"></div>
+      <div class="d-field"><label>USERNAME</label><input type="text" placeholder="letters, numbers, underscores"></div>
+      <div class="d-field"><label>DISPLAY NAME</label><input type="text" placeholder="Your display name"></div>
+      <div class="d-field"><label>PASSWORD</label><input type="password" placeholder="min 8 characters"></div>
+      <button class="d-btn-primary">Register</button>
+      <button class="d-link-btn">Already have an account? Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ DESKTOP: CHAT ═══════════════════ -->
+<div id="d-chat" class="frame">
+  <div class="d-app">
+    <!-- Icon sidebar -->
+    <div class="d-icon-bar">
+      <div class="d-icon-btn active" title="Chats">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      </div>
+      <div class="d-icon-btn" title="Friends">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      </div>
+      <div class="d-icon-btn" title="Device">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <div class="d-icon-spacer"></div>
+      <div class="d-icon-btn" style="position:relative" title="Profile">
+        <div class="d-avatar-btn">Z</div>
+        <div class="d-status-dot"></div>
+      </div>
+    </div>
+
+    <!-- Chat sidebar -->
+    <div class="d-chat-sidebar">
+      <div class="d-sidebar-header">
+        <h2>Chats</h2>
+        <button class="d-sidebar-action" title="New Group">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="d-search-wrap">
+        <input class="d-search" placeholder="Search…">
+      </div>
+      <div class="d-conv-list">
+        <!-- Jarvis (Supervisor Bot) — pinned first -->
+        <div class="d-conv-item active">
+          <div style="position:relative">
+            <div class="d-conv-avatar g1 d-bot-ring"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div>
+            <div class="d-bot-tag">AI</div>
+          </div>
+          <div class="d-conv-info">
+            <div class="d-conv-name">Jarvis · 贾维斯</div>
+            <div class="d-conv-last">✨ 我帮你起草了一封回复…</div>
+          </div>
+          <div class="d-conv-meta">
+            <div class="d-conv-time">2:14 PM</div>
+          </div>
+        </div>
+        <!-- Direct converse -->
+        <div class="d-conv-item">
+          <div class="d-conv-avatar g3">L</div>
+          <div class="d-conv-info">
+            <div class="d-conv-name">李明</div>
+            <div class="d-conv-last">周五下午开会没问题</div>
+          </div>
+          <div class="d-conv-meta">
+            <div class="d-conv-time">1:47 PM</div>
+            <div class="d-badge">3</div>
+          </div>
+        </div>
+        <!-- Group converse -->
+        <div class="d-conv-item">
+          <div class="d-conv-avatar g4" style="border-radius:10px">群</div>
+          <div class="d-conv-info">
+            <div class="d-conv-name">产品设计组</div>
+            <div class="d-conv-last">王芳: 原型图已更新</div>
+          </div>
+          <div class="d-conv-meta">
+            <div class="d-conv-time">12:30 PM</div>
+            <div class="d-badge">7</div>
+          </div>
+        </div>
+        <div class="d-conv-item">
+          <div class="d-conv-avatar g5">S</div>
+          <div class="d-conv-info">
+            <div class="d-conv-name">Sarah Chen</div>
+            <div class="d-conv-last">Thanks for the update!</div>
+          </div>
+          <div class="d-conv-meta">
+            <div class="d-conv-time">Yesterday</div>
+          </div>
+        </div>
+        <div class="d-conv-item">
+          <div class="d-conv-avatar g6" style="border-radius:10px">S6</div>
+          <div class="d-conv-info">
+            <div class="d-conv-name">Sprint 6 团队</div>
+            <div class="d-conv-last">Alex: CI passed ✓</div>
+          </div>
+          <div class="d-conv-meta">
+            <div class="d-conv-time">Yesterday</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat main -->
+    <div class="d-chat-main">
+      <div class="d-chat-header">
+        <div class="d-conv-avatar g3" style="width:32px;height:32px;font-size:13px">L</div>
+        <div>
+          <div class="d-chat-header-name">李明</div>
+          <div class="d-chat-header-status">● Online</div>
+        </div>
+        <div style="flex:1"></div>
+        <button class="d-header-btn" title="Search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <button class="d-header-btn" title="More">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+
+      <div class="d-msg-area">
+        <div class="d-date-div"><span>Today</span></div>
+
+        <div class="d-msg-group">
+          <div class="d-msg-avatar g3">L</div>
+          <div class="d-msg-bubbles">
+            <div class="d-msg-sender">李明</div>
+            <div class="d-bubble">Hi，方便周五下午开个需求对齐会议吗？大概1小时</div>
+            <div class="d-msg-time">1:42 PM</div>
+          </div>
+        </div>
+
+        <div class="d-msg-group own">
+          <div class="d-msg-avatar g1">Z</div>
+          <div class="d-msg-bubbles">
+            <div class="d-bubble">当然可以，周五下午我有空 👍</div>
+            <div class="d-msg-time">1:44 PM</div>
+          </div>
+        </div>
+
+        <div class="d-msg-group">
+          <div class="d-msg-avatar g3">L</div>
+          <div class="d-msg-bubbles">
+            <div class="d-msg-sender">李明</div>
+            <div class="d-bubble">太好了！那定2点吧，我发个日历邀请</div>
+            <div class="d-msg-time">1:45 PM</div>
+          </div>
+        </div>
+
+        <div class="d-msg-group">
+          <div class="d-msg-avatar g3">L</div>
+          <div class="d-msg-bubbles">
+            <div class="d-bubble">顺便问一下，上次那个性能问题解决了吗？</div>
+            <div class="d-msg-time">1:47 PM</div>
+          </div>
+        </div>
+
+        <!-- Typing indicator -->
+        <div class="d-msg-group" style="margin-top:4px">
+          <div class="d-msg-avatar g1">Z</div>
+          <div class="d-typing">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Whisper bar (示意) -->
+      <div class="d-whisper">
+        <span class="d-whisper-label"><ion-icon name="sparkles-outline"></ion-icon> Jarvis</span>
+        <div class="d-whisper-chips" style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="d-whisper-chip">正在处理，明天给你最终结果</button>
+          <button class="d-whisper-chip alt">已解决了，效果不错</button>
+          <button class="d-whisper-chip alt">···</button>
+        </div>
+        <button class="d-whisper-close">×</button>
+      </div>
+
+      <!-- Input area -->
+      <div class="d-input-area">
+        <div class="d-input-bar">
+          <button class="d-input-btn" title="Attach file">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <button class="d-input-btn" title="Emoji">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          </button>
+          <textarea rows="1" placeholder="Message…"></textarea>
+          <button class="d-jarvis-btn" title="Ask Jarvis">J</button>
+          <button class="d-send-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ DESKTOP: CHAT + AI CARDS ═══════════════════ -->
+<div id="d-chat-ai" class="frame">
+  <div class="d-app">
+    <div class="d-icon-bar">
+      <div class="d-icon-btn active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+      <div class="d-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+      <div class="d-icon-spacer"></div>
+      <div class="d-icon-btn" style="position:relative"><div class="d-avatar-btn">Z</div><div class="d-status-dot"></div></div>
+    </div>
+
+    <div class="d-chat-sidebar">
+      <div class="d-sidebar-header"><h2>Chats</h2></div>
+      <div class="d-search-wrap"><input class="d-search" placeholder="Search…"></div>
+      <div class="d-conv-list">
+        <div class="d-conv-item active">
+          <div style="position:relative"><div class="d-conv-avatar g1 d-bot-ring"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div><div class="d-bot-tag">AI</div></div>
+          <div class="d-conv-info"><div class="d-conv-name">Jarvis · 贾维斯</div><div class="d-conv-last">已为您起草回复</div></div>
+          <div class="d-conv-meta"><div class="d-conv-time">Now</div></div>
+        </div>
+        <div class="d-conv-item">
+          <div class="d-conv-avatar g3">L</div>
+          <div class="d-conv-info"><div class="d-conv-name">李明</div><div class="d-conv-last">周五见</div></div>
+          <div class="d-conv-meta"><div class="d-conv-time">2:14 PM</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-chat-main">
+      <div class="d-chat-header">
+        <div class="d-conv-avatar g1" style="width:32px;height:32px;font-size:16px;border-radius:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div>
+        <div>
+          <div class="d-chat-header-name">Jarvis · 贾维斯</div>
+          <div style="font-size:12px;color:var(--accent)">Your AI Companion</div>
+        </div>
+      </div>
+
+      <div class="d-msg-area">
+        <div class="d-date-div"><span>Today</span></div>
+        <div class="d-msg-group">
+          <div class="d-msg-avatar g1" style="border-radius:10px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div>
+          <div class="d-msg-bubbles">
+            <div class="d-msg-sender" style="color:var(--accent)">Jarvis</div>
+            <div class="d-bubble bot-bubble">你好！我是你的 AI 助理贾维斯。<br>我会帮你起草消息、分析对话，让你的沟通更高效。</div>
+            <div class="d-msg-time">2:10 PM</div>
+          </div>
+        </div>
+        <div class="d-msg-group own">
+          <div class="d-msg-avatar g1">Z</div>
+          <div class="d-msg-bubbles">
+            <div class="d-bubble">帮我回复李明，说周五开会没问题，2点见</div>
+            <div class="d-msg-time">2:13 PM</div>
+          </div>
+        </div>
+        <div class="d-msg-group">
+          <div class="d-msg-avatar g1" style="border-radius:10px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div>
+          <div class="d-msg-bubbles">
+            <div class="d-msg-sender" style="color:var(--accent)">Jarvis</div>
+            <div class="d-bubble bot-bubble">好的，我已经起草了一条回复，请确认后发送 👇</div>
+            <div class="d-msg-time">2:13 PM</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Predictive Action Card -->
+      <div class="d-ai-area">
+        <div class="d-pred-card">
+          <div class="d-pred-header">
+            <span class="d-pred-title"><ion-icon name="sparkles-outline"></ion-icon> Suggested Actions</span>
+            <button class="d-pred-close">×</button>
+          </div>
+          <div class="d-pred-trigger">Shell exited with code 1: npm test — 3 failures detected</div>
+          <div class="d-pred-actions">
+            <div class="d-pred-action" style="border-left-color:#4caf50">
+              <span>🟢</span>
+              <div class="d-pred-info" style="flex:1">
+                <span class="d-pred-desc">重新运行失败的测试</span>
+                <code class="d-pred-cmd">npm test -- --onlyFailures</code>
+              </div>
+              <button class="d-pred-run" style="color:#4caf50;border-color:#4caf50">Run</button>
+            </div>
+            <div class="d-pred-action" style="border-left-color:#f59e0b">
+              <span>🟡</span>
+              <div class="d-pred-info" style="flex:1">
+                <span class="d-pred-desc">清除缓存后重试</span>
+                <code class="d-pred-cmd">npm clean-install && npm test</code>
+              </div>
+              <button class="d-pred-run" style="color:#f59e0b;border-color:#f59e0b">Run</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Draft Card -->
+      <div class="d-ai-area">
+        <div class="d-draft-card">
+          <div class="d-draft-header">
+            <span class="d-draft-bot-name"><ion-icon name="sparkles-outline"></ion-icon> Draft from Jarvis</span>
+            <span class="d-draft-timer">04:32</span>
+          </div>
+          <div class="d-draft-content">
+            李明你好！周五下午2点开会完全没问题，已经预留好时间了。期待我们的讨论，到时见！
+          </div>
+          <div class="d-draft-actions">
+            <button class="d-draft-btn reject">✕ Reject</button>
+            <button class="d-draft-btn edit">✎ Edit</button>
+            <button class="d-draft-btn approve">✓ Approve</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Whisper bar -->
+      <div class="d-whisper">
+        <span class="d-whisper-label"><ion-icon name="sparkles-outline"></ion-icon> Jarvis</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="d-whisper-chip">好的，没问题！</button>
+          <button class="d-whisper-chip alt">可以，周五见</button>
+          <button class="d-whisper-chip alt">···</button>
+        </div>
+        <button class="d-whisper-close">×</button>
+      </div>
+
+      <div class="d-input-area">
+        <div class="d-input-bar">
+          <button class="d-input-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg></button>
+          <textarea rows="1" placeholder="Message Jarvis…"></textarea>
+          <button class="d-jarvis-btn">J</button>
+          <button class="d-send-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ DESKTOP: FRIENDS ═══════════════════ -->
+<div id="d-friends" class="frame">
+  <div class="d-app">
+    <div class="d-icon-bar">
+      <div class="d-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+      <div class="d-icon-btn active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
+      <div class="d-icon-spacer"></div>
+      <div class="d-icon-btn" style="position:relative"><div class="d-avatar-btn">Z</div><div class="d-status-dot"></div></div>
+    </div>
+
+    <div class="d-friends-page">
+      <div class="d-friends-header">
+        <h2>Contacts</h2>
+        <button class="d-add-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Friend
+        </button>
+      </div>
+
+      <div class="d-friends-content">
+        <!-- Pending requests -->
+        <div class="d-section-title" style="color:#d29922">▼ Friend Requests &nbsp; <span style="background:#d29922;color:#000;border-radius:10px;padding:1px 7px;font-size:10px">2</span></div>
+
+        <div class="d-request-card">
+          <div class="d-conv-avatar g5" style="width:40px;height:40px;border-radius:50%;font-size:14px;font-weight:700;flex-shrink:0">W</div>
+          <div>
+            <div class="d-req-name">王芳</div>
+            <div class="d-req-msg">嗨，我们一起合作过 Sprint 4</div>
+          </div>
+          <div class="d-req-actions">
+            <button class="d-req-accept">✓</button>
+            <button class="d-req-reject">✕</button>
+          </div>
+        </div>
+
+        <div class="d-request-card">
+          <div class="d-conv-avatar g4" style="width:40px;height:40px;border-radius:50%;font-size:14px;font-weight:700;flex-shrink:0">A</div>
+          <div>
+            <div class="d-req-name">Alex Kim</div>
+            <div class="d-req-msg">Hey, found you via product forum</div>
+          </div>
+          <div class="d-req-actions">
+            <button class="d-req-accept">✓</button>
+            <button class="d-req-reject">✕</button>
+          </div>
+        </div>
+
+        <!-- Friends list -->
+        <div class="d-section-title" style="margin-top:16px">Friends (4)</div>
+
+        <div class="d-friend-item"><div style="position:relative"><div class="d-conv-avatar g3" style="width:40px;height:40px;border-radius:50%;font-size:14px;font-weight:700;flex-shrink:0">L</div><div style="width:10px;height:10px;background:#3fb950;border-radius:50%;border:2px solid #0d1117;position:absolute;bottom:0;right:0"></div></div><div><div class="d-friend-name">李明</div><div class="d-friend-username">@liming</div></div><div style="margin-left:auto;font-size:12px;color:#3fb950">Online</div></div>
+        <div class="d-friend-item"><div style="position:relative"><div class="d-conv-avatar g5" style="width:40px;height:40px;border-radius:50%;font-size:14px;font-weight:700;flex-shrink:0">S</div><div style="width:10px;height:10px;background:#3fb950;border-radius:50%;border:2px solid #0d1117;position:absolute;bottom:0;right:0"></div></div><div><div class="d-friend-name">Sarah Chen</div><div class="d-friend-username">@sarahc</div></div><div style="margin-left:auto;font-size:12px;color:#3fb950">Online</div></div>
+        <div class="d-friend-item"><div style="position:relative"><div class="d-conv-avatar g6" style="width:40px;height:40px;border-radius:50%;font-size:14px;font-weight:700;flex-shrink:0">M</div><div style="width:10px;height:10px;background:#484f58;border-radius:50%;border:2px solid #0d1117;position:absolute;bottom:0;right:0"></div></div><div><div class="d-friend-name">Marcus Lee</div><div class="d-friend-username">@marcuslee</div></div><div style="margin-left:auto;font-size:12px;color:#484f58">Offline</div></div>
+        <div class="d-friend-item"><div style="position:relative"><div class="d-conv-avatar g2" style="width:40px;height:40px;border-radius:50%;font-size:14px;font-weight:700;flex-shrink:0">Y</div><div style="width:10px;height:10px;background:#d29922;border-radius:50%;border:2px solid #0d1117;position:absolute;bottom:0;right:0"></div></div><div><div class="d-friend-name">赵宇</div><div class="d-friend-username">@zhaoyu</div></div><div style="margin-left:auto;font-size:12px;color:#d29922">Away</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ DESKTOP: PROFILE ═══════════════════ -->
+<div id="d-profile" class="frame">
+  <div class="d-app">
+    <div class="d-icon-bar">
+      <div class="d-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+      <div class="d-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+      <div class="d-icon-spacer"></div>
+      <div class="d-icon-btn active" style="position:relative"><div class="d-avatar-btn">Z</div><div class="d-status-dot"></div></div>
+    </div>
+
+    <div class="d-profile-page">
+      <div class="d-profile-content">
+        <div class="d-profile-header">
+          <div class="d-profile-avatar-wrap">
+            <div class="d-profile-avatar">Z</div>
+            <div class="d-avatar-edit"><ion-icon name="pencil-outline" style="font-size:12px"></ion-icon></div>
+          </div>
+          <div class="d-profile-name">Zeno Wang</div>
+          <div class="d-profile-status-badge"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span> 在线</div>
+        </div>
+
+        <div class="d-profile-card">
+          <div class="d-profile-row">
+            <div class="d-row-icon"><ion-icon name="person-outline"></ion-icon></div>
+            <div><div class="d-row-label">昵称</div><div class="d-row-value">Zeno Wang</div></div>
+            <div class="d-row-chevron"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+          </div>
+          <div class="d-profile-row">
+            <div class="d-row-icon"><ion-icon name="at-outline"></ion-icon></div>
+            <div><div class="d-row-label">用户名</div><div class="d-row-value">@zenoWang</div></div>
+            <div style="margin-left:auto;font-size:12px;color:var(--text-muted);font-family:var(--font-ui)">不可修改</div>
+          </div>
+          <div class="d-profile-row">
+            <div class="d-row-icon"><ion-icon name="mail-outline"></ion-icon></div>
+            <div><div class="d-row-label">邮箱</div><div class="d-row-value">zeno@example.com</div></div>
+          </div>
+        </div>
+
+          <div class="d-profile-card">
+            <div class="d-profile-row">
+              <div class="d-row-icon"><ion-icon name="ellipse" style="font-size:12px;color:#788c5d"></ion-icon></div>
+              <div><div class="d-row-label">状态</div><div class="d-row-value">在线</div></div>
+              <div class="d-row-chevron"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+            </div>
+          </div>
+
+          <div class="d-profile-card">
+            <div class="d-profile-row">
+              <div class="d-row-icon"><ion-icon name="globe-outline"></ion-icon></div>
+              <div><div class="d-row-label">Language</div><div class="d-row-value">中文</div></div>
+              <div class="d-row-chevron"><ion-icon name="chevron-forward-outline"></ion-icon></div>
+            </div>
+          </div>
+
+        <button class="d-logout-btn">退出登录</button>
+        <div class="d-version">LinkingChat v1.0.0</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MOBILE: LOGIN ═══════════════════ -->
+<div id="m-login" class="frame">
+  <div class="m-frame">
+    <div class="m-phone">
+      <div class="m-status-bar">
+        <span>9:41</span>
+        <div class="m-status-icons">
+          <span>●●●</span>
+        </div>
+      </div>
+      <div class="m-content">
+        <div class="m-login">
+          <div class="m-login-logo">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
+          </div>
+          <h1>LinkingChat</h1>
+          <div class="m-login-field">
+            <label>邮箱</label>
+            <input type="email" placeholder="your@email.com">
+          </div>
+          <div class="m-login-field">
+            <label>密码</label>
+            <input type="password" placeholder="••••••••">
+          </div>
+          <button class="m-login-btn">登 录</button>
+          <button class="m-login-alt">没有账号？立即注册</button>
+          <button class="m-login-alt" style="color:#8E8E93;font-size:13px">忘记密码</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Register variant -->
+    <div class="m-phone">
+      <div class="m-status-bar"><span>9:41</span><div class="m-status-icons"><span>▌▌▌</span><span>📶</span><span>🔋</span></div></div>
+      <div class="m-content">
+        <div class="m-navbar" style="background:#fff">
+          <button class="m-back-btn"><ion-icon name="chevron-back-outline"></ion-icon></button>
+          <div class="m-navbar-title">注册账号</div>
+          <div style="width:32px"></div>
+        </div>
+        <div class="m-login" style="padding-top:20px">
+          <div class="m-login-field"><label>邮箱</label><input type="email" placeholder="your@email.com"></div>
+          <div class="m-login-field"><label>用户名</label><input type="text" placeholder="3-30 字符"></div>
+          <div class="m-login-field"><label>昵称</label><input type="text" placeholder="显示名称"></div>
+          <div class="m-login-field"><label>密码</label><input type="password" placeholder="至少8位"></div>
+          <button class="m-login-btn">创 建 账 号</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MOBILE: CHAT LIST ═══════════════════ -->
+<div id="m-chatlist" class="frame">
+  <div class="m-frame">
+    <div class="m-phone">
+      <div class="m-status-bar"><span>9:41</span><div class="m-status-icons"><span>▌▌▌</span><span>📶</span><span>🔋</span></div></div>
+      <div class="m-content">
+        <div class="m-navbar">
+          <div class="m-navbar-title">消息</div>
+          <button class="m-nav-action" style="position:absolute;right:16px"><ion-icon name="add-outline"></ion-icon></button>
+        </div>
+        <div style="padding:8px 12px;background:#fff;border-bottom:1px solid #f0eeea">
+          <input style="width:100%;padding:8px 14px 8px 36px;background:#f0eeea;border:none;border-radius:20px;font-family:'Lora',serif;font-size:14px;color:#141413;outline:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23b0aea5' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.442 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:12px center" placeholder="搜索">
+        </div>
+        <div class="m-chat-list">
+          <!-- Jarvis -->
+          <div class="m-chat-item">
+            <div class="m-avatar-wrap">
+              <div class="m-avatar g2 m-jarvis-border" style="border-radius:12px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div>
+            </div>
+            <div class="m-chat-info">
+              <div class="m-chat-name" style="color:#788c5d">贾维斯 · Jarvis <span style="font-size:11px;background:rgba(120,140,93,.12);color:#788c5d;padding:1px 6px;border-radius:4px;font-weight:600;font-family:'Poppins',sans-serif">AI</span></div>
+              <div class="m-chat-last">已为你起草了一条回复消息</div>
+            </div>
+            <div class="m-chat-meta">
+              <div class="m-chat-time">2:14 PM</div>
+              <div class="m-chat-unread" style="background:#788c5d">1</div>
+            </div>
+          </div>
+
+          <div class="m-chat-item">
+            <div class="m-avatar-wrap">
+              <div class="m-avatar g3">李</div>
+              <div class="m-avatar-badge">3</div>
+            </div>
+            <div class="m-chat-info">
+              <div class="m-chat-name">李明</div>
+              <div class="m-chat-last">周五下午2点，不见不散！</div>
+            </div>
+            <div class="m-chat-meta"><div class="m-chat-time">1:47 PM</div><div class="m-chat-unread">3</div></div>
+          </div>
+
+          <div class="m-chat-item">
+            <div class="m-avatar-wrap">
+              <div class="m-avatar g4" style="border-radius:12px">群</div>
+            </div>
+            <div class="m-chat-info">
+              <div class="m-chat-name">产品设计组</div>
+              <div class="m-chat-last">王芳: 原型图已更新，请审阅</div>
+            </div>
+            <div class="m-chat-meta"><div class="m-chat-time">12:30 PM</div><div class="m-chat-unread">7</div></div>
+          </div>
+
+          <div class="m-chat-item">
+            <div class="m-avatar-wrap"><div class="m-avatar g5">S</div></div>
+            <div class="m-chat-info"><div class="m-chat-name">Sarah Chen</div><div class="m-chat-last">Thanks for the quick update!</div></div>
+            <div class="m-chat-meta"><div class="m-chat-time">Yesterday</div></div>
+          </div>
+
+          <div class="m-chat-item">
+            <div class="m-avatar-wrap"><div class="m-avatar g6" style="border-radius:12px">S6</div></div>
+            <div class="m-chat-info"><div class="m-chat-name">Sprint 6 团队</div><div class="m-chat-last">Alex: CI passed ✓ All green</div></div>
+            <div class="m-chat-meta"><div class="m-chat-time">Yesterday</div></div>
+          </div>
+
+          <div class="m-chat-item">
+            <div class="m-avatar-wrap"><div class="m-avatar g1">M</div></div>
+            <div class="m-chat-info"><div class="m-chat-name">Marcus Lee</div><div class="m-chat-last">明天记得带笔记本电脑</div></div>
+            <div class="m-chat-meta"><div class="m-chat-time">Mon</div></div>
+          </div>
+        </div>
+        <div class="m-tabbar">
+          <div class="m-tab"><div class="m-tab-icon active"><ion-icon name="chatbubble-ellipses"></ion-icon></div><div class="m-tab-label active">消息</div></div>
+          <div class="m-tab"><div class="m-tab-icon"><ion-icon name="people-outline"></ion-icon></div><div class="m-tab-label">通讯录</div></div>
+          <div class="m-tab"><div class="m-tab-icon"><ion-icon name="compass-outline"></ion-icon></div><div class="m-tab-label">发现</div></div>
+          <div class="m-tab"><div class="m-tab-icon"><ion-icon name="person-circle-outline"></ion-icon></div><div class="m-tab-label">我</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MOBILE: CHAT THREAD ═══════════════════ -->
+<div id="m-thread" class="frame">
+  <div class="m-frame">
+    <div class="m-phone">
+      <div class="m-status-bar"><span>9:41</span><div class="m-status-icons"><span>▌▌▌</span><span>📶</span><span>🔋</span></div></div>
+      <div class="m-content">
+        <div class="m-navbar">
+          <button class="m-back-btn"><ion-icon name="chevron-back-outline"></ion-icon></button>
+          <div>
+            <div class="m-navbar-title">李明</div>
+            <div style="font-size:11px;color:#788c5d;text-align:center;font-family:'Poppins',sans-serif;font-weight:500">在线</div>
+          </div>
+          <button class="m-nav-action" style="position:absolute;right:16px"><ion-icon name="ellipsis-horizontal"></ion-icon></button>
+        </div>
+
+        <div class="m-thread">
+          <div style="text-align:center;margin:4px 0"><span style="color:#b0aea5;font-size:11px;padding:3px 12px;border-radius:10px;background:#e8e6dc;font-family:'Poppins',sans-serif">今天</span></div>
+
+          <div class="m-msg-row">
+            <div class="m-msg-ava g3">李</div>
+            <div>
+              <div style="font-size:11px;color:#b0aea5;margin-bottom:4px;padding-left:2px;font-family:'Poppins',sans-serif">李明</div>
+              <div class="m-bubble">Hi，方便周五下午开个需求对齐会议吗？大概1小时</div>
+            </div>
+          </div>
+
+          <div class="m-msg-row own">
+            <div class="m-msg-ava g1">Z</div>
+            <div class="m-bubble">当然可以，周五下午我有空 👍</div>
+          </div>
+
+          <div class="m-msg-row">
+            <div class="m-msg-ava g3">李</div>
+            <div class="m-bubble">太好了！那定2点吧，我发个日历邀请</div>
+          </div>
+
+          <div class="m-msg-row">
+            <div class="m-msg-ava g3">李</div>
+            <div class="m-bubble">顺便问一下，上次那个性能问题解决了吗？</div>
+          </div>
+
+          <div style="text-align:right;padding:2px 0;margin-right:8px">
+            <div class="d-typing" style="justify-content:flex-end">
+              <span style="background:#aaa"></span><span style="background:#aaa"></span><span style="background:#aaa"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Whisper -->
+        <div class="m-whisper">
+          <div class="m-whisper-label">✨ Jarvis 建议</div>
+          <div class="m-whisper-chips">
+            <button class="m-whisper-chip">正在处理，明天反馈你</button>
+            <button class="m-whisper-chip alt">已解决了</button>
+            <button class="m-whisper-chip alt">···</button>
+          </div>
+        </div>
+
+        <div class="m-input-area">
+          <button class="m-voice-btn"><ion-icon name="mic-outline"></ion-icon></button>
+          <input class="m-input" placeholder="消息…">
+          <button class="m-send-btn">
+            <ion-icon name="arrow-up-outline" style="color:#fff;font-size:16px"></ion-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MOBILE: CHAT + AI ═══════════════════ -->
+<div id="m-thread-ai" class="frame">
+  <div class="m-frame">
+    <!-- Jarvis Bot Thread -->
+    <div class="m-phone">
+      <div class="m-status-bar"><span>9:41</span><div class="m-status-icons"><span>▌▌▌</span><span>📶</span><span>🔋</span></div></div>
+      <div class="m-content">
+        <div class="m-navbar" style="background:linear-gradient(135deg,#788c5d,#5f7048)">
+          <button class="m-back-btn" style="color:#fff"><ion-icon name="chevron-back-outline"></ion-icon></button>
+          <div>
+            <div class="m-navbar-title" style="color:#fff">贾维斯 · Jarvis</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.75);text-align:center;font-family:'Poppins',sans-serif">Your AI Companion</div>
+          </div>
+          <button class="m-nav-action" style="position:absolute;right:16px;color:#fff"><ion-icon name="ellipsis-horizontal"></ion-icon></button>
+        </div>
+
+        <div class="m-thread" style="background:#f5f3ee">
+          <div class="m-msg-row">
+            <div class="m-msg-ava g2" style="border-radius:10px;border:2px solid #788c5d"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div>
+            <div>
+              <div style="font-size:11px;color:#788c5d;margin-bottom:4px;font-weight:600;font-family:'Poppins',sans-serif">Jarvis</div>
+              <div class="m-bubble bot">你好！我会帮你起草消息、管理任务，让沟通更轻松</div>
+            </div>
+          </div>
+
+          <div class="m-msg-row own">
+            <div class="m-msg-ava g1">Z</div>
+            <div class="m-bubble">帮我回复李明，说周五2点开会没问题</div>
+          </div>
+
+          <div class="m-msg-row">
+            <div class="m-msg-ava g2" style="border-radius:10px;border:2px solid #788c5d"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div>
+            <div>
+              <div style="font-size:11px;color:#788c5d;margin-bottom:4px;font-weight:600;font-family:'Poppins',sans-serif">Jarvis</div>
+              <div class="m-bubble bot">好的，已起草好回复，请确认后发送</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Draft card (mobile) -->
+        <div class="m-draft">
+          <div class="m-draft-header">
+            <div class="m-draft-title"><ion-icon name="sparkles-outline"></ion-icon> Jarvis 起草的回复</div>
+            <div class="m-draft-timer">04:32</div>
+          </div>
+          <div class="m-draft-text">
+            李明你好！周五下午2点开会完全没问题，已预留好时间了。期待讨论，到时见！
+          </div>
+          <div class="m-draft-actions">
+            <button class="m-draft-btn m-draft-reject">✕ 拒绝</button>
+            <button class="m-draft-btn m-draft-approve">✓ 发送</button>
+          </div>
+        </div>
+
+        <div class="m-input-area">
+          <button class="m-voice-btn"><ion-icon name="mic-outline"></ion-icon></button>
+          <input class="m-input" placeholder="和 Jarvis 说话…">
+          <button class="m-send-btn"><ion-icon name="arrow-up-outline" style="color:#fff;font-size:16px"></ion-icon></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group thread with @ai -->
+    <div class="m-phone">
+      <div class="m-status-bar"><span>9:41</span><div class="m-status-icons"><span>▌▌▌</span><span>📶</span><span>🔋</span></div></div>
+      <div class="m-content">
+        <div class="m-navbar">
+          <button class="m-back-btn"><ion-icon name="chevron-back-outline"></ion-icon></button>
+          <div>
+            <div class="m-navbar-title">产品设计组</div>
+            <div style="font-size:11px;color:#b0aea5;text-align:center;font-family:'Poppins',sans-serif">5 members</div>
+          </div>
+          <button class="m-nav-action" style="position:absolute;right:16px"><ion-icon name="ellipsis-horizontal"></ion-icon></button>
+        </div>
+
+        <div class="m-thread">
+          <div class="m-msg-row">
+            <div class="m-msg-ava g5" style="width:30px;height:30px;font-size:12px;border-radius:6px">王</div>
+            <div>
+              <div style="font-size:11px;color:#999;margin-bottom:3px">王芳</div>
+              <div class="m-bubble" style="font-size:14px">@ai 请总结一下今天的需求讨论要点</div>
+            </div>
+          </div>
+
+          <div class="m-msg-row">
+            <div class="m-msg-ava g2" style="width:30px;height:30px;font-size:12px;border-radius:6px;border:2px solid #788c5d"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div>
+            <div>
+              <div style="font-size:11px;color:#788c5d;margin-bottom:3px;font-weight:600;font-family:'Poppins',sans-serif">Jarvis · AI</div>
+              <div class="m-bubble bot" style="font-size:13px">**今日需求讨论要点：**<br>1. 用户个人资料页面重设计<br>2. 消息搜索功能优先级提升<br>3. 语音消息支持 iOS/Android<br>4. 下周Sprint计划会议：周三2PM</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="m-input-area">
+          <button class="m-voice-btn"><ion-icon name="mic-outline"></ion-icon></button>
+          <input class="m-input" placeholder="消息…" value="@ai ">
+          <button class="m-send-btn"><ion-icon name="arrow-up-outline" style="color:#fff;font-size:16px"></ion-icon></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MOBILE: FRIENDS ═══════════════════ -->
+<div id="m-friends" class="frame">
+  <div class="m-frame">
+    <div class="m-phone">
+      <div class="m-status-bar"><span>9:41</span><div class="m-status-icons"><span>▌▌▌</span><span>📶</span><span>🔋</span></div></div>
+      <div class="m-content">
+        <div class="m-navbar">
+          <div class="m-navbar-title">通讯录</div>
+          <button class="m-nav-action" style="position:absolute;right:16px"><ion-icon name="person-add-outline"></ion-icon></button>
+        </div>
+        <div class="m-friends-list">
+          <div style="padding:8px 16px;background:#f0eeea;font-family:'Poppins',sans-serif;font-size:10px;color:#b0aea5;font-weight:700;text-transform:uppercase;letter-spacing:.06em">好友请求 · 2</div>
+          <div class="m-friend-item" style="background:#faf9f5">
+            <div class="m-friend-ava g5">W</div>
+            <div style="flex:1"><div class="m-friend-name">王芳</div><div class="m-friend-status">嗨，我们合作过 Sprint 4</div></div>
+            <div style="display:flex;gap:8px">
+              <button style="padding:6px 14px;background:#788c5d;color:#fff;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:12px;font-weight:600">接受</button>
+              <button style="padding:6px 14px;background:#f0eeea;color:#6b6966;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:12px">拒绝</button>
+            </div>
+          </div>
+
+          <div style="padding:8px 16px;background:#f0eeea;font-family:'Poppins',sans-serif;font-size:10px;color:#b0aea5;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:8px">好友 · 4</div>
+          <div class="m-friend-item"><div class="m-friend-ava g3">李</div><div style="flex:1"><div class="m-friend-name">李明</div><div class="m-friend-status" style="color:#788c5d;font-weight:500">● 在线</div></div></div>
+          <div class="m-friend-item"><div class="m-friend-ava g5">S</div><div style="flex:1"><div class="m-friend-name">Sarah Chen</div><div class="m-friend-status" style="color:#788c5d;font-weight:500">● 在线</div></div></div>
+          <div class="m-friend-item"><div class="m-friend-ava g6">M</div><div style="flex:1"><div class="m-friend-name">Marcus Lee</div><div class="m-friend-status">离线</div></div></div>
+          <div class="m-friend-item"><div class="m-friend-ava g2">赵</div><div style="flex:1"><div class="m-friend-name">赵宇</div><div class="m-friend-status" style="color:#c87941">● 离开</div></div></div>
+        </div>
+
+        <div class="m-tabbar">
+          <div class="m-tab"><div class="m-tab-icon"><ion-icon name="chatbubble-ellipses-outline"></ion-icon></div><div class="m-tab-label">消息</div></div>
+          <div class="m-tab"><div class="m-tab-icon active"><ion-icon name="people"></ion-icon></div><div class="m-tab-label active">通讯录</div></div>
+          <div class="m-tab"><div class="m-tab-icon"><ion-icon name="compass-outline"></ion-icon></div><div class="m-tab-label">发现</div></div>
+          <div class="m-tab"><div class="m-tab-icon"><ion-icon name="person-circle-outline"></ion-icon></div><div class="m-tab-label">我</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MOBILE: PROFILE ═══════════════════ -->
+<div id="m-profile" class="frame">
+  <div class="m-frame">
+    <div class="m-phone">
+      <div class="m-status-bar"><span>9:41</span><div class="m-status-icons"><span>▌▌▌</span><span>📶</span><span>🔋</span></div></div>
+      <div class="m-content">
+        <div class="m-navbar"><div class="m-navbar-title">我</div></div>
+        <div class="m-profile">
+          <div class="m-profile-header">
+            <div style="display:flex;align-items:center;gap:16px">
+              <div class="m-profile-ava">Z</div>
+              <div style="text-align:left">
+                <div class="m-profile-name">Zeno Wang</div>
+                <div class="m-profile-tag">@zenoWang</div>
+                <div style="margin-top:6px;display:inline-flex;align-items:center;gap:4px;background:rgba(120,140,93,.10);padding:3px 10px;border-radius:12px">
+                  <span style="width:7px;height:7px;background:#788c5d;border-radius:50%;display:inline-block"></span>
+                  <span style="font-size:11px;color:#788c5d;font-weight:600;font-family:'Poppins',sans-serif">在线</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="m-profile-card">
+            <div class="m-profile-row">
+              <ion-icon name="person-outline" style="font-size:18px;margin-right:12px;color:#d97757;width:24px;text-align:center"></ion-icon>
+              <div class="m-profile-row-label">昵称</div>
+              <div class="m-profile-row-value">Zeno Wang</div>
+              <ion-icon name="chevron-forward-outline" class="m-profile-chevron"></ion-icon>
+            </div>
+            <div class="m-profile-row">
+              <ion-icon name="at-outline" style="font-size:18px;margin-right:12px;color:#6a9bcc;width:24px;text-align:center"></ion-icon>
+              <div class="m-profile-row-label">用户名</div>
+              <div class="m-profile-row-value">@zenoWang</div>
+            </div>
+            <div class="m-profile-row">
+              <ion-icon name="mail-outline" style="font-size:18px;margin-right:12px;color:#788c5d;width:24px;text-align:center"></ion-icon>
+              <div class="m-profile-row-label">邮箱</div>
+              <div class="m-profile-row-value">zeno@exa…</div>
+            </div>
+          </div>
+
+          <div class="m-profile-card">
+            <div class="m-profile-row">
+              <ion-icon name="ellipse" style="font-size:14px;margin-right:12px;color:#788c5d;width:24px;text-align:center"></ion-icon>
+              <div class="m-profile-row-label">我的状态</div>
+              <div class="m-profile-row-value">在线</div>
+              <ion-icon name="chevron-forward-outline" class="m-profile-chevron"></ion-icon>
+            </div>
+            <div class="m-profile-row">
+              <ion-icon name="globe-outline" style="font-size:18px;margin-right:12px;color:#6a9bcc;width:24px;text-align:center"></ion-icon>
+              <div class="m-profile-row-label">语言</div>
+              <div class="m-profile-row-value">中文</div>
+              <ion-icon name="chevron-forward-outline" class="m-profile-chevron"></ion-icon>
+            </div>
+          </div>
+
+          <div class="m-profile-card" style="margin-top:12px">
+            <div class="m-profile-row" style="color:#788c5d">
+              <ion-icon name="sparkles-outline" style="font-size:18px;margin-right:12px;color:#788c5d;width:24px;text-align:center"></ion-icon>
+              <div class="m-profile-row-label" style="color:#788c5d;font-weight:600">打开 Jarvis</div>
+              <ion-icon name="chevron-forward-outline" class="m-profile-chevron" style="color:#788c5d"></ion-icon>
+            </div>
+          </div>
+
+          <button class="m-logout-btn">退出登录</button>
+          <div style="text-align:center;font-family:'Poppins',sans-serif;font-size:11px;color:#b0aea5;padding-bottom:20px">LinkingChat v1.0.0</div>
+        </div>
+        <div class="m-tabbar">
+          <div class="m-tab"><div class="m-tab-icon"><ion-icon name="chatbubble-ellipses-outline"></ion-icon></div><div class="m-tab-label">消息</div></div>
+          <div class="m-tab"><div class="m-tab-icon"><ion-icon name="people-outline"></ion-icon></div><div class="m-tab-label">通讯录</div></div>
+          <div class="m-tab"><div class="m-tab-icon"><ion-icon name="compass-outline"></ion-icon></div><div class="m-tab-label">发现</div></div>
+          <div class="m-tab"><div class="m-tab-icon active"><ion-icon name="person-circle-outline"></ion-icon></div><div class="m-tab-label active">我</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /frames -->
+
+<script>
+function show(id) {
+  document.querySelectorAll('.frame').forEach(f => f.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
