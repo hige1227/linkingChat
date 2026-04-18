@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 
 import type { GatewayStrategy } from './strategies';
 import { SingleContainerStrategy } from './strategies';
+import { OPENCLAW_SERVER } from './openclaw.config';
 
 /**
  * Gateway Manager Service
@@ -40,7 +41,7 @@ export class GatewayManagerService implements OnModuleDestroy {
       throw new Error('OPENCLAW_GATEWAY_TOKEN must be set in production');
     }
 
-    return token ?? 'lc_dev_token_change_me';
+    return token ?? OPENCLAW_SERVER.devToken;
   }
 
   private createStrategy(mode: string): GatewayStrategy {
@@ -48,7 +49,7 @@ export class GatewayManagerService implements OnModuleDestroy {
       case 'single': {
         const url = this.configService.get<string>(
           'OPENCLAW_GATEWAY_URL',
-          'ws://127.0.0.1:18790',
+          OPENCLAW_SERVER.defaultGatewayUrl,
         );
         const token = this.getRequiredToken();
         return new SingleContainerStrategy(url, token);
@@ -72,7 +73,7 @@ export class GatewayManagerService implements OnModuleDestroy {
         );
         const url = this.configService.get<string>(
           'OPENCLAW_GATEWAY_URL',
-          'ws://127.0.0.1:18790',
+          OPENCLAW_SERVER.defaultGatewayUrl,
         );
         const token = this.getRequiredToken();
         return new SingleContainerStrategy(url, token);
