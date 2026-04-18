@@ -1,6 +1,5 @@
 import type { AgentProvider, AgentChatParams, ChatChunk } from './agent-provider.interface';
-
-const HERMES_BASE_URL = 'http://127.0.0.1:8765';
+import { HERMES_CONFIG } from '../openclaw/openclaw.config';
 
 async function* readSSELines(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
   const reader = body.getReader();
@@ -28,7 +27,7 @@ export class HermesAdapter implements AgentProvider {
 
   async isReady(): Promise<boolean> {
     try {
-      const res = await fetch(`${HERMES_BASE_URL}/health`);
+      const res = await fetch(`${HERMES_CONFIG.baseUrl}${HERMES_CONFIG.api.health}`);
       return res.ok;
     } catch {
       return false;
