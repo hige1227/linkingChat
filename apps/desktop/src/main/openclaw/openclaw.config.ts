@@ -47,7 +47,7 @@ export const HERMES_CONFIG = {
     chat: '/v1/chat/completions',
     health: '/health',
   },
-  model: 'hermes',
+  model: 'hermes-agent',
   /** SSE stream terminator sent by Hermes */
   sseEndMarker: '[DONE]',
 } as const;

@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import type { GatewayStrategy } from './gateway-strategy.interface';
+import { OPENCLAW_SERVER } from '../openclaw.config';
 
 /**
  * Single Container Strategy
@@ -43,7 +44,7 @@ export class SingleContainerStrategy implements GatewayStrategy {
         .replace(/^wss:/, 'https:')
         .replace(/^ws:/, 'http:');
 
-      await fetch(`${httpUrl}/health`, {
+      await fetch(`${httpUrl}${OPENCLAW_SERVER.healthPath}`, {
         signal: AbortSignal.timeout(3000),
       });
       // Any response (even empty / non-200) means the Gateway is reachable

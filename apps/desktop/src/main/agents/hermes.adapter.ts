@@ -39,11 +39,11 @@ export class HermesAdapter implements AgentProvider {
     this.activeStreams.set(params.requestId, controller);
 
     try {
-      const res = await fetch(`${HERMES_CONFIG.baseUrl}/v1/chat/completions`, {
+      const res = await fetch(`${HERMES_CONFIG.baseUrl}${HERMES_CONFIG.api.chat}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'hermes-agent',
+          model: HERMES_CONFIG.model,
           messages: [{ role: 'user', content: params.message }],
           stream: true,
         }),
@@ -56,7 +56,7 @@ export class HermesAdapter implements AgentProvider {
       }
 
       for await (const line of readSSELines(res.body)) {
-        if (line === '[DONE]') {
+        if (line === HERMES_CONFIG.sseEndMarker) {
           yield { type: 'done', requestId: params.requestId };
           return;
         }
