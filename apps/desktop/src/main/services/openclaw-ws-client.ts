@@ -147,7 +147,7 @@ export class OpenClawWsClient {
         console.log(`[OpenClaw:WS] Closed: code=${code} reason=${reasonStr}`);
         const wasConnected = this._isConnected;
         this._isConnected = false;
-        if (code === 1008) {
+        if (code === OPENCLAW_PROTOCOL.wsCloseCodePairingRequired) {
           clearTimeout(timeout);
           reject(new Error(reasonStr || 'pairing required'));
         }
@@ -376,7 +376,7 @@ export class OpenClawWsClient {
    */
   async resetSession(sessionKey: string): Promise<void> {
     console.log(`[OpenClaw:WS] Resetting session: ${sessionKey}`);
-    await this.request('sessions.reset', { key: `agent:main:${sessionKey}`, reason: 'new' }, 10_000);
+    await this.request('sessions.reset', { key: `${OPENCLAW_PROTOCOL.sessionPrefix}${sessionKey}`, reason: 'new' }, 10_000);
     console.log(`[OpenClaw:WS] Session reset complete: ${sessionKey}`);
   }
 
