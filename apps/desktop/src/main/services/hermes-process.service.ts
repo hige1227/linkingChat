@@ -126,7 +126,7 @@ export class HermesProcessService {
     const deadline = Date.now() + HEALTH_POLL_TIMEOUT;
     while (Date.now() < deadline) {
       try {
-        const res = await fetch(`http://127.0.0.1:${PORT}/health`);
+        const res = await fetch(`${HERMES_CONFIG.baseUrl}${HERMES_CONFIG.api.health}`);
         if (res.ok) return;
       } catch { /* not ready yet */ }
       await new Promise((r) => setTimeout(r, HEALTH_POLL_INTERVAL));
