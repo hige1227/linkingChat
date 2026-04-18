@@ -89,3 +89,19 @@ export function disconnectSocket(socket: ClientSocket | undefined): void {
     socket.disconnect();
   }
 }
+
+/**
+ * Disconnect a socket and wait for it to fully close.
+ * Use in afterAll before Prisma cleanup to avoid Prisma-after-close errors.
+ */
+export function disconnectSocketAndWait(socket: ClientSocket | undefined, timeout = 3000): Promise<void> {
+  if (!socket || !socket.connected) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, timeout);
+    socket.once('disconnect', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    socket.disconnect();
+  });
+}

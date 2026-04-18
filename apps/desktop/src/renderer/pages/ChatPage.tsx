@@ -18,7 +18,7 @@ const EMPTY_DRAFTS: import('../stores/aiStore').DraftItem[] = [];
 const EMPTY_PREDICTIONS: import('../stores/aiStore').PredictiveSuggestion[] = [];
 
 export function ChatPage() {
-  const { converseId } = useParams<{ converseId?: string }>();
+  const { converseId } = useParams() as { converseId?: string };
   const { setActiveConverse } = useChatStore();
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [prefillText, setPrefillText] = useState('');

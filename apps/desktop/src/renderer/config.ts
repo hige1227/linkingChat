@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 // Centralized API URL config for renderer process
 // Dev: falls back to localhost:3008 (VITE_API_URL not set)
 // Prod: injected via Vite define at build time

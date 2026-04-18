@@ -1,9 +1,10 @@
 import { spawn, execSync, type ChildProcess } from 'child_process';
 import { createConnection } from 'net';
-import { randomBytes } from 'crypto';
 import { app } from 'electron';
 import { join } from 'path';
+import * as fs from 'fs';
 import { createWriteStream, mkdirSync, readdirSync, unlinkSync, type WriteStream } from 'fs';
+import { OPENCLAW_LOCAL, OPENCLAW_PROTOCOL } from '../openclaw/openclaw.config';
 
 // ── Types ──
 
@@ -19,8 +20,8 @@ export interface ProcessStatus {
 
 // ── Constants ──
 
-const PORT = 18789;
-const BIND_HOST = '127.0.0.1';
+const PORT = OPENCLAW_LOCAL.port;
+const BIND_HOST = OPENCLAW_LOCAL.bindHost;
 const HEALTH_POLL_INTERVAL = 500;
 const HEALTH_POLL_TIMEOUT = 30_000;
 const GRACEFUL_SHUTDOWN_MS = 3_000;
@@ -80,7 +81,7 @@ export class OpenClawProcessService {
     // local mode — reuse running process or spawn new
     if (this.isProcessRunning()) {
       console.log(`[OpenClaw:Process] Reusing existing process PID=${this.process?.pid}`);
-      return { url: `ws://${BIND_HOST}:${PORT}`, token: this.token };
+      return { url: `ws://${BIND_HOST}:${PORT}`, token: this.token! };
     }
     return this.spawnProcess();
   }
@@ -183,7 +184,7 @@ export class OpenClawProcessService {
 
     const spawnArgs = [
       ...(cliPath ? [cliPath] : []),
-      'gateway', 'run', '--allow-unconfigured', '--dev', '--port', String(PORT), '--bind', 'loopback', '--auth', 'none',
+      ...OPENCLAW_LOCAL.cliArgs, '--port', String(PORT), '--bind', 'loopback', '--auth', 'none',
     ];
     console.log(`[OpenClaw:Process] Spawning: ${nodePath} ${spawnArgs.join(' ')}`);
 
@@ -303,7 +304,7 @@ export class OpenClawProcessService {
 
     // Production: bundled sidecar, or fall back to globally installed openclaw
     const resourcesPath = (process as any).resourcesPath || join(app.getAppPath(), '..', '..', 'resources');
-    const sidecarPath = join(resourcesPath, 'openclaw-sidecar', 'cli.js');
+    const sidecarPath = join(resourcesPath, OPENCLAW_LOCAL.sidecarPath);
 
     // Check bundled sidecar first
     try {
@@ -399,7 +400,7 @@ export class OpenClawProcessService {
     const start = Date.now();
     while (Date.now() - start < maxWait) {
       const ok = await new Promise<boolean>((resolve) => {
-        const ws = new (require('ws') as typeof import('ws'))(`ws://${BIND_HOST}:${PORT}`);
+        const ws = new (require('ws') as { new(url: string): import('ws').WebSocket })(`ws://${BIND_HOST}:${PORT}`);
         const timer = setTimeout(() => { ws.close(); resolve(false); }, 2000);
         ws.on('open', () => { clearTimeout(timer); ws.close(); resolve(true); });
         ws.on('error', () => { clearTimeout(timer); resolve(false); });

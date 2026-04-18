@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'child_process';
 import { app } from 'electron';
 import { join } from 'path';
 import { createWriteStream, mkdirSync, readdirSync, unlinkSync, accessSync, type WriteStream } from 'fs';
+import { HERMES_CONFIG } from '../openclaw/openclaw.config';
 
 export interface HermesStatus {
   running: boolean;
@@ -10,7 +11,7 @@ export interface HermesStatus {
   lastError?: string;
 }
 
-const PORT = 8765;
+const PORT = HERMES_CONFIG.port;
 const HEALTH_POLL_INTERVAL = 500;
 const HEALTH_POLL_TIMEOUT = 30_000;
 const GRACEFUL_SHUTDOWN_MS = 3_000;
@@ -173,7 +174,7 @@ export class HermesProcessService {
     const deadline = Date.now() + HEALTH_POLL_TIMEOUT;
     while (Date.now() < deadline) {
       try {
-        const res = await fetch(`http://127.0.0.1:${PORT}/health`);
+        const res = await fetch(`${HERMES_CONFIG.baseUrl}${HERMES_CONFIG.api.health}`);
         if (res.ok) return;
       } catch { /* not ready yet */ }
       await new Promise((r) => setTimeout(r, HEALTH_POLL_INTERVAL));

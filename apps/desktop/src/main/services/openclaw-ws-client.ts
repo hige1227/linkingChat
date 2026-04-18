@@ -2,6 +2,7 @@ import WebSocket from 'ws';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { OPENCLAW_PROTOCOL } from '../openclaw/openclaw.config';
 
 // ── Types ──
 
@@ -50,7 +51,7 @@ function base64url(buf: Buffer): string {
 
 // ── Constants ──
 
-const PROTOCOL_VERSION = 3;
+const PROTOCOL_VERSION = OPENCLAW_PROTOCOL.version;
 const CONNECT_TIMEOUT = 30_000;
 const REQUEST_TIMEOUT = 30_000;
 
@@ -146,7 +147,7 @@ export class OpenClawWsClient {
         console.log(`[OpenClaw:WS] Closed: code=${code} reason=${reasonStr}`);
         const wasConnected = this._isConnected;
         this._isConnected = false;
-        if (code === 1008) {
+        if (code === OPENCLAW_PROTOCOL.wsCloseCodePairingRequired) {
           clearTimeout(timeout);
           reject(new Error(reasonStr || 'pairing required'));
         }
@@ -375,7 +376,7 @@ export class OpenClawWsClient {
    */
   async resetSession(sessionKey: string): Promise<void> {
     console.log(`[OpenClaw:WS] Resetting session: ${sessionKey}`);
-    await this.request('sessions.reset', { key: `agent:main:${sessionKey}`, reason: 'new' }, 10_000);
+    await this.request('sessions.reset', { key: `${OPENCLAW_PROTOCOL.sessionPrefix}${sessionKey}`, reason: 'new' }, 10_000);
     console.log(`[OpenClaw:WS] Session reset complete: ${sessionKey}`);
   }
 
@@ -385,9 +386,9 @@ export class OpenClawWsClient {
 
   private sendConnectRequest(nonce: string): void {
     this.challengeNonce = nonce;
-    const clientId = 'gateway-client';
-    const role = 'operator';
-    const scopes = ['operator.read', 'operator.write'];
+    const clientId = OPENCLAW_PROTOCOL.clientId;
+    const role = OPENCLAW_PROTOCOL.role;
+    const scopes = [...OPENCLAW_PROTOCOL.scopes];
 
     // Build signed device field if we have an identity.
     // In --auth none mode (token=''), sign with empty token — Gateway still requires device identity.
@@ -395,7 +396,7 @@ export class OpenClawWsClient {
     if (this.device) {
       const signedAt = Date.now();
       const payload = [
-        'v2', this.device.deviceId, clientId, 'backend', role,
+        OPENCLAW_PROTOCOL.devicePayloadVersion, this.device.deviceId, clientId, OPENCLAW_PROTOCOL.mode, role,
         scopes.join(','), String(signedAt), this.token, nonce,
       ].join('|');
       const signature = crypto.sign(null, Buffer.from(payload, 'utf8'), this.device.privateKey);
@@ -419,11 +420,11 @@ export class OpenClawWsClient {
           id: clientId,
           version: '1.0.0',
           platform: process.platform,
-          mode: 'backend',
+          mode: OPENCLAW_PROTOCOL.mode,
         },
         role,
         scopes,
-        caps: ['tool-events'],
+        caps: [...OPENCLAW_PROTOCOL.caps],
         commands: [],
         permissions: {},
         ...(this.token ? { auth: { token: this.token } } : {}),

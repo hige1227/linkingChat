@@ -92,7 +92,7 @@ export function DraftCard({ draft, converseId }: DraftCardProps) {
       style={{ opacity: isPending ? 1 : 0.7, backgroundColor: statusBg }}
     >
       <div className="draft-card-header">
-        <span className="draft-card-bot">🤖 Draft from {draft.botName}</span>
+        <span className="draft-card-bot">✦ 贾维斯起草</span>
         {isPending && remaining && (
           <span className="draft-card-timer" style={{ color: remaining === '00:00' ? '#f44336' : '#f59e0b' }}>
             {remaining}
@@ -120,16 +120,16 @@ export function DraftCard({ draft, converseId }: DraftCardProps) {
 
       {isPending && !editing && (
         <div className="draft-card-actions">
-          <button className="draft-btn draft-btn-reject" onClick={handleReject}>✕ Reject</button>
-          <button className="draft-btn draft-btn-edit" onClick={handleEdit}>✎ Edit</button>
-          <button className="draft-btn draft-btn-approve" onClick={handleApprove}>✓ Approve</button>
+          <button className="draft-btn draft-btn-reject" onClick={handleReject}>✕ 不用了</button>
+          <button className="draft-btn draft-btn-edit" onClick={handleEdit}>✎ 修改</button>
+          <button className="draft-btn draft-btn-approve" onClick={handleApprove}>↗ 发送</button>
         </div>
       )}
 
       {isPending && editing && (
         <div className="draft-card-actions">
-          <button className="draft-btn draft-btn-reject" onClick={() => setEditing(false)}>Cancel</button>
-          <button className="draft-btn draft-btn-approve" onClick={handleSaveEdit}>Save & Approve</button>
+          <button className="draft-btn draft-btn-reject" onClick={() => setEditing(false)}>取消</button>
+          <button className="draft-btn draft-btn-approve" onClick={handleSaveEdit}>↗ 发送</button>
         </div>
       )}
     </div>

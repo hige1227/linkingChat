@@ -66,7 +66,7 @@ export function Login({ onLoginSuccess, onForgotPassword }: LoginProps) {
     if (result.success) {
       onLoginSuccess();
     } else {
-      setError(result.error || (isRegister ? 'Registration failed' : 'Login failed'));
+      setError(result.error || (isRegister ? '注册失败' : '登录失败'));
     }
     setLoading(false);
   };
@@ -79,10 +79,10 @@ export function Login({ onLoginSuccess, onForgotPassword }: LoginProps) {
   return (
     <div className="login-container">
       <h1>LinkingChat</h1>
-      <p className="login-subtitle">Desktop Client</p>
+      <p className="login-subtitle">桌面客户端</p>
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">邮箱</label>
           <input
             id="email"
             type="email"
@@ -95,33 +95,33 @@ export function Login({ onLoginSuccess, onForgotPassword }: LoginProps) {
         {isRegister && (
           <>
             <div className="form-group">
-              <label htmlFor="username">Username</label>
+              <label htmlFor="username">用户名</label>
               <input
                 id="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="letters, numbers, underscores"
+                placeholder="字母、数字、下划线"
                 required
                 minLength={3}
                 maxLength={30}
               />
             </div>
             <div className="form-group">
-              <label htmlFor="displayName">Display Name</label>
+              <label htmlFor="displayName">昵称</label>
               <input
                 id="displayName"
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Your display name"
+                placeholder="你的显示名称"
                 required
               />
             </div>
           </>
         )}
         <div className="form-group">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">密码</label>
           <input
             id="password"
             type="password"
@@ -135,24 +135,16 @@ export function Login({ onLoginSuccess, onForgotPassword }: LoginProps) {
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className="btn-primary" disabled={loading}>
           {loading
-            ? (isRegister ? 'Registering...' : 'Logging in...')
-            : (isRegister ? 'Register' : 'Login')
+            ? (isRegister ? '注册中...' : '登录中...')
+            : (isRegister ? '注册' : '登录')
           }
         </button>
-        <button
-          type="button"
-          onClick={switchMode}
-          style={{ marginTop: '0.75rem', width: '100%', background: 'none', border: 'none', color: '#4361ee', cursor: 'pointer', fontSize: '0.9rem' }}
-        >
-          {isRegister ? 'Already have an account? Login' : "Don't have an account? Register"}
+        <button type="button" onClick={switchMode} className="btn-link">
+          {isRegister ? '已有账号？登录' : '还没有账号？注册'}
         </button>
         {!isRegister && (
-          <button
-            type="button"
-            onClick={onForgotPassword}
-            style={{ marginTop: '0.25rem', width: '100%', background: 'none', border: 'none', color: '#4361ee', cursor: 'pointer', fontSize: '0.9rem' }}
-          >
-            Forgot password?
+          <button type="button" onClick={onForgotPassword} className="btn-link">
+            忘记密码？
           </button>
         )}
       </form>

@@ -9,7 +9,7 @@
 import { Socket as ClientSocket } from 'socket.io-client';
 import request from 'supertest';
 import { TestContext, createTestApp } from './helpers/test-app';
-import { connectSocket, waitForEvent, disconnectSocket } from './helpers/socket-client';
+import { connectSocket, waitForEvent, disconnectSocket, disconnectSocketAndWait } from './helpers/socket-client';
 import { TestUser, registerTestUser, cleanupTestUsers } from './helpers/test-users';
 
 describe('Group WS Events (chat namespace)', () => {
@@ -49,9 +49,11 @@ describe('Group WS Events (chat namespace)', () => {
   }, 30_000);
 
   afterAll(async () => {
-    disconnectSocket(aliceSocket);
-    disconnectSocket(bobSocket);
-    disconnectSocket(charlieSocket);
+    await Promise.all([
+      disconnectSocketAndWait(aliceSocket),
+      disconnectSocketAndWait(bobSocket),
+      disconnectSocketAndWait(charlieSocket),
+    ]);
     await cleanupTestUsers(ctx.prisma, [alice.id, bob.id, charlie.id]);
     await ctx.app.close();
   }, 15_000);

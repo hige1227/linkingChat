@@ -9,7 +9,7 @@ interface WhisperBarProps {
 export function WhisperBar({ converseId, onAccept }: WhisperBarProps) {
   const suggestion = useAiStore((s) => s.whisper[converseId]);
   const { dismissWhisper, toggleWhisperAlternatives } = useAiStore();
-  const { emitWhisperAccept, emitWhisperDismiss } = useChatSocket();
+  const { emitWhisperAccept } = useChatSocket();
 
   if (!suggestion) return null;
 
@@ -19,19 +19,14 @@ export function WhisperBar({ converseId, onAccept }: WhisperBarProps) {
     onAccept(text);
   };
 
-  const handleDismiss = () => {
-    emitWhisperDismiss(suggestion.suggestionId);
-    dismissWhisper(converseId);
-  };
-
   return (
     <div className="whisper-bar">
-      <span className="whisper-label">✨ Jarvis</span>
+      <span className="whisper-label">✦</span>
       <div className="whisper-chips">
         <button
           className="whisper-chip whisper-chip-primary"
           onClick={() => handleAccept(0, suggestion.primary)}
-          title="Click to pre-fill input"
+          title="点击填入输入框"
         >
           {suggestion.primary}
         </button>
@@ -40,19 +35,11 @@ export function WhisperBar({ converseId, onAccept }: WhisperBarProps) {
           <button
             className="whisper-expand-btn"
             onClick={() => toggleWhisperAlternatives(converseId)}
-            title={suggestion.showAlternatives ? 'Collapse' : 'Show alternatives'}
+            title={suggestion.showAlternatives ? '收起' : '更多建议'}
           >
             ···
           </button>
         )}
-
-        <button
-          className="whisper-dismiss-btn"
-          onClick={handleDismiss}
-          title="Dismiss"
-        >
-          ×
-        </button>
       </div>
 
       {suggestion.showAlternatives && suggestion.alternatives.length > 0 && (
