@@ -386,9 +386,9 @@ export class OpenClawWsClient {
 
   private sendConnectRequest(nonce: string): void {
     this.challengeNonce = nonce;
-    const clientId = 'gateway-client';
-    const role = 'operator';
-    const scopes = ['operator.read', 'operator.write'];
+    const clientId = OPENCLAW_PROTOCOL.clientId;
+    const role = OPENCLAW_PROTOCOL.role;
+    const scopes = [...OPENCLAW_PROTOCOL.scopes];
 
     // Build signed device field if we have an identity.
     // In --auth none mode (token=''), sign with empty token — Gateway still requires device identity.
@@ -396,7 +396,7 @@ export class OpenClawWsClient {
     if (this.device) {
       const signedAt = Date.now();
       const payload = [
-        'v2', this.device.deviceId, clientId, 'backend', role,
+        OPENCLAW_PROTOCOL.devicePayloadVersion, this.device.deviceId, clientId, OPENCLAW_PROTOCOL.mode, role,
         scopes.join(','), String(signedAt), this.token, nonce,
       ].join('|');
       const signature = crypto.sign(null, Buffer.from(payload, 'utf8'), this.device.privateKey);
@@ -420,11 +420,11 @@ export class OpenClawWsClient {
           id: clientId,
           version: '1.0.0',
           platform: process.platform,
-          mode: 'backend',
+          mode: OPENCLAW_PROTOCOL.mode,
         },
         role,
         scopes,
-        caps: ['tool-events'],
+        caps: [...OPENCLAW_PROTOCOL.caps],
         commands: [],
         permissions: {},
         ...(this.token ? { auth: { token: this.token } } : {}),
