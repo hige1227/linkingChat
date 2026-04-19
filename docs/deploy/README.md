@@ -3,6 +3,12 @@
 > 目标平台: **Android** (Mobile) + **Windows** (Desktop)
 > 服务器: 49.235.109.94 (已部署, HTTPS 就绪)
 > 域名: `linkchat-api.matrix-ai.com.cn`
+> 分发方式: 直接安装（不上架应用商店）
+
+## 详细文档
+
+- **[Mobile Android APK 部署 →](mobile-android-deploy.md)**
+- **[Desktop Windows NSIS 部署 →](desktop-windows-deploy.md)**
 
 ---
 
