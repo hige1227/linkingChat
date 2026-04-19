@@ -30,42 +30,46 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
         NavigationBar(
           selectedIndex: _getSelectedIndex(location),
           onDestinationSelected: (index) => _onTabSelected(context, index),
+          indicatorColor: const Color(0xFFd97757).withValues(alpha: 0.15),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           destinations: [
             NavigationDestination(
               icon: Badge(
                 isLabelVisible: totalUnread > 0,
                 label: Text(totalUnread > 99 ? '99+' : '$totalUnread'),
-                child: const Icon(Icons.chat_outlined),
+                child: const Icon(Icons.chat_bubble_outline_rounded),
               ),
               selectedIcon: Badge(
                 isLabelVisible: totalUnread > 0,
                 label: Text(totalUnread > 99 ? '99+' : '$totalUnread'),
-                child: const Icon(Icons.chat),
+                child: const Icon(Icons.chat_bubble_rounded),
               ),
-              label: 'Chat',
+              label: '消息',
             ),
             NavigationDestination(
               icon: Badge(
                 isLabelVisible: pendingRequests > 0,
                 label: Text(pendingRequests > 99 ? '99+' : '$pendingRequests'),
-                child: const Icon(Icons.people_outline),
+                child: const Icon(Icons.people_outline_rounded),
               ),
               selectedIcon: Badge(
                 isLabelVisible: pendingRequests > 0,
                 label: Text(pendingRequests > 99 ? '99+' : '$pendingRequests'),
-                child: const Icon(Icons.people),
+                child: const Icon(Icons.people_rounded),
               ),
-              label: 'Contacts',
+              label: '通讯录',
             ),
             const NavigationDestination(
-              icon: Icon(Icons.devices_outlined),
-              selectedIcon: Icon(Icons.devices),
-              label: 'Devices',
+              icon: Icon(Icons.explore_outlined),
+              selectedIcon: Icon(Icons.explore),
+              label: '发现',
             ),
             const NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profile',
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: '我',
             ),
           ],
         ),
@@ -75,7 +79,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
 
   int _getSelectedIndex(String location) {
     if (location.startsWith('/contacts')) return 1;
-    if (location.startsWith('/devices')) return 2;
+    if (location.startsWith('/discover')) return 2;
     if (location.startsWith('/profile')) return 3;
     return 0;
   }
@@ -87,7 +91,7 @@ class _BottomNavScaffoldState extends ConsumerState<BottomNavScaffold> {
       case 1:
         context.go('/contacts');
       case 2:
-        context.go('/devices');
+        context.go('/discover');
       case 3:
         context.go('/profile');
     }

@@ -126,13 +126,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget build(BuildContext context) {
     if (_checkingAuth) {
       return const Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Color(0xFFfaf9f5),
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFfaf9f5),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -142,97 +142,119 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.devices_other,
-                    size: 72,
-                    color: Color(0xFF07C160),
+                  // Logo — olive green rounded square
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF788c5d), Color(0xFF5f7048)],
+                      ),
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF788c5d).withValues(alpha: 0.30),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.link_rounded, size: 36, color: Colors.white),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 20),
                   const Text(
                     'LinkingChat',
                     style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF333333),
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF141413),
+                      letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 48),
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      hintText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: UnderlineInputBorder(),
-                    ),
-                    validator: (v) =>
-                        v != null && v.contains('@') ? null : 'Invalid email',
-                  ),
-                  if (_isRegisterMode) ...[
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _usernameController,
-                      decoration: const InputDecoration(
-                        hintText: 'Username',
-                        prefixIcon: Icon(Icons.person_outline),
-                        border: UnderlineInputBorder(),
-                      ),
-                      validator: (v) => v != null && v.length >= 3
-                          ? null
-                          : 'At least 3 characters',
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _displayNameController,
-                      decoration: const InputDecoration(
-                        hintText: 'Display Name',
-                        prefixIcon: Icon(Icons.badge_outlined),
-                        border: UnderlineInputBorder(),
-                      ),
+                  const SizedBox(height: 36),
+
+                  // Email field
+                  _buildField(
+                    label: '邮箱',
+                    child: TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      style: const TextStyle(fontSize: 15, color: Color(0xFF141413)),
+                      decoration: _inputDecoration(placeholder: 'your@email.com'),
                       validator: (v) =>
-                          v != null && v.isNotEmpty ? null : 'Required',
+                          v != null && v.contains('@') ? null : '请输入有效邮箱',
+                    ),
+                  ),
+
+                  if (_isRegisterMode) ...[
+                    const SizedBox(height: 14),
+                    _buildField(
+                      label: '用户名',
+                      child: TextFormField(
+                        controller: _usernameController,
+                        style: const TextStyle(fontSize: 15, color: Color(0xFF141413)),
+                        decoration: _inputDecoration(placeholder: '3-30 字符'),
+                        validator: (v) => v != null && v.length >= 3
+                            ? null
+                            : '至少3个字符',
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _buildField(
+                      label: '昵称',
+                      child: TextFormField(
+                        controller: _displayNameController,
+                        style: const TextStyle(fontSize: 15, color: Color(0xFF141413)),
+                        decoration: _inputDecoration(placeholder: '显示名称'),
+                        validator: (v) =>
+                            v != null && v.isNotEmpty ? null : '请填写昵称',
+                      ),
                     ),
                   ],
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      hintText: 'Password',
-                      prefixIcon: Icon(Icons.lock_outline),
-                      border: UnderlineInputBorder(),
+
+                  const SizedBox(height: 14),
+                  _buildField(
+                    label: '密码',
+                    child: TextFormField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      style: const TextStyle(fontSize: 15, color: Color(0xFF141413)),
+                      decoration: _inputDecoration(placeholder: '••••••••'),
+                      validator: (v) => v != null && v.length >= 8
+                          ? null
+                          : '至少8位',
+                      onFieldSubmitted: (_) =>
+                          _isRegisterMode ? _handleRegister() : _handleLogin(),
                     ),
-                    validator: (v) => v != null && v.length >= 8
-                        ? null
-                        : 'At least 8 characters',
-                    onFieldSubmitted: (_) =>
-                        _isRegisterMode ? _handleRegister() : _handleLogin(),
                   ),
+
                   const SizedBox(height: 24),
                   if (_errorMessage != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: Text(
                         _errorMessage!,
-                        style:
-                            const TextStyle(color: Colors.red, fontSize: 14),
+                        style: const TextStyle(color: Color(0xFFc0392b), fontSize: 14),
                       ),
                     ),
+
+                  // Primary button
                   SizedBox(
                     width: double.infinity,
-                    height: 48,
+                    height: 50,
                     child: ElevatedButton(
                       onPressed: _isLoading
                           ? null
-                          : (_isRegisterMode
-                              ? _handleRegister
-                              : _handleLogin),
+                          : (_isRegisterMode ? _handleRegister : _handleLogin),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF07C160),
+                        backgroundColor: const Color(0xFFd97757),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        elevation: 0,
                       ),
                       child: _isLoading
                           ? const SizedBox(
@@ -244,21 +266,30 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ),
                             )
                           : Text(
-                              _isRegisterMode ? 'Register' : 'Login',
-                              style: const TextStyle(fontSize: 16),
+                              _isRegisterMode ? '创建账号' : '登录',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
                             ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
+
+                  // Toggle mode link
                   TextButton(
                     onPressed: _toggleMode,
                     child: Text(
-                      _isRegisterMode
-                          ? 'Already have an account? Login'
-                          : "Don't have an account? Register",
-                      style: const TextStyle(color: Color(0xFF07C160)),
+                      _isRegisterMode ? '已有账号？立即登录' : '没有账号？立即注册',
+                      style: const TextStyle(
+                        color: Color(0xFFd97757),
+                        fontSize: 14,
+                      ),
                     ),
                   ),
+
+                  // Forgot password
                   if (!_isRegisterMode)
                     TextButton(
                       onPressed: () {
@@ -269,8 +300,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         );
                       },
                       child: const Text(
-                        '忘记密码？',
-                        style: TextStyle(color: Color(0xFF07C160)),
+                        '忘记密码',
+                        style: TextStyle(
+                          color: Color(0xFF8E8E93),
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                 ],
@@ -278,6 +312,55 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildField({required String label, required Widget child}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFFb0aea5),
+            letterSpacing: 0.6,
+          ),
+        ),
+        const SizedBox(height: 6),
+        child,
+      ],
+    );
+  }
+
+  InputDecoration _inputDecoration({required String placeholder}) {
+    return InputDecoration(
+      hintText: placeholder,
+      hintStyle: const TextStyle(color: Color(0xFFd4d2cb)),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFe8e6dc), width: 1.5),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFe8e6dc), width: 1.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFd97757), width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFc0392b), width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFc0392b), width: 1.5),
       ),
     );
   }
