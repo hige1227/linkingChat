@@ -13,6 +13,30 @@ extraResources:
     to: openclaw-sidecar
     filter:
       - '**/*'
+      - '!**/*.md'
+      - '!**/*.ts'
+      - '!**/LICENSE'
+      - '!**/.github'
+      - '!**/test'
+      - '!**/tests'
+      - '!**/__tests__'
+      - '!**/prebuilds/linux'
+      - '!**/prebuilds/darwin'
+      - '!**/prebuilds/win32-arm64'
+  - from: sidecar/${os}-${arch}/node_modules
+    to: openclaw-sidecar/node_modules
+    filter:
+      - '**/*'
+      - '!**/*.md'
+      - '!**/*.ts'
+      - '!**/LICENSE'
+      - '!**/.github'
+      - '!**/test'
+      - '!**/tests'
+      - '!**/__tests__'
+      - '!**/prebuilds/linux'
+      - '!**/prebuilds/darwin'
+      - '!**/prebuilds/win32-arm64'
   - from: resources/hermes-env
     to: hermes-env
     filter:

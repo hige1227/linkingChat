@@ -18,7 +18,9 @@ export const OPENCLAW_LOCAL = {
   /** CLI args passed to the sidecar process (before --port / --bind / --auth flags) */
   cliArgs: ['gateway', 'run', '--allow-unconfigured', '--dev'] as const,
   /** Relative path inside resources/ for the bundled production sidecar */
-  sidecarPath: 'openclaw-sidecar/cli.js',
+  sidecarPath: 'openclaw-sidecar/node_modules/openclaw/openclaw.mjs',
+  /** Relative path to bundled Node.js runtime inside resources/ */
+  nodeExePath: 'openclaw-sidecar/node.exe',
 } as const;
 
 // ── OpenClaw WS Protocol ──

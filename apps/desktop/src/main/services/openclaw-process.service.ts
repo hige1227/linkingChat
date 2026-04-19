@@ -306,11 +306,18 @@ export class OpenClawProcessService {
     const resourcesPath = (process as any).resourcesPath || join(app.getAppPath(), '..', '..', 'resources');
     const sidecarPath = join(resourcesPath, OPENCLAW_LOCAL.sidecarPath);
 
-    // Check bundled sidecar first
+    // Check bundled sidecar first (includes bundled node.exe)
     try {
       fs.accessSync(sidecarPath);
-      console.log(`[OpenClaw:Process] Using bundled sidecar: ${sidecarPath}`);
-      return { nodePath: 'node', cliPath: sidecarPath };
+      const nodeExePath = join(resourcesPath, OPENCLAW_LOCAL.nodeExePath);
+      try {
+        fs.accessSync(nodeExePath);
+        console.log(`[OpenClaw:Process] Using bundled sidecar: ${sidecarPath}, node: ${nodeExePath}`);
+        return { nodePath: nodeExePath, cliPath: sidecarPath };
+      } catch {
+        console.log(`[OpenClaw:Process] Bundled node.exe not found at ${nodeExePath}, using system node`);
+        return { nodePath: 'node', cliPath: sidecarPath };
+      }
     } catch { /* bundled sidecar not found */ }
 
     // Fallback: globally installed openclaw (npm install -g openclaw)
