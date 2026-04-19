@@ -80,16 +80,16 @@ class _DraftCardState extends State<DraftCard> {
     String? statusLabel;
     switch (draft.status) {
       case DraftStatus.approved:
-        overlayColor = const Color(0xFF4CAF50).withValues(alpha: 0.08);
-        statusLabel = 'Approved';
+        overlayColor = const Color(0xFF788c5d).withValues(alpha: 0.06);
+        statusLabel = '已发送';
         break;
       case DraftStatus.rejected:
-        overlayColor = Colors.grey.withValues(alpha: 0.08);
-        statusLabel = 'Rejected';
+        overlayColor = Colors.grey.withValues(alpha: 0.06);
+        statusLabel = '已拒绝';
         break;
       case DraftStatus.expired:
-        overlayColor = Colors.grey.withValues(alpha: 0.08);
-        statusLabel = 'Expired';
+        overlayColor = Colors.grey.withValues(alpha: 0.06);
+        statusLabel = '已过期';
         break;
       case DraftStatus.pending:
         break;
@@ -102,10 +102,13 @@ class _DraftCardState extends State<DraftCard> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isPending
-              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
+              ? const Color(0xFF788c5d).withValues(alpha: 0.25)
               : Colors.grey.shade300,
-          width: 1,
+          width: 1.5,
         ),
+        boxShadow: isPending
+            ? [BoxShadow(color: const Color(0xFF788c5d).withValues(alpha: 0.08), blurRadius: 8)]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,20 +119,20 @@ class _DraftCardState extends State<DraftCard> {
             child: Row(
               children: [
                 Icon(
-                  Icons.smart_toy_outlined,
-                  size: 18,
-                  color: isPending
-                      ? Theme.of(context).colorScheme.primary
-                      : Colors.grey,
+                  Icons.auto_awesome_outlined,
+                  size: 16,
+                  color: isPending ? const Color(0xFF788c5d) : Colors.grey,
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Draft from ${draft.botName}',
+                    'Jarvis 起草的回复',
                     style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: isPending ? null : Colors.grey,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isPending ? const Color(0xFF788c5d) : Colors.grey,
+                      textBaseline: TextBaseline.alphabetic,
+                      letterSpacing: 0.6,
                     ),
                   ),
                 ),
@@ -139,8 +142,8 @@ class _DraftCardState extends State<DraftCard> {
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: draft.status == DraftStatus.approved
-                          ? const Color(0xFF4CAF50).withValues(alpha: 0.15)
-                          : Colors.grey.withValues(alpha: 0.15),
+                          ? const Color(0xFF788c5d).withValues(alpha: 0.12)
+                          : Colors.grey.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -148,7 +151,7 @@ class _DraftCardState extends State<DraftCard> {
                       style: TextStyle(
                         fontSize: 11,
                         color: draft.status == DraftStatus.approved
-                            ? const Color(0xFF4CAF50)
+                            ? const Color(0xFF788c5d)
                             : Colors.grey,
                       ),
                     ),
@@ -230,7 +233,7 @@ class _DraftCardState extends State<DraftCard> {
                             widget.onEdit(draft.draftId, edited);
                             setState(() => _isEditing = false);
                           },
-                          child: const Text('Save & Approve'),
+                          child: const Text('保存并发送'),
                         ),
                       ],
                     )
@@ -238,69 +241,54 @@ class _DraftCardState extends State<DraftCard> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         // Reject
-                        OutlinedButton(
+                        TextButton(
                           onPressed: () =>
                               widget.onReject(draft.draftId),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFF44336),
-                            side: const BorderSide(
-                              color: Color(0xFFF44336),
-                              width: 0.5,
-                            ),
+                          style: TextButton.styleFrom(
+                            backgroundColor: const Color(0xFFf0eeea),
+                            foregroundColor: const Color(0xFF6b6966),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 4),
-                            minimumSize: const Size(0, 32),
+                                horizontal: 14, vertical: 4),
+                            minimumSize: const Size(0, 34),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.close, size: 16),
-                              SizedBox(width: 4),
-                              Text('Reject', style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
+                          child: const Text('✕ 拒绝', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                         ),
                         const SizedBox(width: 8),
                         // Edit
-                        OutlinedButton(
+                        TextButton(
                           onPressed: () => setState(() => _isEditing = true),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF2196F3),
-                            side: const BorderSide(
-                              color: Color(0xFF2196F3),
-                              width: 0.5,
-                            ),
+                          style: TextButton.styleFrom(
+                            backgroundColor: const Color(0xFF788c5d).withValues(alpha: 0.10),
+                            foregroundColor: const Color(0xFF788c5d),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 4),
-                            minimumSize: const Size(0, 32),
+                                horizontal: 14, vertical: 4),
+                            minimumSize: const Size(0, 34),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: const BorderSide(
+                                color: Color(0x40788c5d),
+                              ),
+                            ),
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.edit, size: 16),
-                              SizedBox(width: 4),
-                              Text('Edit', style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
+                          child: const Text('✎ 编辑', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                         ),
                         const SizedBox(width: 8),
                         // Approve
                         FilledButton(
                           onPressed: () => widget.onApprove(draft.draftId),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF4CAF50),
+                            backgroundColor: const Color(0xFF788c5d),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 4),
-                            minimumSize: const Size(0, 32),
+                                horizontal: 14, vertical: 4),
+                            minimumSize: const Size(0, 34),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.check, size: 16),
-                              SizedBox(width: 4),
-                              Text('Approve', style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
+                          child: const Text('✓ 发送', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                         ),
                       ],
                     ),

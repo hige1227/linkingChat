@@ -30,11 +30,11 @@ class _ConversesListPageState extends ConsumerState<ConversesListPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chats'),
+        title: const Text('消息'),
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: const Icon(Icons.search_rounded),
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -43,15 +43,13 @@ class _ConversesListPageState extends ConsumerState<ConversesListPage> {
               );
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline_rounded),
+            onPressed: () => _showNewChatOptions(context),
+          ),
         ],
       ),
       body: _buildBody(state),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showNewChatOptions(context);
-        },
-        child: const Icon(Icons.add),
-      ),
     );
   }
 
@@ -89,7 +87,7 @@ class _ConversesListPageState extends ConsumerState<ConversesListPage> {
                 size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
-              'Start a conversation',
+              '开始一段对话',
               style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
             ),
           ],
@@ -141,7 +139,7 @@ class _ConversesListPageState extends ConsumerState<ConversesListPage> {
             children: [
               ListTile(
                 leading: const Icon(Icons.group_add),
-                title: const Text('Create Group'),
+                title: const Text('创建群聊'),
                 onTap: () {
                   Navigator.pop(ctx);
                   context.push('/chat/new/group');
@@ -149,7 +147,7 @@ class _ConversesListPageState extends ConsumerState<ConversesListPage> {
               ),
               ListTile(
                 leading: const Icon(Icons.person_add),
-                title: const Text('Add Friend'),
+                title: const Text('添加好友'),
                 onTap: () {
                   Navigator.pop(ctx);
                   context.push('/contacts/add');
