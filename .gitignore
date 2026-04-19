@@ -52,6 +52,9 @@ apps/server/prisma/migrations/**/migration_lock.toml
 
 # Electron
 apps/desktop/release/
+apps/desktop/sidecar/**/node.exe
+apps/desktop/sidecar/**/node
+apps/desktop/sidecar/**/node_modules/
 
 # Flutter
 apps/mobile/.dart_tool/
