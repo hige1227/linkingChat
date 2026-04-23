@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BroadcastService } from '../../gateway/broadcast.service';
-import { LlmRouterService } from './llm-router.service';
+import { LlmConfigService } from '../llm-config.service';
 import type {
   PredictiveActionPayload,
   PredictiveAction,
@@ -66,7 +66,7 @@ export class PredictiveService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly llmRouter: LlmRouterService,
+    private readonly llmConfig: LlmConfigService,
     private readonly broadcastService: BroadcastService,
   ) {}
 
@@ -207,21 +207,17 @@ export class PredictiveService {
   private async generateActions(
     output: string,
     category: string,
-  ): Promise<PredictiveAction[]> {
-    const response = await this.llmRouter.complete({
-      taskType: 'predictive',
-      systemPrompt: PREDICTIVE_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `错误类型: ${category}\n\n错误输出:\n${output.substring(0, 1000)}`,
-        },
-      ],
-      maxTokens: 512,
-      temperature: 0.3,
-    });
+  ): Promise<PredictiveAction[] | undefined> {
+    const text = await this.llmConfig.completeText(
+      'predictive',
+      PREDICTIVE_SYSTEM_PROMPT,
+      `错误类型: ${category}\n\n错误输出:\n${output.substring(0, 1000)}`,
+      { maxTokens: 512, temperature: 0.3 },
+    );
 
-    return this.parseActions(response.content);
+    if (!text) return;
+
+    return this.parseActions(text);
   }
 
   /**
