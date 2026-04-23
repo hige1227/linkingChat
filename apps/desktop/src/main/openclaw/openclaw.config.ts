@@ -53,3 +53,14 @@ export const HERMES_CONFIG = {
   /** SSE stream terminator sent by Hermes */
   sseEndMarker: '[DONE]',
 } as const;
+
+// ── Server LLM proxy (production — user zero-config) ──
+
+export const SERVER_PROXY_CONFIG = {
+  /** OpenClaw provider name used in openclaw.json */
+  providerName: 'linkchat',
+  /** Default model to configure in OpenClaw when pointing at Server proxy */
+  defaultModel: 'deepseek-chat',
+  /** Config directory for this app's OpenClaw instance (kept separate from user's ~/.openclaw) */
+  configDirName: '.openclaw-linkchat',
+} as const;

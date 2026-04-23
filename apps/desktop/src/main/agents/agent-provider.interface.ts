@@ -19,4 +19,4 @@ export interface AgentProvider {
   cancelStream(requestId: string): void;
 }
 
-export type AgentType = 'openclaw' | 'hermes';
+export type AgentType = 'openclaw' | 'hermes' | 'server';

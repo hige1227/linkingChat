@@ -1,5 +1,6 @@
 import { ipcMain, app } from 'electron';
 import { AuthStore } from '../services/auth-store.service';
+import { aiGatewayService } from '../services/ai-gateway.service';
 import type { WsClientService } from '../services/ws-client.service';
 import { connectToGateway, disconnectFromGateway } from './openclaw.ipc';
 
@@ -26,6 +27,11 @@ export function registerAuthIpc(wsClient: WsClientService): void {
         AuthStore.save({
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,
+        });
+
+        // Fetch LLM proxy token after login (non-blocking)
+        aiGatewayService.fetchLlmToken(data.accessToken).catch((err: Error) => {
+          console.warn('[Auth] LLM token fetch failed (ignored):', err.message);
         });
 
         // Connect WS after successful login
@@ -67,6 +73,11 @@ export function registerAuthIpc(wsClient: WsClientService): void {
           refreshToken: result.refreshToken,
         });
 
+        // Fetch LLM proxy token after register (non-blocking)
+        aiGatewayService.fetchLlmToken(result.accessToken).catch((err: Error) => {
+          console.warn('[Auth] LLM token fetch failed (ignored):', err.message);
+        });
+
         wsClient.connect();
 
         // Connect to OpenClaw Gateway (non-blocking)
@@ -89,6 +100,7 @@ export function registerAuthIpc(wsClient: WsClientService): void {
     // Disconnect OpenClaw (non-blocking)
     disconnectFromGateway().catch(() => {});
     AuthStore.clear();
+    aiGatewayService.clearToken();
     return { success: true };
   });
 

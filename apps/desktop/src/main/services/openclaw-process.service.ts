@@ -4,7 +4,8 @@ import { app } from 'electron';
 import { join } from 'path';
 import * as fs from 'fs';
 import { createWriteStream, mkdirSync, readdirSync, unlinkSync, type WriteStream } from 'fs';
-import { OPENCLAW_LOCAL, OPENCLAW_PROTOCOL } from '../openclaw/openclaw.config';
+import { OPENCLAW_LOCAL, SERVER_PROXY_CONFIG } from '../openclaw/openclaw.config';
+import { aiGatewayService } from './ai-gateway.service';
 
 // ── Types ──
 
@@ -149,6 +150,11 @@ export class OpenClawProcessService {
   // ── Private: Spawn ──
 
   private async spawnProcess(): Promise<{ url: string; token: string } | null> {
+    // In production, write Server proxy config before starting OpenClaw
+    if (app.isPackaged) {
+      this.writeServerProxyConfig();
+    }
+
     // Check if port is already in use
     const portInUse = await this.isPortInUse(PORT);
     if (portInUse) {
@@ -524,6 +530,45 @@ export class OpenClawProcessService {
       }
     } catch {
       // Non-critical
+    }
+  }
+
+  // ── Private: Server proxy config ──
+
+  private writeServerProxyConfig(): void {
+    const token = aiGatewayService.getToken();
+    if (!token) {
+      console.warn('[OpenClaw:Process] No LLM token available — skipping proxy config write');
+      return;
+    }
+
+    const apiBase = aiGatewayService.getApiBase();
+    const proxyUrl = `${apiBase}/api/v1/ai/llm-proxy`;
+    const configDir = join(
+      process.env.HOME || process.env.USERPROFILE || app.getPath('home'),
+      SERVER_PROXY_CONFIG.configDirName,
+    );
+
+    const config = {
+      models: { default: SERVER_PROXY_CONFIG.defaultModel },
+      providers: {
+        [SERVER_PROXY_CONFIG.providerName]: {
+          baseUrl: proxyUrl,
+          apiKey: token,
+        },
+      },
+    };
+
+    try {
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        join(configDir, 'openclaw.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8',
+      );
+      console.log(`[OpenClaw:Process] Wrote Server proxy config to ${configDir}/openclaw.json`);
+    } catch (err) {
+      console.warn('[OpenClaw:Process] Failed to write proxy config:', (err as Error).message);
     }
   }
 }

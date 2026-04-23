@@ -16,6 +16,7 @@ import { MessagesModule } from './messages/messages.module';
 import { UsersModule } from './users/users.module';
 import { BotsModule } from './bots/bots.module';
 import { AiModule } from './ai/ai.module';
+import { AiGatewayModule } from './ai/ai-gateway.module';
 import { OpenclawModule } from './openclaw/openclaw.module';
 import { AgentsModule } from './agents/agents.module';
 import { MentionsModule } from './mentions/mentions.module';
@@ -49,6 +50,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     UsersModule,
     BotsModule,
     AiModule,
+    AiGatewayModule,
     OpenclawModule,
     AgentsModule,
     MentionsModule,

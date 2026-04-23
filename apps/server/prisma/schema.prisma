@@ -134,6 +134,7 @@ model User {
   // Sprint 3 新增关系 — AI
   aiSuggestions AiSuggestion[]
   aiDrafts      AiDraft[]
+  aiUsages      AiUsage[]
 
   @@map("users")
 }
@@ -400,4 +401,20 @@ model GroupBan {
   @@unique([converseId, userId])
   @@index([converseId])
   @@map("group_bans")
+}
+
+// ========== AI Gateway (server LLM proxy) ==========
+
+model AiUsage {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  cost             Float    @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("ai_usage")
 }
