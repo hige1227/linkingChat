@@ -74,8 +74,8 @@ export class LlmConfigService implements OnModuleInit {
 
     const callOptions = {
       apiKey,
-      ...(options?.maxTokens ? { maxTokens: options.maxTokens } : {}),
-      ...(options?.temperature ? { temperature: options.temperature } : {}),
+      ...(options?.maxTokens != null ? { maxTokens: options.maxTokens } : {}),
+      ...(options?.temperature != null ? { temperature: options.temperature } : {}),
     };
 
     const timeout = options?.timeoutMs ?? 10_000;
