@@ -74,12 +74,14 @@ export class LlmConfigService implements OnModuleInit {
     };
 
     const timeout = options?.timeoutMs ?? 10_000;
-    const timeoutPromise = new Promise<null>((resolve) =>
-      setTimeout(() => resolve(null), timeout),
-    );
+    let timeoutHandle: ReturnType<typeof setTimeout>;
+    const timeoutPromise = new Promise<null>((resolve) => {
+      timeoutHandle = setTimeout(() => resolve(null), timeout);
+    });
 
     try {
       const result = await Promise.race([complete(model, context, callOptions), timeoutPromise]);
+      clearTimeout(timeoutHandle!);
       if (!result) return null;
 
       return result.content
