@@ -1,8 +1,10 @@
+jest.mock('@mariozechner/pi-ai', () => ({}), { virtual: true });
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { DraftService } from './draft.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BroadcastService } from '../../gateway/broadcast.service';
-import { LlmRouterService } from './llm-router.service';
+import { LlmConfigService } from '../llm-config.service';
 import { DraftType } from '@prisma/client';
 
 // ── 测试数据 ────────────────────────────
@@ -47,8 +49,9 @@ const mockBroadcast: any = {
   toRoom: jest.fn(),
 };
 
-const mockLlmRouter: any = {
-  complete: jest.fn(),
+const mockLlmConfig: any = {
+  completeText: jest.fn().mockResolvedValue('生成的草稿内容'),
+  getModel: jest.fn(),
 };
 
 const mockRedis: any = {
@@ -67,7 +70,7 @@ describe('DraftService', () => {
         DraftService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BroadcastService, useValue: mockBroadcast },
-        { provide: LlmRouterService, useValue: mockLlmRouter },
+        { provide: LlmConfigService, useValue: mockLlmConfig },
         { provide: 'REDIS_CLIENT', useValue: mockRedis },
       ],
     }).compile();
@@ -80,9 +83,9 @@ describe('DraftService', () => {
 
   describe('createDraft', () => {
     it('should create draft, save to DB, set Redis TTL, and push via WS', async () => {
-      mockLlmRouter.complete.mockResolvedValue({
-        content: JSON.stringify({ content: '好的，我同意这个方案' }),
-      });
+      mockLlmConfig.completeText.mockResolvedValue(
+        JSON.stringify({ content: '好的，我同意这个方案' }),
+      );
       mockPrisma.aiDraft.create.mockResolvedValue(mockDraftRecord);
 
       const draftId = await service.createDraft({
@@ -130,13 +133,13 @@ describe('DraftService', () => {
     });
 
     it('should generate command draft with action field', async () => {
-      mockLlmRouter.complete.mockResolvedValue({
-        content: JSON.stringify({
+      mockLlmConfig.completeText.mockResolvedValue(
+        JSON.stringify({
           description: '拉取最新代码',
           command: 'git pull origin main',
           args: {},
         }),
-      });
+      );
       mockPrisma.aiDraft.create.mockResolvedValue({
         ...mockDraftRecord,
         draftType: DraftType.COMMAND,

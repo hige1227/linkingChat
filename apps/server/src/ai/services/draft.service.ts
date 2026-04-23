@@ -1,7 +1,7 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BroadcastService } from '../../gateway/broadcast.service';
-import { LlmRouterService } from './llm-router.service';
+import { LlmConfigService } from '../llm-config.service';
 import { Redis } from 'ioredis';
 import type { DraftCreatedPayload, DraftExpiredPayload } from '@linkingchat/ws-protocol';
 import { DraftType } from '@prisma/client';
@@ -33,7 +33,7 @@ export class DraftService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly llmRouter: LlmRouterService,
+    private readonly llmConfig: LlmConfigService,
     private readonly broadcastService: BroadcastService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
@@ -249,15 +249,15 @@ export class DraftService {
         ? DRAFT_MESSAGE_PROMPT
         : DRAFT_COMMAND_PROMPT;
 
-    const response = await this.llmRouter.complete({
-      taskType: 'draft',
+    const text = await this.llmConfig.completeText(
+      'draft',
       systemPrompt,
-      messages: [{ role: 'user', content: userIntent }],
-      maxTokens: 1024,
-      temperature: 0.5,
-    });
+      userIntent,
+      { maxTokens: 1024, temperature: 0.5 },
+    );
+    if (!text) throw new Error('Draft generation failed: LLM returned null');
 
-    return this.parseDraftContent(response.content, draftType);
+    return this.parseDraftContent(text, draftType);
   }
 
   /**
