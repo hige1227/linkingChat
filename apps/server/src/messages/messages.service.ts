@@ -219,6 +219,9 @@ export class MessagesService {
           nonAiMentions.length > 0 &&
           this.whisperService.shouldTrigger(message.content)
         ) {
+          // NOTE: humanIds will be empty until MentionService.validate() is extended
+          // to resolve human @username mentions (currently only resolves bots/@ai).
+          // Add a test covering the non-empty path when that extension lands.
           this.mentionService
             .validate(nonAiMentions, dto.converseId)
             .then((validated) => {
