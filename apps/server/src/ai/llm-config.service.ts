@@ -1,13 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { complete, type Context, type Model } from '@mariozechner/pi-ai';
+import { complete, type Context, type Model, type TextContent } from '@mariozechner/pi-ai';
 
 export type LlmTaskType = 'whisper' | 'predictive' | 'chat' | 'draft' | 'complex_analysis';
-
-interface TextBlock {
-  type: 'text';
-  text: string;
-}
 
 @Injectable()
 export class LlmConfigService implements OnModuleInit {
@@ -88,7 +83,7 @@ export class LlmConfigService implements OnModuleInit {
       if (!result) return null;
 
       return result.content
-        .filter((b): b is TextBlock => b.type === 'text')
+        .filter((b): b is TextContent => b.type === 'text')
         .map((b) => b.text)
         .join('');
     } catch (error: unknown) {
