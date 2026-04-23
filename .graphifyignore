@@ -1,0 +1,5 @@
+# Compiled output
+dist/
+node_modules/
+.next/
+.turbo/
