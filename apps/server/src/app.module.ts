@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
@@ -51,6 +52,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     BotsModule,
     AiModule,
     AiGatewayModule,
+    ScheduleModule.forRoot(),
     OpenclawModule,
     AgentsModule,
     MentionsModule,
