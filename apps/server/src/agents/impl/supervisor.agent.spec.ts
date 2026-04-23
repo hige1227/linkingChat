@@ -1,8 +1,9 @@
+jest.mock('@mariozechner/pi-ai', () => ({}), { virtual: true });
 import { Test, TestingModule } from '@nestjs/testing';
 import { SupervisorAgent } from './supervisor.agent';
 import { AgentMemoryService } from '../core/memory.service';
 import { AgentWorkspaceService } from '../core/workspace.service';
-import { LlmRouterService } from '../../ai/services/llm-router.service';
+import { LlmConfigService } from '../../ai/llm-config.service';
 import { MessagesService } from '../../messages/messages.service';
 import { BroadcastService } from '../../gateway/broadcast.service';
 import { BotsService } from '../../bots/bots.service';
@@ -14,7 +15,7 @@ describe('SupervisorAgent', () => {
   let agent: SupervisorAgent;
   let mockMemoryService: any;
   let mockWorkspaceService: any;
-  let mockLlmRouter: any;
+  let mockLlmConfig: any;
   let mockMessagesService: any;
   let mockBroadcastService: any;
   let mockBotsService: any;
@@ -31,8 +32,9 @@ describe('SupervisorAgent', () => {
     mockWorkspaceService = {
       getWorkspace: jest.fn().mockResolvedValue({ state: {}, config: {}, sessionId: 's1' }),
     };
-    mockLlmRouter = {
-      complete: jest.fn().mockResolvedValue({ content: '任务已完成', model: 'deepseek-chat' }),
+    mockLlmConfig = {
+      completeText: jest.fn().mockResolvedValue('任务已完成'),
+      getModel: jest.fn(),
     };
     mockMessagesService = {
       create: jest.fn().mockResolvedValue({ id: 'msg-1', createdAt: new Date() }),
@@ -62,7 +64,7 @@ describe('SupervisorAgent', () => {
         SupervisorAgent,
         { provide: AgentMemoryService, useValue: mockMemoryService },
         { provide: AgentWorkspaceService, useValue: mockWorkspaceService },
-        { provide: LlmRouterService, useValue: mockLlmRouter },
+        { provide: LlmConfigService, useValue: mockLlmConfig },
         { provide: MessagesService, useValue: mockMessagesService },
         { provide: BroadcastService, useValue: mockBroadcastService },
         { provide: BotsService, useValue: mockBotsService },
@@ -111,7 +113,7 @@ describe('SupervisorAgent', () => {
       ];
 
       await agent.handleEvent(events);
-      expect(mockLlmRouter.complete).toHaveBeenCalled();
+      expect(mockLlmConfig.completeText).toHaveBeenCalled();
     });
   });
 
@@ -146,11 +148,11 @@ describe('SupervisorAgent', () => {
 
       await agent.handleEvent(events);
 
-      expect(mockLlmRouter.complete).toHaveBeenCalledWith(
-        expect.objectContaining({
-          taskType: 'chat',
-          messages: [{ role: 'user', content: expect.stringContaining('Hello Supervisor') }],
-        }),
+      expect(mockLlmConfig.completeText).toHaveBeenCalledWith(
+        'chat',
+        expect.any(String),
+        expect.stringContaining('Hello Supervisor'),
+        expect.anything(),
       );
       expect(mockMessagesService.create).toHaveBeenCalledWith(
         'user-supervisor-1', // supervisorBot.userId
@@ -264,10 +266,9 @@ describe('SupervisorAgent', () => {
     });
 
     it('routes chat intent to bot message reply', async () => {
-      mockLlmRouter.complete.mockResolvedValueOnce({
-        content: JSON.stringify({ intent: 'chat', response: '明天见！' }),
-        model: 'deepseek-chat',
-      });
+      mockLlmConfig.completeText.mockResolvedValueOnce(
+        JSON.stringify({ intent: 'chat', response: '明天见！' }),
+      );
       mockPrisma.message.findMany.mockResolvedValue([]);
 
       await agent.handleEvent([userMessageEvent('你好')]);
@@ -281,13 +282,12 @@ describe('SupervisorAgent', () => {
     });
 
     it('routes draft intent to DraftService', async () => {
-      mockLlmRouter.complete.mockResolvedValueOnce({
-        content: JSON.stringify({
+      mockLlmConfig.completeText.mockResolvedValueOnce(
+        JSON.stringify({
           intent: 'draft',
           draftContent: '张总您好，周五开会没问题，期待与您的交流。',
         }),
-        model: 'deepseek-chat',
-      });
+      );
       mockPrisma.message.findMany.mockResolvedValue([]);
 
       await agent.handleEvent([userMessageEvent('帮我回复张总说周五开会没问题')]);
@@ -306,10 +306,7 @@ describe('SupervisorAgent', () => {
     });
 
     it('falls back to chat reply when LLM returns malformed JSON', async () => {
-      mockLlmRouter.complete.mockResolvedValueOnce({
-        content: '这是一个回复',
-        model: 'deepseek-chat',
-      });
+      mockLlmConfig.completeText.mockResolvedValueOnce('这是一个回复');
       mockPrisma.message.findMany.mockResolvedValue([]);
 
       await agent.handleEvent([userMessageEvent('你好')]);

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BroadcastService } from '../gateway/broadcast.service';
-import { LlmRouterService } from '../ai/services/llm-router.service';
+import { LlmConfigService } from '../ai/llm-config.service';
 import type {
   TriggerSource,
   BotNotificationPayload,
@@ -41,7 +41,7 @@ export class BotCommunicationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly broadcastService: BroadcastService,
-    private readonly llmRouter: LlmRouterService,
+    private readonly llmConfig: LlmConfigService,
   ) {}
 
   /**
@@ -198,20 +198,16 @@ export class BotCommunicationService {
         .join('\n');
 
       // 3. Ask LLM to route
-      const response = await this.llmRouter.complete({
-        taskType: 'chat',
-        systemPrompt: SUPERVISOR_ROUTE_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: `可用的 Bot:\n${botCatalog}\n\n用户消息: ${params.userMessage}`,
-          },
-        ],
-        maxTokens: 256,
-        temperature: 0.3,
-      });
+      const text = await this.llmConfig.completeText(
+        'chat',
+        SUPERVISOR_ROUTE_PROMPT,
+        `可用的 Bot:\n${botCatalog}\n\n用户消息: ${params.userMessage}`,
+        { maxTokens: 256, temperature: 0.3 },
+      );
 
-      return this.parseRouteResult(response.content, bots);
+      if (!text) return null;
+
+      return this.parseRouteResult(text, bots);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Supervisor routing failed: ${msg}`);
