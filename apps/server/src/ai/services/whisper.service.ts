@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BroadcastService } from '../../gateway/broadcast.service';
-import { LlmRouterService } from './llm-router.service';
+import { LlmConfigService } from '../llm-config.service';
 import type { WhisperSuggestionsPayload } from '@linkingchat/ws-protocol';
 
 /** Whisper 建议结构 */
@@ -30,7 +30,7 @@ export class WhisperService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly llmRouter: LlmRouterService,
+    private readonly llmConfig: LlmConfigService,
     private readonly broadcastService: BroadcastService,
   ) {}
 
@@ -266,24 +266,20 @@ export class WhisperService {
         `[generateSuggestions] Calling LLM, context length=${context.length}, prompt=${prompt ?? '(none)'}`,
       );
 
-      const response = await this.llmRouter.complete({
-        taskType: 'whisper',
-        systemPrompt: WHISPER_SYSTEM_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: userContent,
-          },
-        ],
-        maxTokens: 512,
-        temperature: 0.8,
-      });
-
-      this.logger.debug(
-        `[generateSuggestions] LLM response received, length=${response.content.length}`,
+      const text = await this.llmConfig.completeText(
+        'whisper',
+        WHISPER_SYSTEM_PROMPT,
+        userContent,
+        { maxTokens: 512, temperature: 0.8, timeoutMs: this.WHISPER_TIMEOUT },
       );
 
-      return this.parseSuggestions(response.content);
+      if (!text) return null;
+
+      this.logger.debug(
+        `[generateSuggestions] LLM response received, length=${text.length}`,
+      );
+
+      return this.parseSuggestions(text);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`[generateSuggestions] LLM call failed: ${msg}`);
