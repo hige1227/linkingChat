@@ -1,3 +1,4 @@
+jest.mock('@mariozechner/pi-ai', () => ({}), { virtual: true });
 import { Test, TestingModule } from '@nestjs/testing';
 import { ChatGateway } from '../chat.gateway';
 import { BroadcastService } from '../broadcast.service';

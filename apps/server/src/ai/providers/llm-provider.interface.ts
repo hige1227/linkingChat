@@ -2,7 +2,7 @@
  * LLM Provider 接口
  *
  * 所有 LLM 供应商（DeepSeek、Kimi 等）实现此接口，
- * 由 LlmRouterService 统一调度。
+ * 由 LlmConfigService 统一调度。
  */
 
 export type LlmTaskType =

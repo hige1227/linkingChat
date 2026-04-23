@@ -1,3 +1,4 @@
+jest.mock('@mariozechner/pi-ai', () => ({}), { virtual: true });
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MessagesService } from './messages.service';
