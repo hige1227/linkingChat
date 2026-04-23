@@ -119,10 +119,13 @@ export class SupervisorAgent extends BaseAgent {
       { maxTokens: 512 },
     );
 
-    const rawContent = llmText ?? '';
+    if (!llmText) {
+      this.logger.warn(`LLM returned null for userId=${userId}, skipping reply`);
+      return;
+    }
 
     // Parse intent from LLM response
-    const parsed = this.parseIntentResponse(rawContent);
+    const parsed = this.parseIntentResponse(llmText);
 
     if (parsed.intent === 'draft' && parsed.draftContent) {
       // Draft & Verify flow
@@ -137,7 +140,7 @@ export class SupervisorAgent extends BaseAgent {
       this.logger.log(`Draft created for user ${userId} in converse ${payload.converseId}`);
     } else {
       // Chat reply flow (default)
-      const replyContent = parsed.response ?? rawContent;
+      const replyContent = parsed.response ?? llmText;
       await this.messagesService.create(
         supervisorBot.userId,
         {
@@ -314,7 +317,7 @@ ${tasksSummary}
 
       // Build metadata for NotificationCard rendering
       const hasError = response.actions?.some(a => a.type === 'execute');
-      const metadata: Record<string, any> = {
+      const metadata: Record<string, unknown> = {
         cardType: hasError ? 'error' : 'task_complete',
         title: response.content,
         sourceBotName: supervisorBot.name,

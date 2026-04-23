@@ -249,7 +249,7 @@ export class BotCommunicationService {
       return false;
     }
 
-    entry.count++;
+    this.rateLimits.set(key, { ...entry, count: entry.count + 1 });
     return true;
   }
 
