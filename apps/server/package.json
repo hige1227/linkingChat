@@ -20,6 +20,8 @@
   "dependencies": {
     "@linkingchat/shared": "workspace:*",
     "@linkingchat/ws-protocol": "workspace:*",
+    "@mariozechner/pi-agent-core": "^0.69.0",
+    "@mariozechner/pi-ai": "^0.69.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
