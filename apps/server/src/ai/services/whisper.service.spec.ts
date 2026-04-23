@@ -1,3 +1,6 @@
+// Prevent ts-jest from loading the ESM @mariozechner/pi-ai module (pulled in via LlmConfigService)
+jest.mock('@mariozechner/pi-ai', () => ({}), { virtual: true });
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { WhisperService } from './whisper.service';
 import { PrismaService } from '../../prisma/prisma.service';
