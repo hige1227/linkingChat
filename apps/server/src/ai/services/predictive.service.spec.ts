@@ -1,8 +1,9 @@
+jest.mock('@mariozechner/pi-ai', () => ({}), { virtual: true });
 import { Test, TestingModule } from '@nestjs/testing';
 import { PredictiveService } from './predictive.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BroadcastService } from '../../gateway/broadcast.service';
-import { LlmRouterService } from './llm-router.service';
+import { LlmConfigService } from '../llm-config.service';
 
 // ── 测试数据 ────────────────────────────
 
@@ -43,8 +44,9 @@ const mockBroadcast: any = {
   toRoom: jest.fn(),
 };
 
-const mockLlmRouter: any = {
-  complete: jest.fn(),
+const mockLlmConfig: any = {
+  completeText: jest.fn(),
+  getModel: jest.fn(),
 };
 
 // ── 测试套件 ────────────────────────────
@@ -58,7 +60,7 @@ describe('PredictiveService', () => {
         PredictiveService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BroadcastService, useValue: mockBroadcast },
-        { provide: LlmRouterService, useValue: mockLlmRouter },
+        { provide: LlmConfigService, useValue: mockLlmConfig },
       ],
     }).compile();
 
@@ -240,12 +242,12 @@ describe('PredictiveService', () => {
 
   describe('analyzeTrigger', () => {
     it('should generate actions and push via WS', async () => {
-      mockLlmRouter.complete.mockResolvedValue({
-        content: JSON.stringify([
+      mockLlmConfig.completeText.mockResolvedValue(
+        JSON.stringify([
           { type: 'shell', action: 'cat package.json', description: '查看 package.json' },
           { type: 'shell', action: 'npm run dev', description: '尝试 dev 脚本' },
         ]),
-      });
+      );
       mockPrisma.aiSuggestion.create.mockResolvedValue(mockSuggestionRecord);
 
       await service.analyzeTrigger({
@@ -269,9 +271,7 @@ describe('PredictiveService', () => {
     });
 
     it('should not push when LLM returns empty actions', async () => {
-      mockLlmRouter.complete.mockResolvedValue({
-        content: JSON.stringify([]),
-      });
+      mockLlmConfig.completeText.mockResolvedValue(JSON.stringify([]));
 
       await service.analyzeTrigger({
         userId: mockUserId,

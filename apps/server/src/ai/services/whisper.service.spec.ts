@@ -1,8 +1,11 @@
+// Prevent ts-jest from loading the ESM @mariozechner/pi-ai module (pulled in via LlmConfigService)
+jest.mock('@mariozechner/pi-ai', () => ({}), { virtual: true });
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { WhisperService } from './whisper.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BroadcastService } from '../../gateway/broadcast.service';
-import { LlmRouterService } from './llm-router.service';
+import { LlmConfigService } from '../llm-config.service';
 
 // ── 测试数据 ────────────────────────────
 
@@ -63,8 +66,9 @@ const mockBroadcast: any = {
   toRoom: jest.fn(),
 };
 
-const mockLlmRouter: any = {
-  complete: jest.fn(),
+const mockLlmConfig: any = {
+  completeText: jest.fn().mockResolvedValue('1. 好的，没问题\n2. 收到\n3. 明白了'),
+  getModel: jest.fn(),
 };
 
 // ── 测试套件 ────────────────────────────
@@ -78,7 +82,7 @@ describe('WhisperService', () => {
         WhisperService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BroadcastService, useValue: mockBroadcast },
-        { provide: LlmRouterService, useValue: mockLlmRouter },
+        { provide: LlmConfigService, useValue: mockLlmConfig },
       ],
     }).compile();
 
@@ -219,12 +223,12 @@ describe('WhisperService', () => {
   describe('handleWhisperTrigger', () => {
     it('should generate suggestions and push via WS', async () => {
       mockPrisma.message.findMany.mockResolvedValue(mockMessages);
-      mockLlmRouter.complete.mockResolvedValue({
-        content: JSON.stringify({
+      mockLlmConfig.completeText.mockResolvedValue(
+        JSON.stringify({
           primary: '方案看起来不错',
           alternatives: ['时间上有点紧', '需要再讨论一下'],
         }),
-      });
+      );
       mockPrisma.aiSuggestion.create.mockResolvedValue(mockSuggestionRecord);
 
       await service.handleWhisperTrigger(
@@ -260,7 +264,7 @@ describe('WhisperService', () => {
 
     it('should not push when LLM returns null (timeout)', async () => {
       mockPrisma.message.findMany.mockResolvedValue(mockMessages);
-      mockLlmRouter.complete.mockRejectedValue(new Error('timeout'));
+      mockLlmConfig.completeText.mockResolvedValue(null);
 
       await service.handleWhisperTrigger(
         mockUserId,
@@ -278,12 +282,12 @@ describe('WhisperService', () => {
   describe('handleWhisperRequest', () => {
     it('should generate suggestions without messageId (pre-send)', async () => {
       mockPrisma.message.findMany.mockResolvedValue(mockMessages);
-      mockLlmRouter.complete.mockResolvedValue({
-        content: JSON.stringify({
+      mockLlmConfig.completeText.mockResolvedValue(
+        JSON.stringify({
           primary: '方案看起来不错',
           alternatives: ['时间上有点紧', '需要再讨论一下'],
         }),
-      });
+      );
       mockPrisma.aiSuggestion.create.mockResolvedValue(mockSuggestionRecord);
 
       await service.handleWhisperRequest(mockUserId, mockConverseId);
@@ -321,12 +325,12 @@ describe('WhisperService', () => {
 
     it('should pass prompt to LLM when provided', async () => {
       mockPrisma.message.findMany.mockResolvedValue(mockMessages);
-      mockLlmRouter.complete.mockResolvedValue({
-        content: JSON.stringify({
+      mockLlmConfig.completeText.mockResolvedValue(
+        JSON.stringify({
           primary: '微信小程序是一种轻量级应用',
           alternatives: ['小程序基于微信生态', '可以理解为H5应用的增强版'],
         }),
-      });
+      );
       mockPrisma.aiSuggestion.create.mockResolvedValue(mockSuggestionRecord);
 
       await service.handleWhisperRequest(
@@ -336,13 +340,14 @@ describe('WhisperService', () => {
       );
 
       // Verify the LLM call includes user's prompt
-      expect(mockLlmRouter.complete).toHaveBeenCalledWith(
+      expect(mockLlmConfig.completeText).toHaveBeenCalledWith(
+        'whisper',
+        expect.any(String),
+        expect.stringContaining('帮我解释微信小程序'),
         expect.objectContaining({
-          messages: expect.arrayContaining([
-            expect.objectContaining({
-              content: expect.stringContaining('帮我解释微信小程序'),
-            }),
-          ]),
+          maxTokens: 512,
+          temperature: 0.8,
+          timeoutMs: expect.any(Number),
         }),
       );
     });
@@ -400,6 +405,32 @@ describe('WhisperService', () => {
           selectedIndex: 0,
         },
       });
+    });
+  });
+
+  // ── triggerForMentioned() ────────────────────────────
+
+  describe('triggerForMentioned', () => {
+    it('calls handleWhisperRequest for each mentioned user', async () => {
+      const handleSpy = jest
+        .spyOn(service, 'handleWhisperRequest')
+        .mockResolvedValue(undefined);
+
+      await service.triggerForMentioned(['user-1', 'user-2'], 'converse-abc');
+
+      expect(handleSpy).toHaveBeenCalledTimes(2);
+      expect(handleSpy).toHaveBeenCalledWith('user-1', 'converse-abc');
+      expect(handleSpy).toHaveBeenCalledWith('user-2', 'converse-abc');
+    });
+
+    it('does nothing when mentionedUserIds is empty', async () => {
+      const handleSpy = jest
+        .spyOn(service, 'handleWhisperRequest')
+        .mockResolvedValue(undefined);
+
+      await service.triggerForMentioned([], 'converse-abc');
+
+      expect(handleSpy).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,3 +1,4 @@
+jest.mock('@mariozechner/pi-ai', () => ({}), { virtual: true });
 /**
  * WS Integration Tests: Message Events (/chat namespace)
  *

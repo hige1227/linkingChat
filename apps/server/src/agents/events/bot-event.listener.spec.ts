@@ -1,3 +1,4 @@
+jest.mock('@mariozechner/pi-ai', () => ({}), { virtual: true });
 import { Test, TestingModule } from '@nestjs/testing';
 import { BotEventListener } from './bot-event.listener';
 import { BatchTriggerService } from './batch-trigger.service';

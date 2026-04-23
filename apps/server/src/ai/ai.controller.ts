@@ -9,7 +9,6 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { LlmRouterService } from './services/llm-router.service';
 import { DraftService } from './services/draft.service';
 import { PredictiveService } from './services/predictive.service';
 import { BroadcastService } from '../gateway/broadcast.service';
@@ -18,7 +17,6 @@ import { DraftType } from '@prisma/client';
 @Controller('ai')
 export class AiController {
   constructor(
-    private readonly llmRouter: LlmRouterService,
     private readonly draftService: DraftService,
     private readonly predictiveService: PredictiveService,
     private readonly broadcastService: BroadcastService,

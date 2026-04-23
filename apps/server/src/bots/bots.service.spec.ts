@@ -1,3 +1,4 @@
+jest.mock('@mariozechner/pi-ai', () => ({}), { virtual: true });
 import { Test, TestingModule } from '@nestjs/testing';
 import { BotsService } from './bots.service';
 import { PrismaService } from '../prisma/prisma.service';

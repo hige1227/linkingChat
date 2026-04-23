@@ -195,7 +195,7 @@ export class MessagesService {
       );
     }
 
-    // Whisper auto-trigger: DIRECT TEXT messages only, fire-and-forget
+    // Whisper auto-trigger: TEXT messages, fire-and-forget
     if (message.type === 'TEXT') {
       const converse = await this.prisma.converse.findUnique({
         where: { id: dto.converseId },
@@ -209,6 +209,34 @@ export class MessagesService {
             .catch((err) =>
               this.logger.error(`Whisper trigger failed: ${err.message}`),
             );
+        }
+      } else if (converse?.type === ConverseType.GROUP) {
+        const rawMentions = this.mentionService.parse(message.content);
+        const nonAiMentions = rawMentions.filter(
+          (m) => m.name.toLowerCase() !== 'ai',
+        );
+        if (
+          nonAiMentions.length > 0 &&
+          this.whisperService.shouldTrigger(message.content)
+        ) {
+          // NOTE: humanIds will be empty until MentionService.validate() is extended
+          // to resolve human @username mentions (currently only resolves bots/@ai).
+          // Add a test covering the non-empty path when that extension lands.
+          this.mentionService
+            .validate(nonAiMentions, dto.converseId)
+            .then((validated) => {
+              const humanIds = validated
+                .filter((v) => v.type !== 'bot' && v.userId !== userId)
+                .map((v) => v.userId as string);
+              return this.whisperService.triggerForMentioned(
+                humanIds,
+                dto.converseId,
+              );
+            })
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              this.logger.error(`GROUP Whisper trigger failed: ${msg}`);
+            });
         }
       }
     }

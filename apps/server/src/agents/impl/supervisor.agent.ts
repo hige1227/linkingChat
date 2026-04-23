@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { BaseAgent } from '../core/base-agent';
 import { AgentMemoryService } from '../core/memory.service';
 import { AgentWorkspaceService } from '../core/workspace.service';
-import { LlmRouterService } from '../../ai/services/llm-router.service';
+import { LlmConfigService } from '../../ai/llm-config.service';
 import { MessagesService } from '../../messages/messages.service';
 import { BroadcastService } from '../../gateway/broadcast.service';
 import { BotsService } from '../../bots/bots.service';
@@ -31,7 +31,7 @@ export class SupervisorAgent extends BaseAgent {
   constructor(
     memoryService: AgentMemoryService,
     workspaceService: AgentWorkspaceService,
-    private readonly llmRouter: LlmRouterService,
+    private readonly llmConfig: LlmConfigService,
     private readonly messagesService: MessagesService,
     private readonly broadcastService: BroadcastService,
     private readonly botsService: BotsService,
@@ -112,20 +112,20 @@ export class SupervisorAgent extends BaseAgent {
         : '';
 
     // Single LLM call: classify intent + generate response/draft
-    const llmResponse = await this.llmRouter.complete({
-      taskType: 'chat',
-      systemPrompt: SUPERVISOR_INTENT_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `${conversationContext}用户的请求：${payload.content.replace(/(?<!\w)@ai\b/i, '').trim()}`,
-        },
-      ],
-      maxTokens: 512,
-    });
+    const llmText = await this.llmConfig.completeText(
+      'chat',
+      SUPERVISOR_INTENT_PROMPT,
+      `${conversationContext}用户的请求：${payload.content.replace(/(?<!\w)@ai\b/i, '').trim()}`,
+      { maxTokens: 512 },
+    );
+
+    if (!llmText) {
+      this.logger.warn(`LLM returned null for userId=${userId}, skipping reply`);
+      return;
+    }
 
     // Parse intent from LLM response
-    const parsed = this.parseIntentResponse(llmResponse.content);
+    const parsed = this.parseIntentResponse(llmText);
 
     if (parsed.intent === 'draft' && parsed.draftContent) {
       // Draft & Verify flow
@@ -140,7 +140,7 @@ export class SupervisorAgent extends BaseAgent {
       this.logger.log(`Draft created for user ${userId} in converse ${payload.converseId}`);
     } else {
       // Chat reply flow (default)
-      const replyContent = parsed.response ?? llmResponse.content;
+      const replyContent = parsed.response ?? llmText;
       await this.messagesService.create(
         supervisorBot.userId,
         {
@@ -258,17 +258,17 @@ export class SupervisorAgent extends BaseAgent {
     }
 
     const prompt = this.buildPrompt(results);
-    const llmResponse = await this.llmRouter.complete({
-      taskType: 'chat',
-      systemPrompt: '你是一个智能助手 Supervisor，负责汇总并通知用户其他 Agent 的活动状态。',
-      messages: [{ role: 'user', content: prompt }],
-      maxTokens: 200,
-    });
+    const text = await this.llmConfig.completeText(
+      'chat',
+      '你是一个智能助手 Supervisor，负责汇总并通知用户其他 Agent 的活动状态。',
+      prompt,
+      { maxTokens: 200 },
+    );
 
     const actions = this.generateActions(results);
 
     return {
-      content: llmResponse.content,
+      content: text ?? '任务已完成。',
       actions,
     };
   }
@@ -317,7 +317,7 @@ ${tasksSummary}
 
       // Build metadata for NotificationCard rendering
       const hasError = response.actions?.some(a => a.type === 'execute');
-      const metadata: Record<string, any> = {
+      const metadata: Record<string, unknown> = {
         cardType: hasError ? 'error' : 'task_complete',
         title: response.content,
         sourceBotName: supervisorBot.name,

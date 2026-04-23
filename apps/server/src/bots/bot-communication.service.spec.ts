@@ -1,8 +1,9 @@
+jest.mock('@mariozechner/pi-ai', () => ({}), { virtual: true });
 import { Test, TestingModule } from '@nestjs/testing';
 import { BotCommunicationService } from './bot-communication.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BroadcastService } from '../gateway/broadcast.service';
-import { LlmRouterService } from '../ai/services/llm-router.service';
+import { LlmConfigService } from '../ai/llm-config.service';
 
 // ── 测试数据 ────────────────────────────
 
@@ -75,8 +76,9 @@ const mockBroadcast: any = {
   toRoom: jest.fn(),
 };
 
-const mockLlmRouter: any = {
-  complete: jest.fn(),
+const mockLlmConfig: any = {
+  completeText: jest.fn(),
+  getModel: jest.fn(),
 };
 
 // ── 测试套件 ────────────────────────────
@@ -90,7 +92,7 @@ describe('BotCommunicationService', () => {
         BotCommunicationService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BroadcastService, useValue: mockBroadcast },
-        { provide: LlmRouterService, useValue: mockLlmRouter },
+        { provide: LlmConfigService, useValue: mockLlmConfig },
       ],
     }).compile();
 
@@ -322,13 +324,13 @@ describe('BotCommunicationService', () => {
         mockSocialBot,
         mockSupervisorBot,
       ]);
-      mockLlmRouter.complete.mockResolvedValue({
-        content: JSON.stringify({
+      mockLlmConfig.completeText.mockResolvedValue(
+        JSON.stringify({
           botName: 'Coding Bot',
           confidence: 0.9,
           reason: '用户需要执行代码任务',
         }),
-      });
+      );
 
       const result = await service.routeViaSupervisor({
         userId: mockUserId,
@@ -357,13 +359,13 @@ describe('BotCommunicationService', () => {
 
     it('should return null when LLM returns unmatched bot name', async () => {
       mockPrisma.bot.findMany.mockResolvedValue([mockCodingBot]);
-      mockLlmRouter.complete.mockResolvedValue({
-        content: JSON.stringify({
+      mockLlmConfig.completeText.mockResolvedValue(
+        JSON.stringify({
           botName: 'Nonexistent Bot',
           confidence: 0.9,
           reason: 'test',
         }),
-      });
+      );
 
       const result = await service.routeViaSupervisor({
         userId: mockUserId,
