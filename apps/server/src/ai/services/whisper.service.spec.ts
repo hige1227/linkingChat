@@ -407,4 +407,30 @@ describe('WhisperService', () => {
       });
     });
   });
+
+  // ── triggerForMentioned() ────────────────────────────
+
+  describe('triggerForMentioned', () => {
+    it('calls handleWhisperRequest for each mentioned user', async () => {
+      const handleSpy = jest
+        .spyOn(service, 'handleWhisperRequest')
+        .mockResolvedValue(undefined);
+
+      await service.triggerForMentioned(['user-1', 'user-2'], 'converse-abc');
+
+      expect(handleSpy).toHaveBeenCalledTimes(2);
+      expect(handleSpy).toHaveBeenCalledWith('user-1', 'converse-abc');
+      expect(handleSpy).toHaveBeenCalledWith('user-2', 'converse-abc');
+    });
+
+    it('does nothing when mentionedUserIds is empty', async () => {
+      const handleSpy = jest
+        .spyOn(service, 'handleWhisperRequest')
+        .mockResolvedValue(undefined);
+
+      await service.triggerForMentioned([], 'converse-abc');
+
+      expect(handleSpy).not.toHaveBeenCalled();
+    });
+  });
 });

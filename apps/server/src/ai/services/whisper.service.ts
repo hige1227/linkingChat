@@ -207,6 +207,26 @@ export class WhisperService {
   }
 
   /**
+   * Trigger Whisper suggestions for each mentioned user in a GROUP conversation.
+   *
+   * fire-and-forget per user — errors are caught and logged individually.
+   */
+  async triggerForMentioned(
+    mentionedUserIds: string[],
+    converseId: string,
+  ): Promise<void> {
+    if (mentionedUserIds.length === 0) return;
+    await Promise.all(
+      mentionedUserIds.map((uid) =>
+        this.handleWhisperRequest(uid, converseId).catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          this.logger.error(`Whisper group trigger failed for user ${uid}: ${msg}`);
+        }),
+      ),
+    );
+  }
+
+  /**
    * Quality gate — determines whether a received message should trigger Whisper.
    * Skips: null/empty content, too-short messages, pure emoji.
    */
