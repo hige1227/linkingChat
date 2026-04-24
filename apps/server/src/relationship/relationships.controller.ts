@@ -46,7 +46,7 @@ export class RelationshipsController {
       where: { userId_contactId: { userId: req.user.id, contactId } },
       create: { userId: req.user.id, contactId, ...dto },
       update: dto,
-      include: { events: { where: { isActive: true }, take: 3 } },
+      include: { events: { where: { isActive: true }, take: 3, orderBy: { extractedAt: 'desc' } } },
     });
 
     return {

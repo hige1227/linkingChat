@@ -1,9 +1,10 @@
 import { IsEnum, IsOptional, IsString, IsBoolean, IsInt, Min } from 'class-validator';
+import { RelationshipTier } from '@prisma/client';
 
 export class UpdateRelationshipDto {
   @IsOptional()
-  @IsEnum(['CORE', 'IMPORTANT', 'EXTENDED'])
-  tier?: 'CORE' | 'IMPORTANT' | 'EXTENDED';
+  @IsEnum(RelationshipTier)
+  tier?: RelationshipTier;
 
   @IsOptional()
   @IsString()
