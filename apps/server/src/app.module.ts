@@ -29,6 +29,7 @@ import { MailModule } from './mail/mail.module';
 import { AppConfigModule } from './config/config.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { JarvisModule } from './jarvis/jarvis.module';
+import { RelationshipModule } from './relationship/relationship.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { JarvisModule } from './jarvis/jarvis.module';
     MailModule,
     AppConfigModule,
     JarvisModule,
+    RelationshipModule,
   ],
   controllers: [AppController],
   providers: [
