@@ -39,15 +39,17 @@ describe('RelationshipEventListener', () => {
 
   it('persists extracted events when ruleFilter passes', async () => {
     mockAnalyzer.ruleFilter.mockReturnValue(true);
-    mockAnalyzer.extractEvents.mockResolvedValue([
+    const extractPromise = Promise.resolve([
       { type: 'life_event', summary: '住院了', sourceMessageId: 'msg-3' },
     ]);
+    mockAnalyzer.extractEvents.mockReturnValue(extractPromise);
+
     await listener.handleMessageCreated({
       messageId: 'msg-3', senderId: 'u', receiverId: 'c',
       converseType: 'DM', content: '我妈住院了', sentAt: new Date(), profileId: 'p-3',
     });
-    // Wait for fire-and-forget
-    await new Promise((r) => setTimeout(r, 10));
+
+    await extractPromise; // drains the microtask queue deterministically
     expect(mockPrisma.relationshipEvent.createMany).toHaveBeenCalled();
   });
 });
