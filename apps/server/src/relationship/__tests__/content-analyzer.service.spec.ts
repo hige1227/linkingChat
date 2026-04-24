@@ -15,16 +15,24 @@ describe('ContentAnalyzerService', () => {
       expect(svc.ruleFilter('ok')).toBe(false);
     });
 
+    it('returns false for messages under 8 chars', () => {
+      expect(svc.ruleFilter('hello')).toBe(false);
+    });
+
     it('returns false for pure emoji', () => {
       expect(svc.ruleFilter('😊👍')).toBe(false);
     });
 
     it('returns true for life-event keyword', () => {
-      expect(svc.ruleFilter('我妈妈住院了')).toBe(true);
+      expect(svc.ruleFilter('我妈妈昨天住院了')).toBe(true);
     });
 
     it('returns true for commitment keyword', () => {
       expect(svc.ruleFilter('我答应你下周一定来')).toBe(true);
+    });
+
+    it('returns true for !! pattern', () => {
+      expect(svc.ruleFilter('真的太厉害了！！')).toBe(true);
     });
   });
 

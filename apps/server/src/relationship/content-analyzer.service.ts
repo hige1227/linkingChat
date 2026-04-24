@@ -34,12 +34,11 @@ export class ContentAnalyzerService {
   constructor(private readonly llmConfig: LlmConfigService) {}
 
   ruleFilter(content: string): boolean {
-    if (!content || content.trim().length < 4) return false;
+    if (!content || content.trim().length < 8) return false;
     if (/^[\p{Emoji}\s]+$/u.test(content.trim())) return false;
     if (LIFE_KEYWORDS.some((kw) => content.includes(kw))) return true;
     if (COMMITMENT_KEYWORDS.some((kw) => content.includes(kw))) return true;
     if (/[!！]{2,}/.test(content)) return true;
-    if (content.includes('太感动') || content.includes('谢谢你')) return true;
     return false;
   }
 
