@@ -474,6 +474,7 @@ model RelationshipProfile {
   @@unique([userId, contactId])
   @@index([userId, isMuted])
   @@index([userId, lastInteractionAt])
+  @@map("relationship_profiles")
 }
 
 model RelationshipEvent {
@@ -488,6 +489,8 @@ model RelationshipEvent {
   profile RelationshipProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId, isActive])
+  @@index([sourceMessageId])
+  @@map("relationship_events")
 }
 
 // ─── Jarvis Agent State ───────────────────────────────────────────────────────
@@ -501,5 +504,5 @@ model JarvisState {
 
   user User @relation(fields: [userId], references: [id])
 
-  @@index([userId])
+  @@map("jarvis_states")
 }
