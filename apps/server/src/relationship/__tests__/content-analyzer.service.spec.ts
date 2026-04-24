@@ -56,5 +56,10 @@ describe('ContentAnalyzerService', () => {
       mockLlmConfig.completeText.mockResolvedValue('not json');
       expect(await svc.extractEvents('text', 'msg-3')).toEqual([]);
     });
+
+    it('returns empty array when LLM returns a non-array JSON value', async () => {
+      mockLlmConfig.completeText.mockResolvedValue('{"type":"life_event"}');
+      expect(await svc.extractEvents('text', 'msg-4')).toEqual([]);
+    });
   });
 });

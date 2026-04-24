@@ -42,6 +42,15 @@ export class ContentAnalyzerService {
     return false;
   }
 
+  private isValidEvent(e: unknown): e is Omit<ExtractedEvent, 'sourceMessageId'> {
+    return (
+      typeof e === 'object' &&
+      e !== null &&
+      typeof (e as Record<string, unknown>).type === 'string' &&
+      typeof (e as Record<string, unknown>).summary === 'string'
+    );
+  }
+
   async extractEvents(content: string, messageId: string): Promise<ExtractedEvent[]> {
     const text = await this.llmConfig.completeText(
       'complex_analysis',
@@ -54,9 +63,11 @@ export class ContentAnalyzerService {
 
     try {
       const cleaned = text.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
-      const parsed = JSON.parse(cleaned) as ExtractedEvent[];
+      const parsed: unknown = JSON.parse(cleaned);
       if (!Array.isArray(parsed)) return [];
-      return parsed.map((e) => ({ ...e, sourceMessageId: messageId }));
+      return parsed
+        .filter((e): e is Omit<ExtractedEvent, 'sourceMessageId'> => this.isValidEvent(e))
+        .map((e) => ({ ...e, sourceMessageId: messageId }));
     } catch {
       this.logger.warn(`Failed to parse event extraction: ${text.substring(0, 80)}`);
       return [];
