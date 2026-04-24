@@ -97,7 +97,8 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "moduleNameMapper": {
-      "^@linkingchat/shared$": "<rootDir>/../../../packages/shared/src/index.ts"
+      "^@linkingchat/shared$": "<rootDir>/../../../packages/shared/src/index.ts",
+      "^@mariozechner/pi-ai$": "<rootDir>/__mocks__/pi-ai.js"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
