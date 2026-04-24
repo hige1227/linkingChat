@@ -117,12 +117,17 @@ export class JarvisToolRegistry {
         });
 
         return textResult(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          profiles.map((p: any) => ({
+          (profiles as Array<{
+            contactId: string;
+            tier: string;
+            lastInteractionAt: Date | null;
+            weeklyMessageCount: number;
+            contact: { displayName: string };
+          }>).map((p) => ({
             contactId: p.contactId,
             contactName: p.contact.displayName,
             tier: p.tier,
-            lastInteractionAt: (p.lastInteractionAt as Date | null)?.toISOString() ?? null,
+            lastInteractionAt: p.lastInteractionAt?.toISOString() ?? null,
             weeklyMessageCount: p.weeklyMessageCount,
           })),
         );
@@ -167,13 +172,19 @@ export class JarvisToolRegistry {
         });
 
         return textResult(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          messages.reverse().map((m: any) => ({
-            id: m.id,
-            author: m.author.displayName,
-            content: m.content,
-            createdAt: (m.createdAt as Date).toISOString(),
-          })),
+          (messages as Array<{
+            id: string;
+            content: string | null;
+            createdAt: Date;
+            author: { displayName: string };
+          }>)
+            .reverse()
+            .map((m) => ({
+              id: m.id,
+              author: m.author.displayName,
+              content: m.content,
+              createdAt: m.createdAt.toISOString(),
+            })),
         );
       },
     };
