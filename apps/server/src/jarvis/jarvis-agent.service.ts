@@ -13,11 +13,13 @@ const SYSTEM_PROMPT = `你是贾维斯（Jarvis），用户的私人 AI 社交�
 
 const INACTIVE_EVICT_MS = 60 * 60 * 1000;
 
+const CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
+
 const DANGEROUS_TOOLS = ['send_message', 'execute_device_command'];
 
 interface AgentEntry {
   readonly agent: Agent;
-  lastActiveAt: number;
+  readonly lastActiveAt: number;
 }
 
 @Injectable()
@@ -34,7 +36,7 @@ export class JarvisAgentService implements OnModuleDestroy {
   ) {
     this.cleanupInterval = setInterval(() => {
       void this.evictInactive();
-    }, 30 * 60 * 1000);
+    }, CLEANUP_INTERVAL_MS);
   }
 
   onModuleDestroy(): void {
@@ -45,7 +47,7 @@ export class JarvisAgentService implements OnModuleDestroy {
   async getOrCreate(userId: string): Promise<Agent> {
     const existing = this.agents.get(userId);
     if (existing) {
-      existing.lastActiveAt = Date.now();
+      this.agents.set(userId, { agent: existing.agent, lastActiveAt: Date.now() });
       return existing.agent;
     }
 
@@ -105,7 +107,7 @@ export class JarvisAgentService implements OnModuleDestroy {
 
   async systemTrigger(userId: string, eventType: string, payload: unknown): Promise<void> {
     const agent = await this.getOrCreate(userId);
-    agent.followUp({
+    await (agent as any).followUp({
       role: 'user',
       content: `[SYSTEM] ${eventType}: ${JSON.stringify(payload)}`,
       timestamp: Date.now(),
@@ -113,6 +115,7 @@ export class JarvisAgentService implements OnModuleDestroy {
   }
 
   async confirmToolCall(userId: string, _toolCallId: string, approved: boolean): Promise<void> {
+    // toolCallId noted but pi-agent-core confirm/reject operates on the full pending state
     const entry = this.agents.get(userId);
     if (!entry) {
       this.logger.warn(`No active agent for user ${userId}`);
