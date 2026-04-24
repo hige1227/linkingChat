@@ -210,6 +210,20 @@ export class FriendsService {
       return { friendship, converse };
     });
 
+    // Auto-create mutual RelationshipProfiles when friends accept
+    await Promise.all([
+      this.prisma.relationshipProfile.upsert({
+        where: { userId_contactId: { userId: friendRequest.senderId, contactId: friendRequest.receiverId } },
+        create: { userId: friendRequest.senderId, contactId: friendRequest.receiverId },
+        update: {},
+      }),
+      this.prisma.relationshipProfile.upsert({
+        where: { userId_contactId: { userId: friendRequest.receiverId, contactId: friendRequest.senderId } },
+        create: { userId: friendRequest.receiverId, contactId: friendRequest.senderId },
+        update: {},
+      }),
+    ]);
+
     // 4. WS 广播：通知双方已成为好友（chat 命名空间）
     this.broadcast.chatUnicast(friendRequest.senderId, 'friend:accepted', {
       friendId: friendRequest.receiverId,
@@ -395,6 +409,17 @@ export class FriendsService {
           data: { isOpen: false },
         });
       }
+    });
+
+    // Soft-mute profiles on unfriend (don't delete — history is valuable)
+    await this.prisma.relationshipProfile.updateMany({
+      where: {
+        OR: [
+          { userId: currentUserId, contactId: targetUserId },
+          { userId: targetUserId, contactId: currentUserId },
+        ],
+      },
+      data: { isMuted: true },
     });
 
     // WS 通知双方（chat 命名空间）

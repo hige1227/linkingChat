@@ -241,6 +241,33 @@ export class MessagesService {
       }
     }
 
+    // Fire-and-forget relationship event for DM TEXT messages
+    if (message.type === 'TEXT') {
+      const otherMemberId = memberIds.find((id) => id !== userId);
+      if (otherMemberId) {
+        this.prisma.relationshipProfile
+          .findUnique({
+            where: { userId_contactId: { userId, contactId: otherMemberId } },
+            select: { id: true },
+          })
+          .then((profile) => {
+            this.eventEmitter.emit('message.created.relationship', {
+              messageId: message.id,
+              senderId: userId,
+              receiverId: otherMemberId,
+              converseType: 'DM',
+              content: message.content,
+              sentAt: message.createdAt,
+              profileId: profile?.id,
+            });
+          })
+          .catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            this.logger.error(`Relationship event emit failed: ${msg}`);
+          });
+      }
+    }
+
     return message;
   }
 

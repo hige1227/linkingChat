@@ -39,6 +39,9 @@ describe('MessagesService', () => {
     bot: {
       findUnique: jest.fn(),
     },
+    relationshipProfile: {
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
     $transaction: jest.fn((args: any) => Promise.resolve(args)),
     $queryRaw: jest.fn(),
   };
