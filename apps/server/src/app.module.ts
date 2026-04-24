@@ -28,6 +28,7 @@ import { I18nModule } from './i18n/i18n.module';
 import { MailModule } from './mail/mail.module';
 import { AppConfigModule } from './config/config.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { JarvisModule } from './jarvis/jarvis.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     I18nModule,
     MailModule,
     AppConfigModule,
+    JarvisModule,
   ],
   controllers: [AppController],
   providers: [

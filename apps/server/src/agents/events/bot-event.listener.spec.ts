@@ -1,10 +1,13 @@
 jest.mock('@mariozechner/pi-ai', () => ({}), { virtual: true });
+jest.mock('@mariozechner/pi-agent-core', () => ({}), { virtual: true });
+jest.mock('../../jarvis/jarvis-agent.service');
 import { Test, TestingModule } from '@nestjs/testing';
 import { BotEventListener } from './bot-event.listener';
 import { BatchTriggerService } from './batch-trigger.service';
 import { BotsService } from '../../bots/bots.service';
 import { AgentOrchestratorService } from '../orchestrator/agent-orchestrator.service';
 import { PredictiveService } from '../../ai/services/predictive.service';
+import { JarvisAgentService } from '../../jarvis/jarvis-agent.service';
 import type { DeviceResultEvent } from './bot-event.listener';
 
 describe('BotEventListener — Predictive trigger', () => {
@@ -40,6 +43,7 @@ describe('BotEventListener — Predictive trigger', () => {
         { provide: BotsService, useValue: mockBotsService },
         { provide: AgentOrchestratorService, useValue: { dispatchEvent: jest.fn() } },
         { provide: PredictiveService, useValue: mockPredictive },
+        { provide: JarvisAgentService, useValue: { prompt: jest.fn().mockResolvedValue(undefined) } },
         { provide: 'REDIS_CLIENT', useValue: mockRedis },
       ],
     }).compile();

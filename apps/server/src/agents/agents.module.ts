@@ -5,6 +5,7 @@ import { AiModule } from '../ai/ai.module';
 import { BotsModule } from '../bots/bots.module';
 import { MessagesModule } from '../messages/messages.module';
 import { GatewayModule } from '../gateway/gateway.module';
+import { JarvisModule } from '../jarvis/jarvis.module';
 
 // Core
 import { AgentMemoryService } from './core/memory.service';
@@ -28,6 +29,7 @@ import { SupervisorAgent } from './impl/supervisor.agent';
     BotsModule,
     forwardRef(() => MessagesModule),
     GatewayModule,
+    JarvisModule,
   ],
   providers: [
     // Core
