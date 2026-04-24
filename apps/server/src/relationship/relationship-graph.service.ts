@@ -16,22 +16,36 @@ export class RelationshipGraphService {
   constructor(private readonly prisma: PrismaService) {}
 
   async onMessageEvent(event: MessageEvent): Promise<void> {
-    const { senderId, receiverId, sentAt } = event;
+    const { senderId, receiverId, sentAt, converseType } = event;
 
-    await Promise.all([
-      // Sender's profile of the receiver: they sent a message → interaction + count
-      this.prisma.relationshipProfile.upsert({
-        where: { userId_contactId: { userId: senderId, contactId: receiverId } },
-        create: { userId: senderId, contactId: receiverId, lastInteractionAt: sentAt, weeklyMessageCount: 1 },
-        update: { lastInteractionAt: sentAt, weeklyMessageCount: { increment: 1 } },
-      }),
-      // Receiver's profile of the sender: update lastInteractionAt only
-      this.prisma.relationshipProfile.upsert({
-        where: { userId_contactId: { userId: receiverId, contactId: senderId } },
-        create: { userId: receiverId, contactId: senderId, lastInteractionAt: sentAt },
-        update: { lastInteractionAt: sentAt },
-      }),
-    ]);
+    if (converseType === 'DM') {
+      await Promise.all([
+        // Sender's profile of the receiver: they sent a message → interaction + count
+        this.prisma.relationshipProfile.upsert({
+          where: { userId_contactId: { userId: senderId, contactId: receiverId } },
+          create: { userId: senderId, contactId: receiverId, lastInteractionAt: sentAt, weeklyMessageCount: 1 },
+          update: { lastInteractionAt: sentAt, weeklyMessageCount: { increment: 1 } },
+        }),
+        // Receiver's profile of the sender: update lastInteractionAt only
+        this.prisma.relationshipProfile.upsert({
+          where: { userId_contactId: { userId: receiverId, contactId: senderId } },
+          create: { userId: receiverId, contactId: senderId, lastInteractionAt: sentAt },
+          update: { lastInteractionAt: sentAt },
+        }),
+      ]);
+    } else {
+      // GROUP: only update existing profiles (don't create for non-friends)
+      await Promise.all([
+        this.prisma.relationshipProfile.updateMany({
+          where: { userId: senderId, contactId: receiverId },
+          data: { lastInteractionAt: sentAt, groupInteractionCount: { increment: 1 } },
+        }),
+        this.prisma.relationshipProfile.updateMany({
+          where: { userId: receiverId, contactId: senderId },
+          data: { lastInteractionAt: sentAt },
+        }),
+      ]);
+    }
   }
 
   async weeklyDecay(): Promise<void> {

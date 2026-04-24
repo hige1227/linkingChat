@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsNumber, IsArray, IsIn, ValidateNested, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
-import { LlmTaskType } from '../providers/llm-provider.interface';
+import { LlmTaskType } from '../llm-config.service';
 
 export class LlmMessageDto {
   @IsString()

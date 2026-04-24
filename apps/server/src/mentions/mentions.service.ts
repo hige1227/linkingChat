@@ -115,6 +115,39 @@ export class MentionService {
       }
     }
 
+    // 3. Resolve human @username mentions (for GROUP Whisper)
+    const resolvedBotNames = new Set(
+      validMentions.filter((v) => v.type === 'bot').map((v) => v.name),
+    );
+    const humanNames = botNames.filter((name) => !resolvedBotNames.has(name));
+
+    if (humanNames.length > 0 && converseId) {
+      const users = await this.prisma.user.findMany({
+        where: { username: { in: humanNames } },
+        select: { id: true, username: true },
+      });
+
+      if (users.length > 0) {
+        const userIds = users.map((u) => u.id);
+        const members = await this.prisma.converseMember.findMany({
+          where: { converseId, userId: { in: userIds } },
+          select: { userId: true },
+        });
+        const memberSet = new Set(members.map((m) => m.userId));
+
+        for (const user of users) {
+          if (memberSet.has(user.id)) {
+            validMentions.push({
+              type: 'user',
+              name: user.username,
+              fullMatch: `@${user.username}`,
+              userId: user.id,
+            });
+          }
+        }
+      }
+    }
+
     return validMentions;
   }
 

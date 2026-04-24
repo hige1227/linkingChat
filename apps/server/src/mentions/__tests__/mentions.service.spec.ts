@@ -92,6 +92,12 @@ describe('MentionService', () => {
         bot: {
           findMany: jest.fn().mockResolvedValue([]),
         },
+        converseMember: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        user: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
       };
 
       const module: TestingModule = await Test.createTestingModule({
@@ -154,6 +160,9 @@ describe('MentionService', () => {
         },
         converseMember: {
           findMany: jest.fn().mockResolvedValue([]), // bot is not a member
+        },
+        user: {
+          findMany: jest.fn().mockResolvedValue([]), // CodingBot is not a human username
         },
       };
 

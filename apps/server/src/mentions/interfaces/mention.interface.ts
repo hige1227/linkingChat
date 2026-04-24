@@ -10,14 +10,14 @@ export interface ParsedMention {
 
 /** 验证后的有效 @mention */
 export interface ValidMention {
-  /** 类型：bot 或 ai */
-  type: 'bot' | 'ai';
+  /** 类型：bot、ai 或 user（群成员） */
+  type: 'bot' | 'ai' | 'user';
   /** 名称 */
   name: string;
   /** 完整匹配文本 */
   fullMatch: string;
   /** Bot ID（仅 type='bot' 时） */
   botId?: string;
-  /** Bot 关联的用户 ID（仅 type='bot' 时） */
+  /** 关联的用户 ID（type='bot' 或 type='user' 时） */
   userId?: string;
 }

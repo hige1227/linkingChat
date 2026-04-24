@@ -195,12 +195,14 @@ export class MessagesService {
       );
     }
 
-    // Whisper auto-trigger: TEXT messages, fire-and-forget
+    // Whisper + Relationship events: single converse fetch for both
     if (message.type === 'TEXT') {
       const converse = await this.prisma.converse.findUnique({
         where: { id: dto.converseId },
         select: { type: true },
       });
+
+      // Whisper auto-trigger
       if (converse?.type === ConverseType.DM) {
         const receiverId = memberIds.find((id) => id !== userId);
         if (receiverId && this.whisperService.shouldTrigger(message.content)) {
@@ -219,9 +221,6 @@ export class MessagesService {
           nonAiMentions.length > 0 &&
           this.whisperService.shouldTrigger(message.content)
         ) {
-          // NOTE: humanIds will be empty until MentionService.validate() is extended
-          // to resolve human @username mentions (currently only resolves bots/@ai).
-          // Add a test covering the non-empty path when that extension lands.
           this.mentionService
             .validate(nonAiMentions, dto.converseId)
             .then((validated) => {
@@ -239,36 +238,44 @@ export class MessagesService {
             });
         }
       }
-    }
 
-    // Fire-and-forget relationship event for DM TEXT messages
-    if (message.type === 'TEXT') {
-      const converse = await this.prisma.converse.findUnique({
-        where: { id: dto.converseId },
-        select: { type: true },
-      });
-      const otherMemberId = memberIds.find((id) => id !== userId);
-      if (converse?.type === ConverseType.DM && otherMemberId) {
-        this.prisma.relationshipProfile
-          .findUnique({
-            where: { userId_contactId: { userId, contactId: otherMemberId } },
-            select: { id: true },
-          })
-          .then((profile) => {
-            this.eventEmitter.emit('message.created.relationship', {
-              messageId: message.id,
-              senderId: userId,
-              receiverId: otherMemberId,
-              converseType: 'DM',
-              content: message.content,
-              sentAt: message.createdAt,
-              profileId: profile?.id,
+      // Fire-and-forget relationship events
+      if (converse?.type === ConverseType.DM) {
+        const otherMemberId = memberIds.find((id) => id !== userId);
+        if (otherMemberId) {
+          this.prisma.relationshipProfile
+            .findUnique({
+              where: { userId_contactId: { userId, contactId: otherMemberId } },
+              select: { id: true },
+            })
+            .then((profile) => {
+              this.eventEmitter.emit('message.created.relationship', {
+                messageId: message.id,
+                senderId: userId,
+                receiverId: otherMemberId,
+                converseType: 'DM',
+                content: message.content,
+                sentAt: message.createdAt,
+                profileId: profile?.id,
+              });
+            })
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              this.logger.error(`Relationship event emit failed: ${msg}`);
             });
-          })
-          .catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            this.logger.error(`Relationship event emit failed: ${msg}`);
+        }
+      } else if (converse?.type === ConverseType.GROUP) {
+        const otherMemberIds = memberIds.filter((id) => id !== userId);
+        for (const receiverId of otherMemberIds) {
+          this.eventEmitter.emit('message.created.relationship', {
+            messageId: message.id,
+            senderId: userId,
+            receiverId,
+            converseType: 'GROUP',
+            content: message.content,
+            sentAt: message.createdAt,
           });
+        }
       }
     }
 
