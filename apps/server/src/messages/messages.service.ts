@@ -243,8 +243,12 @@ export class MessagesService {
 
     // Fire-and-forget relationship event for DM TEXT messages
     if (message.type === 'TEXT') {
+      const converse = await this.prisma.converse.findUnique({
+        where: { id: dto.converseId },
+        select: { type: true },
+      });
       const otherMemberId = memberIds.find((id) => id !== userId);
-      if (otherMemberId) {
+      if (converse?.type === ConverseType.DM && otherMemberId) {
         this.prisma.relationshipProfile
           .findUnique({
             where: { userId_contactId: { userId, contactId: otherMemberId } },
