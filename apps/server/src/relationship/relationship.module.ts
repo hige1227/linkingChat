@@ -7,11 +7,9 @@ import { RelationshipSchedulerService } from './relationship-scheduler.service';
 import { RelationshipsController } from './relationships.controller';
 import { AiModule } from '../ai/ai.module';
 import { JarvisModule } from '../jarvis/jarvis.module';
-import { PrismaModule } from '../prisma/prisma.module';
-import { RedisModule } from '../redis/redis.module';
 
 @Module({
-  imports: [AiModule, JarvisModule, PrismaModule, RedisModule],
+  imports: [AiModule, JarvisModule],
   controllers: [RelationshipsController],
   providers: [
     RelationshipGraphService,

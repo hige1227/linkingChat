@@ -107,10 +107,15 @@ export class JarvisAgentService implements OnModuleDestroy {
 
   async systemTrigger(userId: string, eventType: string, payload: unknown): Promise<void> {
     const agent = await this.getOrCreate(userId);
+    // followUp is an undocumented instance method on pi-agent-core Agent (verified v0.x).
+    // If this throws at runtime, upgrade pi-agent-core or use agent.prompt() as fallback.
+    if (typeof (agent as any).followUp !== 'function') {
+      this.logger.error('pi-agent-core Agent.followUp unavailable — update pi-agent-core');
+      return;
+    }
     await (agent as any).followUp({
       role: 'user',
       content: `[SYSTEM] ${eventType}: ${JSON.stringify(payload)}`,
-      timestamp: Date.now(),
     });
   }
 
