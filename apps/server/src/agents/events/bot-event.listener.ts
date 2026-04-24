@@ -5,6 +5,7 @@ import { BatchTriggerService } from './batch-trigger.service';
 import { BotsService } from '../../bots/bots.service';
 import { AgentOrchestratorService } from '../orchestrator/agent-orchestrator.service';
 import { PredictiveService } from '../../ai/services/predictive.service';
+import { JarvisAgentService } from '../../jarvis/jarvis-agent.service';
 import { AgentEvent } from '../interfaces';
 
 /** Well-known botId for the singleton SupervisorAgent */
@@ -34,6 +35,7 @@ export class BotEventListener {
     private readonly botsService: BotsService,
     private readonly orchestrator: AgentOrchestratorService,
     private readonly predictiveService: PredictiveService,
+    private readonly jarvisAgent: JarvisAgentService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
 
@@ -46,6 +48,19 @@ export class BotEventListener {
       `Received agent.dispatch for bot ${payload.botId}`,
     );
 
+    const userMessageEvent = payload.events.find((e) => e.type === 'USER_MESSAGE');
+    if (userMessageEvent) {
+      const userId = userMessageEvent.source?.userId;
+      // Narrow the union payload to UserMessagePayload via type guard
+      const msgPayload = userMessageEvent.payload as { content?: string };
+      const content = msgPayload.content;
+      if (userId && content) {
+        await this.jarvisAgent.prompt(userId, content);
+        return;
+      }
+    }
+
+    // Fallback: keep old orchestrator for any non-USER_MESSAGE events
     await this.orchestrator.dispatchEvent(payload.botId, payload.events);
   }
 

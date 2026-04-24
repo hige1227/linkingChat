@@ -44,6 +44,10 @@ describe('FriendsService', () => {
       findMany: jest.fn(),
       updateMany: jest.fn(),
     },
+    relationshipProfile: {
+      upsert: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({ count: 2 }),
+    },
     $transaction: jest.fn((fn: any) => fn(mockPrisma)),
   };
 

@@ -136,6 +136,11 @@ model User {
   aiDrafts      AiDraft[]
   aiUsages      AiUsage[]
 
+  // Jarvis Phase 1 新增关系 — Relationship Graph & Jarvis State
+  ownedRelationships   RelationshipProfile[] @relation("RelationshipOwner")
+  contactRelationships RelationshipProfile[] @relation("RelationshipContact")
+  jarvisState          JarvisState?
+
   @@map("users")
 }
 
@@ -417,4 +422,87 @@ model AiUsage {
 
   @@index([userId, createdAt])
   @@map("ai_usage")
+}
+
+// ─── Relationship Graph ───────────────────────────────────────────────────────
+
+enum RelationshipTier {
+  CORE
+  IMPORTANT
+  EXTENDED
+}
+
+enum SentimentTrend {
+  WARMING
+  STABLE
+  COOLING
+}
+
+model RelationshipProfile {
+  id                       String           @id @default(cuid())
+  userId                   String
+  contactId                String
+
+  tier                     RelationshipTier @default(IMPORTANT)
+  label                    String?
+  notes                    String?
+  isMuted                  Boolean          @default(false)
+  customSilenceDays        Int?
+  isUrgentReply            Boolean          @default(false)
+
+  lastInteractionAt        DateTime?
+  weeklyMessageCount       Int              @default(0)
+  prevWeeklyMessageCount   Int?
+  avgResponseMinutes       Float?
+  initiationScore          Float?
+  groupInteractionCount    Int              @default(0)
+
+  lastKeyEventSummary      String?
+  sentimentTrend           SentimentTrend?
+
+  silenceReminderSentAt    DateTime?
+  coolingReminderSentAt    DateTime?
+  pendingReplyReminderAt   DateTime?
+
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  user    User @relation("RelationshipOwner",   fields: [userId],    references: [id])
+  contact User @relation("RelationshipContact", fields: [contactId], references: [id])
+  events  RelationshipEvent[]
+
+  @@unique([userId, contactId])
+  @@index([userId, isMuted])
+  @@index([userId, lastInteractionAt])
+  @@map("relationship_profiles")
+}
+
+model RelationshipEvent {
+  id              String   @id @default(cuid())
+  profileId       String
+  type            String   // life_event | commitment | emotional | milestone
+  summary         String
+  sourceMessageId String?
+  extractedAt     DateTime @default(now())
+  isActive        Boolean  @default(true)
+
+  profile RelationshipProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, isActive])
+  @@index([sourceMessageId])
+  @@map("relationship_events")
+}
+
+// ─── Jarvis Agent State ───────────────────────────────────────────────────────
+
+model JarvisState {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  messages   Json
+  metadata   Json?
+  snapshotAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("jarvis_states")
 }
