@@ -35,6 +35,9 @@ export class RelationshipSchedulerService {
     if (!acquired) return;
     try {
       await this.graphService.weeklyDecay();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Weekly decay failed: ${msg}`);
     } finally {
       await this.redis.del('relationship:weekly:lock');
     }
