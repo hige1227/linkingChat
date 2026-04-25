@@ -11,8 +11,9 @@
     "type-check": "turbo run type-check",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "db:migrate": "pnpm --filter @linkingchat/server prisma migrate dev",
-    "db:seed": "pnpm --filter @linkingchat/server prisma db seed",
+    "db:generate": "pnpm --filter @linkingchat/server exec prisma generate --schema prisma/schema.prisma",
+    "db:migrate": "pnpm --filter @linkingchat/server exec prisma migrate deploy --schema prisma/schema.prisma",
+    "db:seed": "pnpm --filter @linkingchat/server exec prisma db seed --schema prisma/schema.prisma",
     "check-ws-coverage": "tsx scripts/check-ws-coverage.ts"
   },
   "devDependencies": {

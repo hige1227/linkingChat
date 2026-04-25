@@ -10,7 +10,11 @@ import { Redis } from 'ioredis';
       useFactory: (configService: ConfigService) => {
         const url =
           configService.get<string>('REDIS_URL') || 'redis://localhost:6387';
-        const client = new Redis(url);
+        const client = new Redis(url, {
+          enableOfflineQueue: false,
+          maxRetriesPerRequest: 1,
+          retryStrategy: (times) => Math.min(times * 100, 1000),
+        });
 
         client.on('connect', () => {
           console.log('[RedisModule] Connected to Redis');

@@ -21,7 +21,7 @@ out/
 # Keys & tokens (sensitive)
 keys/
 *.pem
-token.txt
+token*.txt
 
 # IDE
 .vscode/
@@ -52,6 +52,7 @@ apps/server/prisma/migrations/**/migration_lock.toml
 
 # Electron
 apps/desktop/release/
+apps/desktop/apps/
 apps/desktop/sidecar/**/node.exe
 apps/desktop/sidecar/**/node
 apps/desktop/sidecar/**/node_modules/

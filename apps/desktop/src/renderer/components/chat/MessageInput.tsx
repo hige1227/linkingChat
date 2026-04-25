@@ -12,6 +12,42 @@ import type { MessageResponse } from '@linkingchat/ws-protocol';
 
 const AI_MENTION_RE = /(?<!\w)@ai\b/i;
 const API_URL = API_BASE_URL + '/api/v1';
+const MESSAGE_REQUEST_TIMEOUT_MS = 30_000;
+const BOT_REPLY_TIMEOUT_MS = 180_000;
+const BOT_REPLY_TIMEOUT_MESSAGE = 'Bot response timed out';
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs = MESSAGE_REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
 
 interface MessageInputProps {
   converseId: string;
@@ -28,6 +64,7 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
   const [aiLoading, setAiLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sendingRef = useRef(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -44,7 +81,7 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
   const [openClawConnected, setOpenClawConnected] = useState(false);
 
   // Streaming send hook
-  const { sendMessage: sendOpenClawMessage } = useOpenClawChat(converseId);
+  const { sendMessage: sendOpenClawMessage, cancel: cancelOpenClawMessage } = useOpenClawChat(converseId);
 
   // Reset text when converseId changes
   useEffect(() => {
@@ -140,19 +177,27 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
 
   const handleSend = async () => {
     const content = text.trim();
-    if (!content || sending) return;
+    if (!content || sendingRef.current) return;
+
+    sendingRef.current = true;
+    setSending(true);
 
     // Bot converse: route to local OpenClaw Gateway
     if (isBotConverse && botId) {
       setText('');
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
-      const token = await window.electronAPI.getToken();
-      if (!token) return;
-
-      // Persist user message via normal REST (echoes back via socket)
+      let persistedUserMessage = false;
       try {
-        await fetch(`${API_URL}/messages`, {
+        const token = await window.electronAPI.getToken();
+        if (!token) {
+          setText(content);
+          requestAnimationFrame(adjustHeight);
+          return;
+        }
+
+        // Persist user message via normal REST (echoes back via socket)
+        const res = await fetchWithTimeout(`${API_URL}/messages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -160,30 +205,54 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
           },
           body: JSON.stringify({ converseId, content, skipBotDispatch: true }),
         });
+        if (!res.ok) {
+          const err = await res.text();
+          console.error('[Bot] Failed to persist user message:', res.status, err);
+          setText(content);
+          requestAnimationFrame(adjustHeight);
+          return;
+        }
+
+        const data: MessageResponse = await res.json();
+        const store = useChatStore.getState();
+        store.addMessage(converseId, data);
+        store.updateLastMessage(converseId, data, false);
+        persistedUserMessage = true;
+
+        await withTimeout(
+          sendOpenClawMessage(content, botId, token),
+          BOT_REPLY_TIMEOUT_MS,
+          BOT_REPLY_TIMEOUT_MESSAGE,
+        );
       } catch (err) {
-        console.error('[Bot] Failed to persist user message:', err);
+        if ((err as Error).message === BOT_REPLY_TIMEOUT_MESSAGE) {
+          cancelOpenClawMessage();
+        }
+        console.error('[Bot] Failed to send bot message:', err);
+        if (!persistedUserMessage) {
+          setText(content);
+          requestAnimationFrame(adjustHeight);
+        }
+      } finally {
+        sendingRef.current = false;
+        setSending(false);
+        textareaRef.current?.focus();
       }
 
-      // Fire OpenClaw stream non-blocking
-      sendOpenClawMessage(content, botId, token).catch((err) => {
-        console.error('[Bot] OpenClaw chat failed:', err);
-      });
-
-      textareaRef.current?.focus();
       return;
     }
 
     setText('');
-    setSending(true);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
 
+    let sent = false;
     try {
       const token = await window.electronAPI.getToken();
       if (!token) return;
 
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `${API_URL}/messages`,
         {
           method: 'POST',
@@ -201,6 +270,7 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
         store.addMessage(converseId, data);
         // Own message: update lastMessage but do NOT increment unread
         store.updateLastMessage(converseId, data, false);
+        sent = true;
       } else {
         const err = await res.text();
         console.error('Send message failed:', res.status, err);
@@ -208,6 +278,11 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
     } catch (e) {
       console.error('Send message error:', e);
     } finally {
+      if (!sent) {
+        setText(content);
+        requestAnimationFrame(adjustHeight);
+      }
+      sendingRef.current = false;
       setSending(false);
     }
 

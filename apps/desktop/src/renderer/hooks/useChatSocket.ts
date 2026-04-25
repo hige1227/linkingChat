@@ -30,12 +30,39 @@ function getUserIdFromToken(token: string): string | null {
 let sharedSocket: Socket | null = null;
 let sharedJoinedRooms = new Set<string>();
 let connectionInitiated = false;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const connectedListeners = new Set<(v: boolean) => void>();
 
 function notifyConnected(connected: boolean) {
   for (const listener of connectedListeners) {
     listener(connected);
   }
+}
+
+async function refreshSocketAuth(socket: Socket, forceRefresh = false): Promise<boolean> {
+  if (!window.electronAPI) return false;
+
+  const token = forceRefresh
+    ? await window.electronAPI.refreshToken()
+    : await window.electronAPI.getToken();
+
+  if (!token) return false;
+  (socket as any).auth = { token, deviceType: 'desktop' };
+  return true;
+}
+
+function scheduleReconnect(socket: Socket, delayMs = 1000) {
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(async () => {
+    reconnectTimer = null;
+    if (!socket.connected) {
+      await refreshSocketAuth(socket).catch((err) => {
+        console.error('[ChatSocket] Failed to refresh auth before reconnect:', err);
+      });
+      console.log('[ChatSocket] Forcing reconnect...');
+      socket.connect();
+    }
+  }, delayMs);
 }
 
 function initSocket() {
@@ -68,6 +95,10 @@ function initSocket() {
 
     socket.on('connect', () => {
       connectErrorCount = 0;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
       console.log('[ChatSocket] Connected, socket.id:', socket.id);
       notifyConnected(true);
       sharedJoinedRooms.clear();
@@ -84,22 +115,24 @@ function initSocket() {
       console.log('[ChatSocket] Disconnected, reason:', reason);
       notifyConnected(false);
       sharedJoinedRooms.clear();
+      if (reason !== 'io client disconnect') {
+        scheduleReconnect(socket, 1000);
+      }
     });
 
     socket.on('connect_error', async (err) => {
       console.error('[ChatSocket] Connect error:', err.message);
+      notifyConnected(false);
       connectErrorCount++;
-      if (connectErrorCount <= 3 && window.electronAPI) {
-        try {
-          const newToken = await window.electronAPI.refreshToken();
-          if (newToken && socket) {
-            (socket as any).auth = { token: newToken, deviceType: 'desktop' };
-            console.log('[ChatSocket] Token refreshed for reconnect');
-          }
-        } catch (e) {
-          console.error('[ChatSocket] Token refresh failed:', e);
-        }
+
+      try {
+        const refreshed = await refreshSocketAuth(socket, true);
+        if (refreshed) console.log('[ChatSocket] Token refreshed for reconnect');
+      } catch (e) {
+        console.error('[ChatSocket] Token refresh failed:', e);
       }
+
+      scheduleReconnect(socket, 1500);
     });
 
     // ──── Message events ────
@@ -335,6 +368,9 @@ export function useChatSocket() {
   useEffect(() => {
     connectedListeners.add(setIsConnected);
     initSocket();
+    if (sharedSocket && !sharedSocket.connected) {
+      scheduleReconnect(sharedSocket, 0);
+    }
 
     return () => {
       connectedListeners.delete(setIsConnected);

@@ -41,7 +41,7 @@ export class AgentProviderFactory {
   /** In packaged production builds without a local sidecar, default to server mode */
   static autoSelect(): AgentType {
     if (!app.isPackaged) return 'openclaw';
-    return 'openclaw'; // OpenClaw sidecar is bundled; keep as default in packaged builds too
+    return 'server';
   }
 
   /** For testing only */

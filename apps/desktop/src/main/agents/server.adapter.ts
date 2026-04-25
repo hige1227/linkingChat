@@ -24,6 +24,7 @@ async function* readSSELines(body: ReadableStream<Uint8Array>): AsyncGenerator<s
 export class ServerAgentAdapter implements AgentProvider {
   readonly name = 'server';
   private readonly activeStreams = new Map<string, AbortController>();
+  private static readonly STREAM_TIMEOUT_MS = 180_000;
 
   async isReady(): Promise<boolean> {
     return aiGatewayService.getToken() !== null;
@@ -38,6 +39,11 @@ export class ServerAgentAdapter implements AgentProvider {
 
     const controller = new AbortController();
     this.activeStreams.set(params.requestId, controller);
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, ServerAgentAdapter.STREAM_TIMEOUT_MS);
 
     try {
       const res = await fetch(`${aiGatewayService.getApiBase()}/api/v1/ai/llm-proxy`, {
@@ -75,10 +81,13 @@ export class ServerAgentAdapter implements AgentProvider {
         }
       }
     } catch (err: unknown) {
-      if ((err as Error).name !== 'AbortError') {
+      if ((err as Error).name === 'AbortError' && timedOut) {
+        yield { type: 'error', error: 'Server proxy timed out', requestId: params.requestId };
+      } else if ((err as Error).name !== 'AbortError') {
         yield { type: 'error', error: (err as Error).message, requestId: params.requestId };
       }
     } finally {
+      clearTimeout(timeout);
       this.activeStreams.delete(params.requestId);
     }
   }

@@ -18,6 +18,8 @@ export class AiGatewayService {
   private llmToken: string | null = null;
 
   async fetchLlmToken(accessToken: string): Promise<string | null> {
+    this.clearToken();
+
     try {
       const res = await fetch(`${API_BASE}/api/v1/ai/llm-token`, {
         method: 'POST',

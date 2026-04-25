@@ -26,6 +26,8 @@ export interface ProxyChunk {
 const RATE_LIMIT_PER_MINUTE = 20;
 const RATE_LIMIT_PER_DAY = 200;
 const TOKEN_EXPIRY_SECONDS = 86_400; // 24 hours
+const PROVIDER_FETCH_ATTEMPTS = 2;
+const PROVIDER_REQUEST_TIMEOUT_MS = 60_000;
 
 @Injectable()
 export class AiGatewayService {
@@ -62,13 +64,25 @@ export class AiGatewayService {
     const minuteKey = `llm:rate:min:${userId}`;
     const dayKey = `llm:rate:day:${userId}`;
 
-    const [minuteCount, dayCount] = await Promise.all([
-      this.redis.incr(minuteKey),
-      this.redis.incr(dayKey),
-    ]);
+    let minuteCount: number;
+    let dayCount: number;
+    try {
+      [minuteCount, dayCount] = await Promise.all([
+        this.redis.incr(minuteKey),
+        this.redis.incr(dayKey),
+      ]);
 
-    if (minuteCount === 1) await this.redis.expire(minuteKey, 60);
-    if (dayCount === 1) await this.redis.expire(dayKey, 86_400);
+      if (minuteCount === 1) await this.redis.expire(minuteKey, 60);
+      if (dayCount === 1) await this.redis.expire(dayKey, 86_400);
+    } catch (err) {
+      this.logger.warn(
+        `Rate limit dependency unavailable: ${(err as Error).message}`,
+      );
+      throw new HttpException(
+        'Rate limit dependency unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
 
     const limitPerMin = this.configService.get<number>(
       'LLM_RATE_LIMIT_PER_MINUTE',
@@ -92,7 +106,12 @@ export class AiGatewayService {
     dto: LlmProxyDto,
   ): AsyncGenerator<ProxyChunk> {
     const provider = this.selectProvider(dto.model);
-    const { baseUrl, apiKey, model } = provider;
+    let { baseUrl, apiKey, model } = provider;
+
+    if (!apiKey) {
+      yield { type: 'error', message: `LLM provider API key is not configured for ${model}` };
+      return;
+    }
 
     const body = {
       model,
@@ -104,18 +123,45 @@ export class AiGatewayService {
 
     let response: Response;
     try {
-      response = await fetch(`${baseUrl}/v1/chat/completions`, {
+      response = await this.fetchProvider(`${baseUrl}/v1/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(60_000),
       });
     } catch (err) {
-      yield { type: 'error', message: `LLM provider unreachable: ${(err as Error).message}` };
-      return;
+      const fallback = this.selectFallbackProvider(model, dto.model);
+      if (!fallback) {
+        yield { type: 'error', message: `LLM provider unreachable: ${this.describeFetchError(err)}` };
+        return;
+      }
+
+      this.logger.warn(
+        `Falling back from ${model} to ${fallback.model}: ${this.describeFetchError(err)}`,
+      );
+      baseUrl = fallback.baseUrl;
+      apiKey = fallback.apiKey;
+      model = fallback.model;
+      body.model = model;
+
+      try {
+        response = await this.fetchProvider(`${baseUrl}/v1/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(body),
+        });
+      } catch (fallbackErr) {
+        yield {
+          type: 'error',
+          message: `LLM fallback provider unreachable: ${this.describeFetchError(fallbackErr)}`,
+        };
+        return;
+      }
     }
 
     if (!response.ok || !response.body) {
@@ -198,6 +244,60 @@ export class AiGatewayService {
     // Rough cost in ¥ — deepseek-chat: ~0.001¥/1K tokens
     const rate = model.includes('deepseek') ? 0.000001 : 0.000002;
     return (promptTokens + completionTokens) * rate;
+  }
+
+  private async fetchProvider(url: string, init: RequestInit): Promise<Response> {
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= PROVIDER_FETCH_ATTEMPTS; attempt += 1) {
+      try {
+        return await fetch(url, {
+          ...init,
+          signal: AbortSignal.timeout(PROVIDER_REQUEST_TIMEOUT_MS),
+        });
+      } catch (err) {
+        lastError = err;
+        this.logger.warn(
+          `LLM provider fetch failed (${attempt}/${PROVIDER_FETCH_ATTEMPTS}): ${this.describeFetchError(err)}`,
+        );
+        if (attempt < PROVIDER_FETCH_ATTEMPTS) {
+          await this.delay(500 * attempt);
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
+  private describeFetchError(err: unknown): string {
+    if (!(err instanceof Error)) return String(err);
+
+    const cause = err.cause as { code?: string; message?: string } | undefined;
+    if (cause?.code || cause?.message) {
+      return `${err.message} (${[cause.code, cause.message].filter(Boolean).join(': ')})`;
+    }
+    return err.message;
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private selectFallbackProvider(
+    failedModel: string,
+    requestedModel?: string,
+  ): { baseUrl: string; apiKey: string; model: string } | null {
+    if (requestedModel) return null;
+    if (!failedModel.includes('deepseek')) return null;
+
+    const apiKey = this.configService.get('KIMI_API_KEY', '');
+    if (!apiKey) return null;
+
+    return {
+      baseUrl: this.configService.get('KIMI_BASE_URL', 'https://api.moonshot.cn'),
+      apiKey,
+      model: this.configService.get('KIMI_MODEL', 'moonshot-v1-8k'),
+    };
   }
 
   private selectProvider(requestedModel?: string): { baseUrl: string; apiKey: string; model: string } {
