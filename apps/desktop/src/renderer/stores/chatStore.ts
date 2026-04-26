@@ -298,3 +298,17 @@ const _chatStoreCreator: StateCreator<ChatState> = (set) => ({
     }),
 });
 export const useChatStore = createBoundStore(_chatStoreCreator);
+
+export function resetChatStore(): void {
+  useChatStore.setState({
+    currentUserId: null,
+    converses: [],
+    activeConverseId: null,
+    messages: {},
+    typingUsers: {},
+    hasMore: {},
+    cursors: {},
+    readReceipts: {},
+    streamingMessages: {},
+  });
+}

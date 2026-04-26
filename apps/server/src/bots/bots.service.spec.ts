@@ -369,6 +369,8 @@ describe('BotsService', () => {
 
   describe('saveBotReply()', () => {
     const replyDto = { converseId: 'converse-001', content: 'Bot reply text' };
+    const createdAt = new Date('2026-02-14T12:00:00.000Z');
+    const updatedAt = new Date('2026-02-14T12:01:00.000Z');
 
     const mockSavedMessage = {
       id: 'msg-999',
@@ -377,8 +379,10 @@ describe('BotsService', () => {
       authorId: 'bot-user-001',
       author: { id: 'bot-user-001', username: 'bot_test', displayName: 'Test Bot', avatarUrl: null },
       type: 'TEXT',
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      replyToId: null,
+      metadata: null,
+      createdAt,
+      updatedAt,
     };
 
     beforeEach(() => {
@@ -408,7 +412,18 @@ describe('BotsService', () => {
         },
       });
       expect(mockBroadcastService.toRoom).toHaveBeenCalledWith(
-        'converse-001', 'message:new', mockSavedMessage,
+        'converse-001', 'message:new', {
+          id: 'msg-999',
+          content: 'Bot reply text',
+          type: 'TEXT',
+          authorId: 'bot-user-001',
+          author: mockSavedMessage.author,
+          converseId: 'converse-001',
+          replyToId: null,
+          metadata: null,
+          createdAt: createdAt.toISOString(),
+          updatedAt: updatedAt.toISOString(),
+        },
       );
       expect(result).toEqual(mockSavedMessage);
     });

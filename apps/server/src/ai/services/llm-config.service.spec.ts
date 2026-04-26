@@ -2,11 +2,11 @@ import { ConfigService } from '@nestjs/config';
 
 let mockComplete: jest.Mock;
 
-jest.mock('@mariozechner/pi-ai', () => ({
-  complete: (...args: unknown[]) => mockComplete(...args),
-}), { virtual: true });
-
-import { LlmConfigService } from '../llm-config.service';
+import {
+  LlmConfigService,
+  resetPiAiLoaderForTest,
+  setPiAiLoaderForTest,
+} from '../llm-config.service';
 
 describe('LlmConfigService', () => {
   let svc: LlmConfigService;
@@ -14,8 +14,15 @@ describe('LlmConfigService', () => {
 
   beforeEach(() => {
     mockComplete = jest.fn();
+    setPiAiLoaderForTest(async () => ({
+      complete: (...args: unknown[]) => mockComplete(...args),
+    }) as any);
     mockConfig = { get: jest.fn().mockReturnValue('test-key') };
     svc = new LlmConfigService(mockConfig as unknown as ConfigService);
+  });
+
+  afterEach(() => {
+    resetPiAiLoaderForTest();
   });
 
   describe('getModel', () => {

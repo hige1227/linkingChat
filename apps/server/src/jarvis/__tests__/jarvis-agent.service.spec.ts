@@ -1,21 +1,18 @@
-// Mock the ESM package before any imports that pull it in at runtime.
-// pi-agent-core ships as pure ESM and ts-jest cannot transform it without
-// extra config.  A minimal in-memory stub satisfies all behavioural contracts
-// the tests exercise (caching, restore call, onModuleDestroy).
-jest.mock('@mariozechner/pi-agent-core', () => {
-  class Agent {
-    readonly state = { messages: [] as unknown[] };
-    subscribe = jest.fn();
-    prompt = jest.fn().mockResolvedValue(undefined);
-    continue = jest.fn().mockResolvedValue(undefined);
-    followUp = jest.fn();
-    steer = jest.fn();
-    constructor(_opts?: unknown) {}
-  }
-  return { Agent };
-});
+import {
+  JarvisAgentService,
+  resetPiAgentCoreLoaderForTest,
+  setPiAgentCoreLoaderForTest,
+} from '../jarvis-agent.service';
 
-import { JarvisAgentService } from '../jarvis-agent.service';
+class MockAgent {
+  readonly state = { messages: [] as unknown[] };
+  subscribe = jest.fn();
+  prompt = jest.fn().mockResolvedValue(undefined);
+  continue = jest.fn().mockResolvedValue(undefined);
+  followUp = jest.fn();
+  steer = jest.fn();
+  constructor(_opts?: unknown) {}
+}
 
 const mockToolRegistry = { buildTools: jest.fn().mockReturnValue([]) };
 const mockMemoryService = {
@@ -34,6 +31,7 @@ describe('JarvisAgentService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    setPiAgentCoreLoaderForTest(async () => ({ Agent: MockAgent as any }));
     svc = new JarvisAgentService(
       mockToolRegistry as any,
       mockMemoryService as any,
@@ -42,7 +40,10 @@ describe('JarvisAgentService', () => {
     );
   });
 
-  afterEach(() => svc.onModuleDestroy());
+  afterEach(() => {
+    svc.onModuleDestroy();
+    resetPiAgentCoreLoaderForTest();
+  });
 
   it('getOrCreate() returns the same Agent instance on repeated calls', async () => {
     const a1 = await svc.getOrCreate('user-1');

@@ -51,7 +51,7 @@ export class BotsService {
       const botUser = await tx.user.create({
         data: {
           email: `bot-${randomBytes(8).toString('hex')}@bot.linkingchat.internal`,
-          username: `bot_${dto.name.toLowerCase().replace(/\s/g, '_')}_${Date.now()}`,
+          username: `bot_${dto.name.toLowerCase().replace(/\s/g, '_')}_${randomBytes(8).toString('hex')}`,
           password: await argon2.hash(randomBytes(32).toString('hex')),
           displayName: dto.name,
           avatarUrl: dto.avatarUrl,
@@ -230,7 +230,7 @@ export class BotsService {
     const botUser = await tx.user.create({
       data: {
         email: `bot-${randomBytes(8).toString('hex')}@bot.linkingchat.internal`,
-        username: `bot_${config.name.toLowerCase().replace(/\s/g, '_')}_${Date.now()}`,
+        username: `bot_${config.name.toLowerCase().replace(/\s/g, '_')}_${randomBytes(8).toString('hex')}`,
         password: await argon2.hash(randomBytes(32).toString('hex')),
         displayName: config.name,
       },
@@ -343,7 +343,18 @@ export class BotsService {
       },
     });
 
-    this.broadcastService.toRoom(dto.converseId, 'message:new', message);
+    this.broadcastService.toRoom(dto.converseId, 'message:new', {
+      id: message.id,
+      content: message.content,
+      type: message.type,
+      authorId: message.authorId,
+      author: message.author,
+      converseId: message.converseId,
+      replyToId: message.replyToId,
+      metadata: message.metadata,
+      createdAt: message.createdAt.toISOString(),
+      updatedAt: message.updatedAt.toISOString(),
+    });
 
     return message;
   }

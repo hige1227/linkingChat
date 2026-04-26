@@ -1,11 +1,11 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { Agent } from '@mariozechner/pi-agent-core';
+import type { Agent } from '@mariozechner/pi-agent-core';
 import type { BeforeToolCallContext, BeforeToolCallResult, AfterToolCallContext } from '@mariozechner/pi-agent-core';
 import type { AgentEvent } from '@mariozechner/pi-agent-core';
 import { JarvisToolRegistry } from './jarvis-tool.registry';
-import type { JarvisMemoryService } from './jarvis-memory.service';
-import type { BroadcastService } from '../gateway/broadcast.service';
-import type { LlmConfigService } from '../ai/llm-config.service';
+import { JarvisMemoryService } from './jarvis-memory.service';
+import { BroadcastService } from '../gateway/broadcast.service';
+import { LlmConfigService } from '../ai/llm-config.service';
 
 const SYSTEM_PROMPT = `你是贾维斯（Jarvis），用户的私人 AI 社交助理。
 职责：帮助用户维护社交关系、主动提醒沉默联系人、生成高情商消息草稿。
@@ -17,6 +17,25 @@ const CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
 
 const DANGEROUS_TOOLS = ['send_message', 'execute_device_command'];
 
+type PiAgentCoreModule = Pick<typeof import('@mariozechner/pi-agent-core'), 'Agent'>;
+type PiAgentCoreLoader = () => Promise<PiAgentCoreModule>;
+
+const dynamicImport = new Function('specifier', 'return import(specifier)') as <T>(
+  specifier: string,
+) => Promise<T>;
+
+const defaultPiAgentCoreLoader: PiAgentCoreLoader = () =>
+  dynamicImport<PiAgentCoreModule>('@mariozechner/pi-agent-core');
+let piAgentCoreLoader: PiAgentCoreLoader = defaultPiAgentCoreLoader;
+
+export function setPiAgentCoreLoaderForTest(loader: PiAgentCoreLoader): void {
+  piAgentCoreLoader = loader;
+}
+
+export function resetPiAgentCoreLoaderForTest(): void {
+  piAgentCoreLoader = defaultPiAgentCoreLoader;
+}
+
 interface AgentEntry {
   readonly agent: Agent;
   readonly lastActiveAt: number;
@@ -27,6 +46,7 @@ export class JarvisAgentService implements OnModuleDestroy {
   private readonly logger = new Logger(JarvisAgentService.name);
   private readonly agents = new Map<string, AgentEntry>();
   private cleanupInterval?: NodeJS.Timeout;
+  private piAgentCoreModulePromise?: Promise<PiAgentCoreModule>;
 
   constructor(
     private readonly toolRegistry: JarvisToolRegistry,
@@ -37,6 +57,7 @@ export class JarvisAgentService implements OnModuleDestroy {
     this.cleanupInterval = setInterval(() => {
       void this.evictInactive();
     }, CLEANUP_INTERVAL_MS);
+    this.cleanupInterval.unref?.();
   }
 
   onModuleDestroy(): void {
@@ -53,6 +74,7 @@ export class JarvisAgentService implements OnModuleDestroy {
 
     const savedMessages = await this.memoryService.restore(userId);
     const tools = this.toolRegistry.buildTools(userId);
+    const { Agent } = await this.loadPiAgentCore();
 
     const agent = new Agent({
       initialState: {
@@ -146,5 +168,10 @@ export class JarvisAgentService implements OnModuleDestroy {
         this.logger.debug(`Evicted inactive agent for user ${userId}`);
       }
     }
+  }
+
+  private loadPiAgentCore(): Promise<PiAgentCoreModule> {
+    this.piAgentCoreModulePromise ??= piAgentCoreLoader();
+    return this.piAgentCoreModulePromise;
   }
 }

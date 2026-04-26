@@ -1,12 +1,31 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { complete, type Context, type Model, type TextContent } from '@mariozechner/pi-ai';
+import type { Context, Model, TextContent } from '@mariozechner/pi-ai';
 
 export type LlmTaskType = 'whisper' | 'predictive' | 'chat' | 'draft' | 'complex_analysis';
+
+type PiAiModule = Pick<typeof import('@mariozechner/pi-ai'), 'complete'>;
+type PiAiLoader = () => Promise<PiAiModule>;
+
+const dynamicImport = new Function('specifier', 'return import(specifier)') as <T>(
+  specifier: string,
+) => Promise<T>;
+
+const defaultPiAiLoader: PiAiLoader = () => dynamicImport<PiAiModule>('@mariozechner/pi-ai');
+let piAiLoader: PiAiLoader = defaultPiAiLoader;
+
+export function setPiAiLoaderForTest(loader: PiAiLoader): void {
+  piAiLoader = loader;
+}
+
+export function resetPiAiLoaderForTest(): void {
+  piAiLoader = defaultPiAiLoader;
+}
 
 @Injectable()
 export class LlmConfigService implements OnModuleInit {
   private readonly logger = new Logger(LlmConfigService.name);
+  private piAiModulePromise?: Promise<PiAiModule>;
 
   private readonly deepseekModel: Model<'openai-completions'> = {
     id: 'deepseek-chat',
@@ -80,6 +99,7 @@ export class LlmConfigService implements OnModuleInit {
     });
 
     try {
+      const { complete } = await this.loadPiAi();
       const result = await Promise.race([complete(model, context, callOptions), timeoutPromise]);
       clearTimeout(timeoutHandle!);
       if (!result) return null;
@@ -93,5 +113,10 @@ export class LlmConfigService implements OnModuleInit {
       this.logger.error(`LLM call failed [${taskType}]: ${msg}`);
       return null;
     }
+  }
+
+  private loadPiAi(): Promise<PiAiModule> {
+    this.piAiModulePromise ??= piAiLoader();
+    return this.piAiModulePromise;
   }
 }

@@ -18,6 +18,7 @@ export function Login({ onLoginSuccess, onForgotPassword }: LoginProps) {
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -29,6 +30,12 @@ export function Login({ onLoginSuccess, onForgotPassword }: LoginProps) {
     let result: AuthResult;
 
     if (isRegister) {
+      if (password !== confirmPassword) {
+        setError('两次密码不一致');
+        setLoading(false);
+        return;
+      }
+
       if (window.electronAPI) {
         result = await window.electronAPI.register({ email, username, password, displayName });
       } else {
@@ -74,6 +81,7 @@ export function Login({ onLoginSuccess, onForgotPassword }: LoginProps) {
   const switchMode = () => {
     setIsRegister(!isRegister);
     setError('');
+    setConfirmPassword('');
   };
 
   return (
@@ -132,6 +140,20 @@ export function Login({ onLoginSuccess, onForgotPassword }: LoginProps) {
             minLength={isRegister ? 8 : undefined}
           />
         </div>
+        {isRegister && (
+          <div className="form-group">
+            <label htmlFor="confirm-password">确认密码</label>
+            <input
+              id="confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="再次输入密码"
+              required
+              minLength={8}
+            />
+          </div>
+        )}
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className="btn-primary" disabled={loading}>
           {loading

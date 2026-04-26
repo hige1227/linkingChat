@@ -14,7 +14,7 @@
 }
 
 /* Loading & Error */
-.loading-spinner {
+.profile-loading-spinner {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -23,7 +23,7 @@
   color: var(--text-3);
 }
 
-.error-message {
+.profile-error-message {
   display: flex;
   align-items: center;
   justify-content: center;

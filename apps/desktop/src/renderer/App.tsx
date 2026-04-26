@@ -8,6 +8,7 @@ import { MainLayout } from './layouts/MainLayout';
 import { ChatPage } from './pages/ChatPage';
 import { ProfilePage } from './pages/profile/ProfilePage';
 import { FriendsPage } from './pages/FriendsPage';
+import { resetClientState } from './stores/resetClientState';
 import './styles/global.css';
 import './styles/chat.css';
 import './styles/friends.css';
@@ -36,6 +37,17 @@ function App() {
 
   if (checking) return null;
 
+  const handleAuthSuccess = () => {
+    resetClientState();
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    resetClientState();
+    setAuthView('login');
+    setIsLoggedIn(false);
+  };
+
   if (!isLoggedIn) {
     if (authView === 'forgotPassword') {
       return (
@@ -61,7 +73,7 @@ function App() {
 
     return (
       <Login
-        onLoginSuccess={() => setIsLoggedIn(true)}
+        onLoginSuccess={handleAuthSuccess}
         onForgotPassword={() => setAuthView('forgotPassword')}
       />
     );
@@ -70,12 +82,12 @@ function App() {
   return (
     <HashRouter>
       <Routes>
-        <Route path="/" element={<MainLayout onLogout={() => setIsLoggedIn(false)} />}>
+        <Route path="/" element={<MainLayout onLogout={handleLogout} />}>
           <Route index element={<Navigate to="/chat" replace />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="chat/:converseId" element={<ChatPage />} />
           <Route path="contacts" element={<FriendsPage />} />
-          <Route path="devices" element={<Dashboard onLogout={() => setIsLoggedIn(false)} />} />
+          <Route path="devices" element={<Dashboard onLogout={handleLogout} />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Routes>

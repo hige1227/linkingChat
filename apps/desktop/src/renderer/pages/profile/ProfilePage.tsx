@@ -166,7 +166,7 @@ export const ProfilePage: React.FC = () => {
   if (loading) {
     return (
       <div className="profile-page">
-        <div className="loading-spinner">{t('loading')}</div>
+        <div className="profile-loading-spinner">{t('loading')}</div>
       </div>
     );
   }
@@ -174,7 +174,7 @@ export const ProfilePage: React.FC = () => {
   if (error || !profile) {
     return (
       <div className="profile-page">
-        <div className="error-message">{error || 'Failed to load profile'}</div>
+        <div className="profile-error-message">{error || 'Failed to load profile'}</div>
       </div>
     );
   }

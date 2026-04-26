@@ -39,6 +39,23 @@ function notifyConnected(connected: boolean) {
   }
 }
 
+export function resetChatSocket(): void {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+
+  if (sharedSocket) {
+    sharedSocket.removeAllListeners();
+    sharedSocket.disconnect();
+    sharedSocket = null;
+  }
+
+  sharedJoinedRooms.clear();
+  connectionInitiated = false;
+  notifyConnected(false);
+}
+
 async function refreshSocketAuth(socket: Socket, forceRefresh = false): Promise<boolean> {
   if (!window.electronAPI) return false;
 

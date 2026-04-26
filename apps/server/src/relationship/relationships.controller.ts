@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EmailVerifiedGuard } from '../auth/guards/email-verified.guard';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,9 +11,10 @@ export class RelationshipsController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
-  async findAll(@Request() req: { user: { id: string } }): Promise<RelationshipResponseDto[]> {
+  async findAll(@Request() req: { user: { id?: string; userId?: string; sub?: string } }): Promise<RelationshipResponseDto[]> {
+    const userId = this.getRequestUserId(req);
     const profiles = await this.prisma.relationshipProfile.findMany({
-      where: { userId: req.user.id },
+      where: { userId },
       orderBy: [{ tier: 'asc' }, { lastInteractionAt: 'desc' }],
       include: {
         events: { where: { isActive: true }, take: 3, orderBy: { extractedAt: 'desc' } },
@@ -38,13 +39,14 @@ export class RelationshipsController {
 
   @Patch(':contactId')
   async update(
-    @Request() req: { user: { id: string } },
+    @Request() req: { user: { id?: string; userId?: string; sub?: string } },
     @Param('contactId') contactId: string,
     @Body() dto: UpdateRelationshipDto,
   ): Promise<RelationshipResponseDto> {
+    const userId = this.getRequestUserId(req);
     const profile = await this.prisma.relationshipProfile.upsert({
-      where: { userId_contactId: { userId: req.user.id, contactId } },
-      create: { userId: req.user.id, contactId, ...dto },
+      where: { userId_contactId: { userId, contactId } },
+      create: { userId, contactId, ...dto },
       update: dto,
       include: { events: { where: { isActive: true }, take: 3, orderBy: { extractedAt: 'desc' } } },
     });
@@ -63,5 +65,13 @@ export class RelationshipsController {
       lastKeyEventSummary: profile.lastKeyEventSummary,
       recentEvents: profile.events.map((e) => ({ type: e.type, summary: e.summary })),
     };
+  }
+
+  private getRequestUserId(req: { user?: { id?: string; userId?: string; sub?: string } }): string {
+    const userId = req.user?.userId ?? req.user?.id ?? req.user?.sub;
+    if (!userId) {
+      throw new ForbiddenException('Authentication required');
+    }
+    return userId;
   }
 }

@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { RelationshipTier } from '@prisma/client';
 import type { AgentTool, AgentToolResult } from '@mariozechner/pi-agent-core';
-import type { PrismaService } from '../prisma/prisma.service';
-import type { BotsService } from '../bots/bots.service';
-import type { BroadcastService } from '../gateway/broadcast.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { BotsService } from '../bots/bots.service';
+import { BroadcastService } from '../gateway/broadcast.service';
 
 type AnySchema = Record<string, unknown>;
 

@@ -234,3 +234,12 @@ const _friendsStoreCreator: StateCreator<FriendsState> = (set, get) => ({
   },
 });
 export const useFriendsStore = createBoundStore(_friendsStoreCreator);
+
+export function resetFriendsStore(): void {
+  useFriendsStore.setState({
+    friends: [],
+    receivedRequests: [],
+    sentRequests: [],
+    isLoading: false,
+  });
+}

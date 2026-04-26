@@ -159,3 +159,11 @@ const _aiStoreCreator: StateCreator<AiState> = (set) => ({
     })),
 });
 export const useAiStore = createBoundStore(_aiStoreCreator);
+
+export function resetAiStore(): void {
+  useAiStore.setState({
+    whisper: {},
+    drafts: {},
+    predictions: {},
+  });
+}
