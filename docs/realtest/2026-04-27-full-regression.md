@@ -133,7 +133,7 @@ P1 可以有遗留，但必须记录:
 | C10 | 群聊创建与群消息 | OWNER/MEMBER 正确，消息可达 | PASS(API) | 群 `cmogj8wkp001xgde8vvddk7t7`；群消息 `cmogj8wl2001zgde8d4dikpwu` |
 | C11 | 搜索英文/中文消息 | 结果权限正确 | PASS(API) | `test` 与 `中文搜索` 均返回 1 条结果；跨用户权限待 UI/负向补测 |
 | C12 | 个人资料与状态 | 昵称/在线状态更新 | PASS(API) | A 昵称改为 `Regression A 20260427093809`，状态 `IDLE` |
-| C13 | i18n 切换 | 中英文切换并持久化 | PARTIAL | 用户确认语言退出/重登持久化已可用；补测发现 Profile 非最大化无法滚动到底部、状态文案仍硬编码中文；已修复 Profile 容器内滚动和状态文案 i18n，并重建 `win-unpacked`，等待用户最终复测 |
+| C13 | i18n 切换 | 中英文切换并持久化 | PASS | 用户确认语言退出/重登持久化可用；Profile 非最大化可滚动到底部；状态文案已随语言切换为 `Online / Idle / Do Not Disturb / Offline` |
 | C14 | 忘记密码/重置密码 | 邮件验证码、旧密码失效、新密码可登录 | PASS(API) | C 账号 MailDev 收到重置邮件；旧密码失效，新密码登录成功 |
 | C15 | 登录/注册/消息限流 | 超限返回 429 或明确错误 | PASS(API) | 本地 3008 实测：登录 `401,401,401,401,401,429`；注册因先创建 2 个准备账号，后续 `201,201,201,429,429,429`；消息发送 `201 x30` 后第 31 条 `429` |
 
@@ -260,6 +260,7 @@ P1 可以有遗留，但必须记录:
 | 2026-04-28 19:48 CST | 用户 + Codex | `win-unpacked` 双击启动复测 | FIXED | 用户反馈双击 `win-unpacked/LinkingChat.exe` 无法打开；本机发现 3 个无主窗口句柄的旧 `LinkingChat.exe` 残留进程仍持有单实例锁；清理后可启动。已增强 `second-instance` 逻辑：无窗口或窗口已销毁时重新创建窗口，并在 `closed` 时清空 `mainWindow`；重建 `dist:dir` 后启动成功，二次启动未新增进程 |
 | 2026-04-28 20:07 CST | 用户 + Codex | C13 i18n 持久化复测 | FAIL -> FIXED | 用户确认切换 English 后退出/重登仍保持中文；修复 Profile 页退出时保留 `localStorage.locale`，避免清空语言偏好；`type-check`、Jest、`electron-vite build`、`dist:dir` 通过并已启动新产物，等待用户最终复测 |
 | 2026-04-28 20:28 CST | 用户 + Codex | Profile 滚动与状态 i18n 复测 | FIXED | 用户确认语言持久化已可用，但发现非最大化 Profile 页无法滚动到底部，且 `在线/离线/离开/请勿打扰` 始终中文；已将 Profile 页改为 `height: 100%; min-height: 0; overflow-y: auto`，状态文案改用 i18n key；`type-check`、Jest、build、`dist:dir` 通过并已启动新产物 |
+| 2026-04-28 20:31 CST | 用户 | C13 i18n 最终复测 | PASS | 用户确认 Profile 页滚动、状态英文文案和语言持久化通过，C13 收口为 PASS |
 
 ## 14. 问题清单
 
@@ -287,7 +288,7 @@ P1 可以有遗留，但必须记录:
 | BUG-006 | BLOCKER | 生产命令 WebSocket | `device:command:send` 只按 `targetDeviceId` 房间广播，未验证设备归属和目标 socket 用户；任意已登录用户若知道 `deviceId`，可向他人在线 Desktop 派发 shell 命令 | FIXED | 已在 `DeviceGateway` 增加 `devicesService.findOneById(targetDeviceId, userId)` 校验，并只向 `userId` 与 `deviceId` 均匹配的 socket id 派发；新增单测；生产热修复后跨用户复测返回 `DEVICE_NOT_AVAILABLE`，DB 未写入 `SHOULD_NOT_RUN_20260428` 命令 |
 | BUG-007 | MEDIUM | Desktop 导航 | `ProfilePage` 和 i18n 设置路由存在，但侧边栏没有 Profile/Settings 入口，用户无法从正常 UI 发现语言切换 | FIXED | 已在 `MainLayout` 侧边栏设备图标下方新增 Profile 图标入口；当前旧运行产物可用 DevTools `window.location.hash = '#/profile'` 跳转，下一次打包重建后直接可见 |
 | BUG-008 | HIGH | Desktop 打包版 | 残留无窗口 `LinkingChat.exe` 进程仍持有单实例锁时，用户双击 `win-unpacked/LinkingChat.exe` 会被二次实例逻辑拦截，但旧实例没有窗口可聚焦，表现为无法打开程序 | FIXED | 已修复 `second-instance`：当 `mainWindow` 不存在或已销毁时重新 `createWindow()`，并在窗口 `closed` 时清空引用；`dist:dir` 重建后启动成功，重复启动未增加进程 |
-| BUG-009 | MEDIUM | Desktop i18n | Profile 页退出登录调用 `localStorage.clear()`，会删除 `locale`，导致语言切换在退出/重登后丢失并回退到系统中文 | FIXED | 已改为清理前读取 `locale`，清理后写回；新 `win-unpacked` 已重建并启动，等待用户复测确认 C13 PASS |
+| BUG-009 | MEDIUM | Desktop i18n | Profile 页退出登录调用 `localStorage.clear()`，会删除 `locale`，导致语言切换在退出/重登后丢失并回退到系统中文 | FIXED | 已改为清理前读取 `locale`，清理后写回；用户复测确认 C13 PASS |
 | BUG-010 | MEDIUM | Desktop Profile | Profile 页在主布局 `overflow: hidden` 下使用 `min-height: 100vh`，非最大化窗口时底部内容被裁掉且无法滚动；状态标签硬编码中文，未随语言切换 | FIXED | 已改为 Profile 页自身占满父容器并滚动，底部增加 padding；状态配置改为 i18n key，使用 `online/idle/doNotDisturb/offline` 翻译；新 `win-unpacked` 已重建并启动 |
 
 ## 15. 当前结论
