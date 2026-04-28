@@ -151,7 +151,7 @@ P1 可以有遗留，但必须记录:
 | D8 | LLM 限流 | 超过分钟限制后返回清晰错误，不写 usage | PASS | 对 C 账号预置 `llm:rate:min:<userId>=20` 后请求 `llm-proxy`，SSE 返回 `Rate limit exceeded (per minute)`；`ai_usage` 未新增 |
 | D9 | `ai_usage` 落库 | 成功 AI 调用写 usage | PASS(API) | A 账号 `/ai/llm-proxy` 真实调用写入 1 行：`deepseek-chat`，prompt 14，completion 6 |
 | D10 | Jarvis/Supervisor 状态 | `jarvis_states` 持久化 | PASS | 本地真实 Redis/Postgres 服务级验证：`JarvisMemoryService.save()` 为 `jarvis-state-20260428125440@test.local` 写入 Redis 和 `jarvis_states`，DB row `cmoimoowa0002gd5sk0qs5d35`，Redis/DB fallback restore 均返回 2 条消息；`jarvis-memory.service.spec.ts` 5 tests passed |
-| D11 | Whisper / Draft / Predictive | 卡片显示与操作结果正确 | TODO | |
+| D11 | Whisper / Draft / Predictive | 卡片显示与操作结果正确 | PASS(WS+DB) | 生产 `/chat` WS 实测账号 `d7-fallback-20260428222141@test.local`：Whisper suggestions 到达并 accept，`ai_suggestions` `cmoiqkzbp000lpg018ktip1ya` 状态 `ACCEPTED`；Draft card 到达并 approve，`ai_drafts` `cmoiql0lp000npg01sxgd9db3` 状态 `APPROVED`；Predictive card 到达并 execute，`ai_suggestions` `cmoiql4p6000ppg01hf16bjsu` 状态 `ACCEPTED`；相关单测 Whisper 29 / Draft 14 / Predictive 26 / ChatGateway AI 10 通过；视觉层未单独人工截图确认 |
 
 ## 10. P4 真实桌面命令执行回归
 
@@ -267,6 +267,7 @@ P1 可以有遗留，但必须记录:
 | 2026-04-28 22:23 CST | Codex | D7 DeepSeek/Kimi fallback | PASS | 生产临时注入 DeepSeek 故障后 `/ai/llm-proxy` 仍返回 SSE；`ai_usage` 对 `d7-fallback-20260428222141@test.local` 记录 `moonshot-v1-8k`，恢复配置后下一条记录为 `deepseek-chat`；公网 health 恢复 200 |
 | 2026-04-28 22:30 CST | Codex | E6 Redis 故障恢复 | PASS | 停止生产 Redis 后 AI Gateway 快速返回清晰错误且不写 usage；恢复 Redis 后 AI smoke 和真实桌面命令均通过，命令 `cmoiq32yw000bpg018sbvsjya` 输出 `E6_COMMAND_RECOVERY_20260428222948` |
 | 2026-04-28 22:33 CST | Codex | E5 Desktop 离线状态 | PASS | 关闭打包版后 `device-yehui-win32` 变为 `OFFLINE`，重启 `win-unpacked/LinkingChat.exe` 后恢复 `ONLINE`；当前打包版主窗口已重新启动 |
+| 2026-04-28 22:45 CST | Codex | D11 AI 卡片 WS/DB 链路 | PASS(WS+DB) | 生产 WS 收到 Whisper、Draft、Predictive 三类卡片 payload，accept/approve/execute 均返回成功且 DB 状态更新；UI 视觉层未单独截图确认 |
 
 ## 14. 问题清单
 
@@ -301,5 +302,5 @@ P1 可以有遗留，但必须记录:
 ## 15. 当前结论
 
 ```text
-测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令、设备离线/恢复和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复、长流式回复切换和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。D3/D4 长流式回复切换发现桌面端跨会话发送锁问题，已修复并由用户复测通过；D7 已通过生产受控 DeepSeek 故障注入，确认 fallback 到 Kimi/Moonshot 且恢复后回到 DeepSeek；E6 已通过生产 Redis 故障注入和恢复后真实桌面命令 smoke。剩余遗留集中在生产回滚实演和安装器体验：安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
+测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令、设备离线/恢复、AI 卡片 WS/DB 链路和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复、长流式回复切换和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。D3/D4 长流式回复切换发现桌面端跨会话发送锁问题，已修复并由用户复测通过；D7 已通过生产受控 DeepSeek 故障注入，确认 fallback 到 Kimi/Moonshot 且恢复后回到 DeepSeek；E6 已通过生产 Redis 故障注入和恢复后真实桌面命令 smoke。剩余遗留集中在生产回滚实演和安装器体验：安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
 ```
