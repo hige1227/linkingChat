@@ -181,6 +181,41 @@ export class DeviceGateway
     const payload = envelope.data;
 
     try {
+      try {
+        await this.devicesService.findOneById(payload.targetDeviceId, userId);
+      } catch {
+        return {
+          requestId: envelope.requestId,
+          success: false,
+          error: {
+            code: 'DEVICE_NOT_AVAILABLE',
+            message: 'Target device is not available',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const targetSockets = await this.namespace
+        .in(`d-${payload.targetDeviceId}`)
+        .fetchSockets();
+      const authorizedTargets = targetSockets.filter(
+        (socket) =>
+          socket.data.userId === userId &&
+          socket.data.deviceId === payload.targetDeviceId,
+      );
+
+      if (authorizedTargets.length === 0) {
+        return {
+          requestId: envelope.requestId,
+          success: false,
+          error: {
+            code: 'DEVICE_OFFLINE',
+            message: 'Target device is offline',
+          },
+          timestamp: new Date().toISOString(),
+        };
+      }
+
       if (payload.type === 'shell' && isDangerousCommand(payload.action)) {
         this.logger.warn(
           `Dangerous command blocked: "${payload.action}" from user ${userId}`,
@@ -216,9 +251,11 @@ export class DeviceGateway
         timeout: payload.timeout ?? 30000,
       };
 
-      this.namespace
-        .to(`d-${payload.targetDeviceId}`)
-        .emit('device:command:execute', commandToExecute);
+      for (const targetSocket of authorizedTargets) {
+        this.namespace
+          .to(targetSocket.id)
+          .emit('device:command:execute', commandToExecute);
+      }
 
       this.namespace
         .to(`u-${userId}`)

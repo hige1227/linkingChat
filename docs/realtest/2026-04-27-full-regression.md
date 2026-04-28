@@ -72,7 +72,7 @@ P1 可以有遗留，但必须记录:
 | 本地 Desktop 开发版 | `pnpm dev:server` + `pnpm dev:desktop` | PASS | 用户确认 UI smoke 通过；DB 看到 A 账号设备在线、Bot 回复和真实 AI usage；服务重启后 Desktop 自动重连 |
 | 本地 Desktop 打包版 | `pnpm --filter @linkingchat/desktop dist:dir` + `win-unpacked/LinkingChat.exe` | PASS | 打包产物构建、启动、设备上线、用户确认 UI、真实 AI 回复、真实命令执行通过 |
 | 本地 Docker 基础服务 | PostgreSQL、Redis、MinIO、MailDev、OpenClaw | PASS | PostgreSQL/Redis/MailDev/OpenClaw healthy；MinIO running |
-| 生产部署流程 | 构建、迁移、发布、健康检查、回滚 | PASS | 生产 server 发布、迁移、备份、容器健康检查、Nginx HTTPS 入口、API smoke、WebSocket smoke 通过；Desktop UI 生产 smoke 未做人工确认 |
+| 生产部署流程 | 构建、迁移、发布、健康检查、回滚 | PASS | 生产 server 发布、迁移、备份、容器健康检查、Nginx HTTPS 入口、API smoke、WebSocket smoke、Desktop UI smoke 与命令授权热修复复测通过 |
 
 ## 5. 测试账号规划
 
@@ -135,7 +135,7 @@ P1 可以有遗留，但必须记录:
 | C12 | 个人资料与状态 | 昵称/在线状态更新 | PASS(API) | A 昵称改为 `Regression A 20260427093809`，状态 `IDLE` |
 | C13 | i18n 切换 | 中英文切换并持久化 | TODO | |
 | C14 | 忘记密码/重置密码 | 邮件验证码、旧密码失效、新密码可登录 | PASS(API) | C 账号 MailDev 收到重置邮件；旧密码失效，新密码登录成功 |
-| C15 | 登录/注册/消息限流 | 超限返回 429 或明确错误 | TODO | |
+| C15 | 登录/注册/消息限流 | 超限返回 429 或明确错误 | PASS(API) | 本地 3008 实测：登录 `401,401,401,401,401,429`；注册因先创建 2 个准备账号，后续 `201,201,201,429,429,429`；消息发送 `201 x30` 后第 31 条 `429` |
 
 ## 9. P3 AI、Bot 与稳定性回归
 
@@ -159,7 +159,7 @@ P1 可以有遗留，但必须记录:
 |------|--------|------|------|------|
 | E1 | Desktop 注册为设备 | 设备在线 | PASS | `device-yehui-win32`，用户 `regression-a-20260427093809@test.local`，状态 `ONLINE` |
 | E2 | 真实安全命令 | 例如 `echo LINKCHAT_REGRESSION_20260427` 返回正确输出 | PASS | 修复后命令 `echo LINKCHAT_REGRESSION_20260427_FIXED` 返回正确输出，source=`child_process` |
-| E3 | PowerShell 命令 | 例如查询当前目录或时间，返回真实结果 | TODO | |
+| E3 | PowerShell 命令 | 例如查询当前目录或时间，返回真实结果 | PASS | 生产打包版真实执行 `powershell -NoProfile -Command "Write-Output 'LINKCHAT_POWERSHELL_20260428'; Get-Date -Format o"`，命令 `cmoia63ta0059pg0183xtaboc`，source=`child_process`，输出包含 `LINKCHAT_POWERSHELL_20260428` 和 `2026-04-28T15:04:48.7331431+08:00` |
 | E4 | 危险命令拦截 | `format C:` / `rm -rf /` 不执行且提示风险 | PASS | `format C:` 返回 `COMMAND_DANGEROUS`，未派发到 Desktop |
 | E5 | Desktop 离线状态 | 关闭 Desktop 后设备离线 | TODO | |
 | E6 | Server/Redis 故障恢复 | 依赖恢复后命令链路恢复 | TODO | |
@@ -251,6 +251,11 @@ P1 可以有遗留，但必须记录:
 | 2026-04-28 11:58 CST | 用户 + Codex | 安装器 assisted 流程复测 | PARTIAL | 已出现标准向导、可取消、可选安装路径；但进入“正在安装”后无法取消，且没有显示详细进度或日志 |
 | 2026-04-28 13:58 CST | 用户 + Codex | 打包版冷启动/退出/重登 | PASS | `win-unpacked` 冷启动自动进入主界面，生产 `/chat` 连接成功；退出后本地 auth store 变 `{}` 且生产 chat/device 断开；重登 `ice@test.com` 后 token、chat/device 和 heartbeat 恢复 |
 | 2026-04-28 14:16 CST | 用户 + Codex | 打包版重复发送防护 | PASS | Bot 回复进行中 UI 不允许再次 Enter；生产库证据显示第二条相同内容是在第一条 Bot 回复已落库后才发送，未发现进行中重复提交 |
+| 2026-04-28 14:56 CST | Codex | C15 登录/注册/消息限流 | PASS | 本地 3008：登录第 6 次 `429`；注册同一分钟总量到 5 后返回 `429`；群消息发送第 31 条 `429` |
+| 2026-04-28 15:04 CST | Codex | 生产 PowerShell 真实命令 | PASS + BUG FOUND | 新生产测试账号向 `device-yehui-win32` 派发 PowerShell 只读命令，桌面返回 `LINKCHAT_POWERSHELL_20260428`；同时发现 `device:command:send` 可跨用户按已知 `deviceId` 派发，登记 `BUG-006` |
+| 2026-04-28 15:07 CST | Codex | 命令派发授权修复验证 | PASS | 新增 `device.gateway.spec.ts`，覆盖非本人设备拒绝、无同用户 socket 不建命令、只向同用户目标 socket 派发；`pnpm --filter @linkingchat/server test -- device.gateway.spec.ts --runInBand` 与 `type-check` 通过；server 全量 Jest 在 3 分钟超时后停止，未作为本次热修复阻断项 |
+| 2026-04-28 15:17 CST | Codex | 生产命令授权热修复发布 | PASS | 备份 `/opt/linkchat/backups/code/linkchat-code-pre-command-auth-20260428-151420.tar.gz`；重建并启动 `linkchat-server`，新镜像 `sha256:f3f33fd6cfbf440cd1a6dd80d8e8d8599f938b0bf5dfa154d13aca303aa99db2`，HTTPS health 200 |
+| 2026-04-28 15:21 CST | Codex | 跨用户命令复测 | PASS | 新测试账号再次向 `device-yehui-win32` 派发 `SHOULD_NOT_RUN_20260428`，ack 返回 `DEVICE_NOT_AVAILABLE`；生产 DB 未产生该 payload 的 command；`ice@test.com` 设备仍 `ONLINE` |
 
 ## 14. 问题清单
 
@@ -275,9 +280,10 @@ P1 可以有遗留，但必须记录:
 | BUG-005 | HIGH | Desktop 打包版 | renderer 生产构建未正确注入 API/WS 地址，聊天页请求 `localhost:3008`，导致生产 token 被本地服务拒绝并报 `AUTH_INVALID` | FIXED | 已改为显式 `__LINKINGCHAT_API_URL__`/`__LINKINGCHAT_WS_URL__` 构建常量，并重建 `win-unpacked`；产物中 renderer 指向 `https://linkchat-api.matrix-ai.com.cn`；用户复测通过 |
 | OBS-011 | MEDIUM | Desktop 安装器 | assisted 向导已恢复，但安装执行页仍无法取消，且缺少详细进度/日志 | OPEN | electron-builder NSIS 模板默认 `ShowInstDetails nevershow` 且安装 section 使用 `SetDetailsPrint none`；建议后续改自定义 NSIS script 或评估 MSI/WiX，实现详细日志、明确进度和中途取消后的回滚/清理 |
 | OBS-012 | LOW | Desktop 消息发送 | 当前防重复覆盖“发送/AI 回复进行中”场景；同一内容在 Bot 回复完成后仍可再次发送，会产生另一条消息 | OPEN | 当前行为可接受；若产品需要内容级幂等，后续应增加 client request id / idempotency key，并由服务端去重 |
+| BUG-006 | BLOCKER | 生产命令 WebSocket | `device:command:send` 只按 `targetDeviceId` 房间广播，未验证设备归属和目标 socket 用户；任意已登录用户若知道 `deviceId`，可向他人在线 Desktop 派发 shell 命令 | FIXED | 已在 `DeviceGateway` 增加 `devicesService.findOneById(targetDeviceId, userId)` 校验，并只向 `userId` 与 `deviceId` 均匹配的 socket id 派发；新增单测；生产热修复后跨用户复测返回 `DEVICE_NOT_AVAILABLE`，DB 未写入 `SHOULD_NOT_RUN_20260428` 命令 |
 
 ## 15. 当前结论
 
 ```text
-测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket 和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登和发送中防重复均已由用户确认。剩余遗留为 P1/P6 级：生产回滚路径已明确但未实际演练；安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
+测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登和发送中防重复均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。剩余遗留为 P1/P6 级：i18n UI 切换仍待人工确认；生产回滚路径已明确但未实际演练；安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
 ```
