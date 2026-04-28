@@ -47,6 +47,21 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+function showMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    return;
+  }
+
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
 }
 
 if (gotSingleInstanceLock) {
@@ -55,9 +70,7 @@ if (gotSingleInstanceLock) {
 
 function registerAppHandlers(): void {
   app.on('second-instance', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
+    showMainWindow();
   });
 
   app.whenReady().then(() => {

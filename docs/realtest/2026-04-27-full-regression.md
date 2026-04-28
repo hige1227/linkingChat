@@ -257,6 +257,7 @@ P1 可以有遗留，但必须记录:
 | 2026-04-28 15:17 CST | Codex | 生产命令授权热修复发布 | PASS | 备份 `/opt/linkchat/backups/code/linkchat-code-pre-command-auth-20260428-151420.tar.gz`；重建并启动 `linkchat-server`，新镜像 `sha256:f3f33fd6cfbf440cd1a6dd80d8e8d8599f938b0bf5dfa154d13aca303aa99db2`，HTTPS health 200 |
 | 2026-04-28 15:21 CST | Codex | 跨用户命令复测 | PASS | 新测试账号再次向 `device-yehui-win32` 派发 `SHOULD_NOT_RUN_20260428`，ack 返回 `DEVICE_NOT_AVAILABLE`；生产 DB 未产生该 payload 的 command；`ice@test.com` 设备仍 `ONLINE` |
 | 2026-04-28 15:33 CST | 用户 + Codex | Profile/i18n 入口检查 | FIXED | 用户反馈当前打包版找不到个人资料设置；代码确认 `/profile` 路由存在但侧边栏无入口；已在 Desktop 侧边栏新增 Profile 图标入口，`type-check`、Jest、`electron-vite build` 通过；当前旧运行产物可用 DevTools `window.location.hash = '#/profile'` 临时跳转 |
+| 2026-04-28 19:48 CST | 用户 + Codex | `win-unpacked` 双击启动复测 | FIXED | 用户反馈双击 `win-unpacked/LinkingChat.exe` 无法打开；本机发现 3 个无主窗口句柄的旧 `LinkingChat.exe` 残留进程仍持有单实例锁；清理后可启动。已增强 `second-instance` 逻辑：无窗口或窗口已销毁时重新创建窗口，并在 `closed` 时清空 `mainWindow`；重建 `dist:dir` 后启动成功，二次启动未新增进程 |
 
 ## 14. 问题清单
 
@@ -283,6 +284,7 @@ P1 可以有遗留，但必须记录:
 | OBS-012 | LOW | Desktop 消息发送 | 当前防重复覆盖“发送/AI 回复进行中”场景；同一内容在 Bot 回复完成后仍可再次发送，会产生另一条消息 | OPEN | 当前行为可接受；若产品需要内容级幂等，后续应增加 client request id / idempotency key，并由服务端去重 |
 | BUG-006 | BLOCKER | 生产命令 WebSocket | `device:command:send` 只按 `targetDeviceId` 房间广播，未验证设备归属和目标 socket 用户；任意已登录用户若知道 `deviceId`，可向他人在线 Desktop 派发 shell 命令 | FIXED | 已在 `DeviceGateway` 增加 `devicesService.findOneById(targetDeviceId, userId)` 校验，并只向 `userId` 与 `deviceId` 均匹配的 socket id 派发；新增单测；生产热修复后跨用户复测返回 `DEVICE_NOT_AVAILABLE`，DB 未写入 `SHOULD_NOT_RUN_20260428` 命令 |
 | BUG-007 | MEDIUM | Desktop 导航 | `ProfilePage` 和 i18n 设置路由存在，但侧边栏没有 Profile/Settings 入口，用户无法从正常 UI 发现语言切换 | FIXED | 已在 `MainLayout` 侧边栏设备图标下方新增 Profile 图标入口；当前旧运行产物可用 DevTools `window.location.hash = '#/profile'` 跳转，下一次打包重建后直接可见 |
+| BUG-008 | HIGH | Desktop 打包版 | 残留无窗口 `LinkingChat.exe` 进程仍持有单实例锁时，用户双击 `win-unpacked/LinkingChat.exe` 会被二次实例逻辑拦截，但旧实例没有窗口可聚焦，表现为无法打开程序 | FIXED | 已修复 `second-instance`：当 `mainWindow` 不存在或已销毁时重新 `createWindow()`，并在窗口 `closed` 时清空引用；`dist:dir` 重建后启动成功，重复启动未增加进程 |
 
 ## 15. 当前结论
 
