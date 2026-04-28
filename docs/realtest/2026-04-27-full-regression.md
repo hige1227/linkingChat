@@ -147,7 +147,7 @@ P1 可以有遗留，但必须记录:
 | D4 | 生成中切换会话 | 不丢消息，不重复回复 | PASS | 修复 `MessageInput` 按 `converseId` 维护发送锁、`useOpenClawChat` 按会话维护 active request；用户确认通过。生产 DB 时间线：Supervisor 用户消息 `cmoipf1gu003io801i2nbg3wz` 14:11:09，Coding Bot 用户消息 `cmoipf4i9003qo801b4mp5mce` 14:11:13，早于 Supervisor 回复 `cmoipfbj40042o8014moa7nuh` 14:11:22，证明生成中跨会话发送未被阻塞 |
 | D5 | 连续点击/回车重复发送 | 只产生一次真实用户消息和一次 Bot 回复 | PASS(UI+DB) | 用户确认 Bot 回复进行中无法再次 Enter；生产 DB 显示相同内容第二次发送发生在第一条 Bot 回复落库后，未发现进行中重复提交 |
 | D6 | Server 重启恢复 | Desktop 自动重连，之后仍可 AI 回复 | PASS | 重启 3008 后健康检查 200；打包版在 17:46:15 CST 重新注册 `device-yehui-win32` 并保持 `ONLINE` |
-| D7 | DeepSeek/Kimi fallback | 主 provider 故障时 fallback 或错误清晰 | TODO | |
+| D7 | DeepSeek/Kimi fallback | 主 provider 故障时 fallback 或错误清晰 | PASS | 生产受控注入：临时将 `DEEPSEEK_BASE_URL` 改为 `http://127.0.0.1:65535` 并重建 server；账号 `d7-fallback-20260428222141@test.local` 调用 `/ai/llm-proxy` 成功返回 SSE text/done，`ai_usage.model=moonshot-v1-8k`；恢复 `https://api.deepseek.com` 后烟测 `ai_usage.model=deepseek-chat`，公网 health 200；`ai-gateway.service.spec.ts` 3 tests passed |
 | D8 | LLM 限流 | 超过分钟限制后返回清晰错误，不写 usage | PASS | 对 C 账号预置 `llm:rate:min:<userId>=20` 后请求 `llm-proxy`，SSE 返回 `Rate limit exceeded (per minute)`；`ai_usage` 未新增 |
 | D9 | `ai_usage` 落库 | 成功 AI 调用写 usage | PASS(API) | A 账号 `/ai/llm-proxy` 真实调用写入 1 行：`deepseek-chat`，prompt 14，completion 6 |
 | D10 | Jarvis/Supervisor 状态 | `jarvis_states` 持久化 | PASS | 本地真实 Redis/Postgres 服务级验证：`JarvisMemoryService.save()` 为 `jarvis-state-20260428125440@test.local` 写入 Redis 和 `jarvis_states`，DB row `cmoimoowa0002gd5sk0qs5d35`，Redis/DB fallback restore 均返回 2 条消息；`jarvis-memory.service.spec.ts` 5 tests passed |
@@ -204,7 +204,7 @@ P1 可以有遗留，但必须记录:
 | 生产部署目录 | PASS: `/opt/linkchat` |
 | 是否允许真实发布/重启生产服务 | PASS: 已授权并完成 server 重建/重启 |
 | 是否允许在生产创建测试账号 | PASS: 已创建 `prod-regression-20260428010252@test.local` |
-| 是否允许临时注入故障测试 fallback/Redis 不可用 | TODO |
+| 是否允许临时注入故障测试 fallback/Redis 不可用 | PARTIAL: fallback 已完成；Redis 不可用仍由 E6 跟踪 |
 
 ## 13. 执行日志
 
@@ -264,6 +264,7 @@ P1 可以有遗留，但必须记录:
 | 2026-04-28 20:54 CST | Codex | D10 Jarvis 状态持久化 | PASS | 本地真实 Redis/Postgres 验证 `JarvisMemoryService.save/restore`：Redis hit、DB row `cmoimoowa0002gd5sk0qs5d35`，Redis/DB fallback 均 restore 2 条；`jarvis-memory.service.spec.ts` 5 tests passed |
 | 2026-04-28 20:56 CST | Codex | C11 搜索权限负向 | PASS | 新账号 `search-negative-20260428205611@test.local` 搜索他人会话唯一消息 `C15 message rate 20260428145649 #1`，返回 `results=[]` / `total=0`；P1-1 收口为 PASS |
 | 2026-04-28 22:12 CST | 用户 + Codex | D3/D4 长回复切换复测 | FAIL -> FIXED -> PASS | 用户确认修复后通过；生产 DB 显示 `Supervisor` 14:11:09 发起长回复后，`Coding Bot` 14:11:13 已成功发送同一测试标记，而 `Supervisor` 回复 14:11:22 才完成，跨会话发送不再被全局锁阻塞；`type-check`、相关 Jest、`electron-vite build`、`dist:dir` 通过 |
+| 2026-04-28 22:23 CST | Codex | D7 DeepSeek/Kimi fallback | PASS | 生产临时注入 DeepSeek 故障后 `/ai/llm-proxy` 仍返回 SSE；`ai_usage` 对 `d7-fallback-20260428222141@test.local` 记录 `moonshot-v1-8k`，恢复配置后下一条记录为 `deepseek-chat`；公网 health 恢复 200 |
 
 ## 14. 问题清单
 
@@ -298,5 +299,5 @@ P1 可以有遗留，但必须记录:
 ## 15. 当前结论
 
 ```text
-测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复、长流式回复切换和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。D3/D4 长流式回复切换发现桌面端跨会话发送锁问题，已修复并由用户复测通过。剩余遗留集中在更深稳定性/故障演练：fallback/Redis 故障注入、生产回滚实演；安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
+测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复、长流式回复切换和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。D3/D4 长流式回复切换发现桌面端跨会话发送锁问题，已修复并由用户复测通过；D7 已通过生产受控 DeepSeek 故障注入，确认 fallback 到 Kimi/Moonshot 且恢复后回到 DeepSeek。剩余遗留集中在更深稳定性/故障演练：Redis 故障注入、生产回滚实演；安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
 ```
