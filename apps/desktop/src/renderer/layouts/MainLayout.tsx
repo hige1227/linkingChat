@@ -67,6 +67,16 @@ export function MainLayout({ onLogout }: MainLayoutProps) {
               <line x1="12" y1="17" x2="12" y2="21" />
             </svg>
           </button>
+          <button
+            className={`sidebar-btn ${isActive('/profile') ? 'active' : ''}`}
+            onClick={() => navigate('/profile')}
+            title="Profile"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </button>
         </div>
         <div className="sidebar-bottom">
           <div className={`connection-dot ${isConnected ? 'online' : 'offline'}`} title={isConnected ? 'Connected' : 'Disconnected'} />
