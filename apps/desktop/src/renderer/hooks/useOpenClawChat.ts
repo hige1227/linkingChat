@@ -6,7 +6,7 @@ import { API_BASE_URL } from '@renderer/config';
 const API_URL = API_BASE_URL + '/api/v1';
 
 export function useOpenClawChat(converseId: string) {
-  const activeRequestRef = useRef<string | null>(null);
+  const activeRequestsRef = useRef<Record<string, string>>({});
 
   // Register global chunk listener once per mount
   useEffect(() => {
@@ -25,7 +25,10 @@ export function useOpenClawChat(converseId: string) {
         message,
         sessionKey,
       );
-      activeRequestRef.current = requestId;
+      activeRequestsRef.current = {
+        ...activeRequestsRef.current,
+        [converseId]: requestId,
+      };
 
       // 2. Add streaming placeholder bubble in store
       useChatStore.getState().addStreamingMessage(converseId, requestId);
@@ -164,18 +167,23 @@ export function useOpenClawChat(converseId: string) {
       // 5. Remove streaming placeholder — persisted/local message is already in store
       console.log('[useOpenClawChat] Removing streaming message:', requestId);
       useChatStore.getState().removeStreamingMessage(requestId);
-      activeRequestRef.current = null;
+      if (activeRequestsRef.current[converseId] === requestId) {
+        const { [converseId]: _done, ...rest } = activeRequestsRef.current;
+        activeRequestsRef.current = rest;
+      }
     },
     [converseId],
   );
 
   const cancel = useCallback((): void => {
-    if (activeRequestRef.current) {
-      window.electronAPI.openClawCancelStream(activeRequestRef.current);
-      useChatStore.getState().removeStreamingMessage(activeRequestRef.current);
-      activeRequestRef.current = null;
+    const requestId = activeRequestsRef.current[converseId];
+    if (requestId) {
+      window.electronAPI.openClawCancelStream(requestId);
+      useChatStore.getState().removeStreamingMessage(requestId);
+      const { [converseId]: _cancelled, ...rest } = activeRequestsRef.current;
+      activeRequestsRef.current = rest;
     }
-  }, []);
+  }, [converseId]);
 
   return { sendMessage, cancel };
 }

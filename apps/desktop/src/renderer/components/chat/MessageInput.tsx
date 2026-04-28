@@ -59,12 +59,13 @@ interface MessageInputProps {
 
 export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsumed, onFilesDropped }: MessageInputProps) {
   const [text, setText] = useState('');
-  const [sending, setSending] = useState(false);
+  const [sendingByConverse, setSendingByConverse] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const sendingRef = useRef(false);
+  const sendingRef = useRef<Record<string, boolean>>({});
+  const activeConverseIdRef = useRef(converseId);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,6 +83,25 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
 
   // Streaming send hook
   const { sendMessage: sendOpenClawMessage, cancel: cancelOpenClawMessage } = useOpenClawChat(converseId);
+  const sending = Boolean(sendingByConverse[converseId]);
+
+  const setConverseSending = useCallback((targetConverseId: string, value: boolean) => {
+    sendingRef.current = {
+      ...sendingRef.current,
+      [targetConverseId]: value,
+    };
+    setSendingByConverse((prev) => {
+      if (value) {
+        return { ...prev, [targetConverseId]: true };
+      }
+      const { [targetConverseId]: _done, ...rest } = prev;
+      return rest;
+    });
+  }, []);
+
+  useEffect(() => {
+    activeConverseIdRef.current = converseId;
+  }, [converseId]);
 
   // Reset text when converseId changes
   useEffect(() => {
@@ -177,10 +197,9 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
 
   const handleSend = async () => {
     const content = text.trim();
-    if (!content || sendingRef.current) return;
+    if (!content || sendingRef.current[converseId]) return;
 
-    sendingRef.current = true;
-    setSending(true);
+    setConverseSending(converseId, true);
 
     // Bot converse: route to local OpenClaw Gateway
     if (isBotConverse && botId) {
@@ -234,9 +253,10 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
           requestAnimationFrame(adjustHeight);
         }
       } finally {
-        sendingRef.current = false;
-        setSending(false);
-        textareaRef.current?.focus();
+        setConverseSending(converseId, false);
+        if (activeConverseIdRef.current === converseId) {
+          textareaRef.current?.focus();
+        }
       }
 
       return;
@@ -282,11 +302,12 @@ export function MessageInput({ converseId, isGroup, prefillText, onPrefillConsum
         setText(content);
         requestAnimationFrame(adjustHeight);
       }
-      sendingRef.current = false;
-      setSending(false);
+      setConverseSending(converseId, false);
     }
 
-    textareaRef.current?.focus();
+    if (activeConverseIdRef.current === converseId) {
+      textareaRef.current?.focus();
+    }
   };
 
   const handleFileSelect = async (files: FileList | File[]) => {

@@ -143,8 +143,8 @@ P1 可以有遗留，但必须记录:
 |------|--------|------|------|------|
 | D1 | Desktop provider 为 `server` | `getAgentType()` 返回 `server` | PASS(UI) | 用户确认 Supervisor 正常回复；API Gateway 同时通过 |
 | D2 | Supervisor 短回复 | 真实模型返回指定短语 | PASS(UI+DB) | 用户确认回复；DB 记录用户消息和 Bot 回复 `DEV AI REGRESSION OK`；`ai_usage` 写入 `deepseek-chat` |
-| D3 | 长流式回复 | UI 不冻结，最终标记出现 | TODO | |
-| D4 | 生成中切换会话 | 不丢消息，不重复回复 | TODO | |
+| D3 | 长流式回复 | UI 不冻结，最终标记出现 | PASS | 首轮 `D3D4-LONG-20260428213049` 发现跨会话发送阻塞且回复缺最终标记；修复后用户确认通过。生产 DB：`D3D4-FIX-20260428215837` 的 Supervisor/Coding Bot 回复均落库并包含 `END_D3D4_FIX_20260428215837`，最新完整回复段落标记 6/6 |
+| D4 | 生成中切换会话 | 不丢消息，不重复回复 | PASS | 修复 `MessageInput` 按 `converseId` 维护发送锁、`useOpenClawChat` 按会话维护 active request；用户确认通过。生产 DB 时间线：Supervisor 用户消息 `cmoipf1gu003io801i2nbg3wz` 14:11:09，Coding Bot 用户消息 `cmoipf4i9003qo801b4mp5mce` 14:11:13，早于 Supervisor 回复 `cmoipfbj40042o8014moa7nuh` 14:11:22，证明生成中跨会话发送未被阻塞 |
 | D5 | 连续点击/回车重复发送 | 只产生一次真实用户消息和一次 Bot 回复 | PASS(UI+DB) | 用户确认 Bot 回复进行中无法再次 Enter；生产 DB 显示相同内容第二次发送发生在第一条 Bot 回复落库后，未发现进行中重复提交 |
 | D6 | Server 重启恢复 | Desktop 自动重连，之后仍可 AI 回复 | PASS | 重启 3008 后健康检查 200；打包版在 17:46:15 CST 重新注册 `device-yehui-win32` 并保持 `ONLINE` |
 | D7 | DeepSeek/Kimi fallback | 主 provider 故障时 fallback 或错误清晰 | TODO | |
@@ -173,7 +173,7 @@ P1 可以有遗留，但必须记录:
 | F3 | 启动打包版 | 应用打开，连接本地 API/WS | PASS | `LinkingChat.exe` 多进程启动；DB 设备 `device-yehui-win32` 状态 `ONLINE`，`lastSeenAt=2026-04-27 09:38:34.726Z` |
 | F4 | 打包版登录 | 登录成功，连接指示恢复 | PASS | 用户确认打包版 UI 通过；后端设备在线且归属 A 账号 |
 | F5 | 打包版 Bot 短回复 | 真实 AI 回复指定短语 | PASS | 用户确认通过；DB 消息 `cmoh0sp6g000fgdq4dxd3yjcp` 为 `PACKAGED AI REGRESSION OK`；`ai_usage` 写入 `deepseek-chat` prompt 17 / completion 9 |
-| F6 | 打包版长回复/切换/重复发送 | 与开发版一致 | PARTIAL | 重复发送防护已通过；长回复和生成中切换仍由 D3/D4 跟踪 |
+| F6 | 打包版长回复/切换/重复发送 | 与开发版一致 | PASS | 重复发送防护已通过；长回复/生成中切换发现跨会话发送锁阻塞问题后已修复，`win-unpacked` 重建并由用户复测通过 |
 | F7 | 打包版真实命令执行 | 设备在线并返回命令结果 | PASS | `format C:` 返回 `COMMAND_DANGEROUS`；`echo LINKCHAT_PACKAGE_COMMAND_OK_20260427` 返回正确输出，命令 `cmoh0agqq0003gdqo9mobi7dp` |
 | F8 | 退出登录清理 token | auth store 与 LLM token store 清空 | PASS | 用户退出 `ice@test.com` 后，本地 auth store 变 `{}`，生产 chat/device 断开；LLM token 已由 logout path 清理 |
 | F9 | 冷启动恢复 | 重启后 token 恢复、会话恢复、连接恢复 | PASS | `win-unpacked` 冷启动自动进入主界面，生产 `/chat` 连接成功；重登后 token、chat/device 和 heartbeat 恢复 |
@@ -263,6 +263,7 @@ P1 可以有遗留，但必须记录:
 | 2026-04-28 20:31 CST | 用户 | C13 i18n 最终复测 | PASS | 用户确认 Profile 页滚动、状态英文文案和语言持久化通过，C13 收口为 PASS |
 | 2026-04-28 20:54 CST | Codex | D10 Jarvis 状态持久化 | PASS | 本地真实 Redis/Postgres 验证 `JarvisMemoryService.save/restore`：Redis hit、DB row `cmoimoowa0002gd5sk0qs5d35`，Redis/DB fallback 均 restore 2 条；`jarvis-memory.service.spec.ts` 5 tests passed |
 | 2026-04-28 20:56 CST | Codex | C11 搜索权限负向 | PASS | 新账号 `search-negative-20260428205611@test.local` 搜索他人会话唯一消息 `C15 message rate 20260428145649 #1`，返回 `results=[]` / `total=0`；P1-1 收口为 PASS |
+| 2026-04-28 22:12 CST | 用户 + Codex | D3/D4 长回复切换复测 | FAIL -> FIXED -> PASS | 用户确认修复后通过；生产 DB 显示 `Supervisor` 14:11:09 发起长回复后，`Coding Bot` 14:11:13 已成功发送同一测试标记，而 `Supervisor` 回复 14:11:22 才完成，跨会话发送不再被全局锁阻塞；`type-check`、相关 Jest、`electron-vite build`、`dist:dir` 通过 |
 
 ## 14. 问题清单
 
@@ -292,9 +293,10 @@ P1 可以有遗留，但必须记录:
 | BUG-008 | HIGH | Desktop 打包版 | 残留无窗口 `LinkingChat.exe` 进程仍持有单实例锁时，用户双击 `win-unpacked/LinkingChat.exe` 会被二次实例逻辑拦截，但旧实例没有窗口可聚焦，表现为无法打开程序 | FIXED | 已修复 `second-instance`：当 `mainWindow` 不存在或已销毁时重新 `createWindow()`，并在窗口 `closed` 时清空引用；`dist:dir` 重建后启动成功，重复启动未增加进程 |
 | BUG-009 | MEDIUM | Desktop i18n | Profile 页退出登录调用 `localStorage.clear()`，会删除 `locale`，导致语言切换在退出/重登后丢失并回退到系统中文 | FIXED | 已改为清理前读取 `locale`，清理后写回；用户复测确认 C13 PASS |
 | BUG-010 | MEDIUM | Desktop Profile | Profile 页在主布局 `overflow: hidden` 下使用 `min-height: 100vh`，非最大化窗口时底部内容被裁掉且无法滚动；状态标签硬编码中文，未随语言切换 | FIXED | 已改为 Profile 页自身占满父容器并滚动，底部增加 padding；状态配置改为 i18n key，使用 `online/idle/doNotDisturb/offline` 翻译；新 `win-unpacked` 已重建并启动 |
+| BUG-011 | HIGH | Desktop 打包版 | Bot 长流式回复期间，`MessageInput` 的组件级 `sending` / `sendingRef` 在会话路由切换后继续生效，导致其它会话输入也被禁用，用户必须等当前回复结束才能发送 | FIXED | 已改为 `sendingByConverse: Record<converseId, boolean>`、按会话的 `sendingRef`，并将 `useOpenClawChat` active request 改为按会话保存；同一会话仍防重复，切换到其它会话不共享锁。`type-check`、相关 Jest、build、`dist:dir` 通过，产物时间 `2026-04-28 21:58:37`，用户复测通过 |
 
 ## 15. 当前结论
 
 ```text
-测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。剩余遗留集中在更深稳定性/故障演练：长流式回复、生成中切换、fallback/Redis 故障注入、生产回滚实演；安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
+测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复、长流式回复切换和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。D3/D4 长流式回复切换发现桌面端跨会话发送锁问题，已修复并由用户复测通过。剩余遗留集中在更深稳定性/故障演练：fallback/Redis 故障注入、生产回滚实演；安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
 ```
