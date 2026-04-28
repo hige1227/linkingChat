@@ -52,7 +52,7 @@ P1 可以有遗留，但必须记录:
 | 编号 | 标准 | 状态 |
 |------|------|------|
 | P1-1 | 邮箱验证、密码重置、限流、搜索、i18n 等扩展流程完成 | PARTIAL |
-| P1-2 | 打包版冷启动、退出登录、重登、重复发送防护完成 | TODO |
+| P1-2 | 打包版冷启动、退出登录、重登、重复发送防护完成 | PASS |
 | P1-3 | 生产环境真实 smoke 完成，或因缺少目标信息标记 BLOCKED | PASS |
 
 失败分级:
@@ -249,6 +249,8 @@ P1 可以有遗留，但必须记录:
 | 2026-04-28 10:30 CST | 用户 + Codex | 生产 Desktop UI 复测 | PASS | 用户确认新 `win-unpacked` 打包版通过；G9 收口为 PASS |
 | 2026-04-28 11:54 CST | Codex | 完整 Windows 安装器重建 | PASS | `pnpm --filter @linkingchat/desktop dist` 成功；生成 `LinkingChat Setup 0.0.1.exe`，构建日志确认 `oneClick=false` |
 | 2026-04-28 11:58 CST | 用户 + Codex | 安装器 assisted 流程复测 | PARTIAL | 已出现标准向导、可取消、可选安装路径；但进入“正在安装”后无法取消，且没有显示详细进度或日志 |
+| 2026-04-28 13:58 CST | 用户 + Codex | 打包版冷启动/退出/重登 | PASS | `win-unpacked` 冷启动自动进入主界面，生产 `/chat` 连接成功；退出后本地 auth store 变 `{}` 且生产 chat/device 断开；重登 `ice@test.com` 后 token、chat/device 和 heartbeat 恢复 |
+| 2026-04-28 14:16 CST | 用户 + Codex | 打包版重复发送防护 | PASS | Bot 回复进行中 UI 不允许再次 Enter；生产库证据显示第二条相同内容是在第一条 Bot 回复已落库后才发送，未发现进行中重复提交 |
 
 ## 14. 问题清单
 
@@ -272,9 +274,10 @@ P1 可以有遗留，但必须记录:
 | BUG-004 | HIGH | Desktop 打包版 | 缺少单实例锁，可同时运行多组 `LinkingChat.exe`；旧实例可能持有旧 token/清理 auth store，导致新窗口 chat socket 灰灯、会话列表为空 | FIXED | 已在主进程加入 `app.requestSingleInstanceLock()`，第二实例聚焦已有窗口；token refresh 失败时只在 401/403 清理全局 auth store；用户复测通过 |
 | BUG-005 | HIGH | Desktop 打包版 | renderer 生产构建未正确注入 API/WS 地址，聊天页请求 `localhost:3008`，导致生产 token 被本地服务拒绝并报 `AUTH_INVALID` | FIXED | 已改为显式 `__LINKINGCHAT_API_URL__`/`__LINKINGCHAT_WS_URL__` 构建常量，并重建 `win-unpacked`；产物中 renderer 指向 `https://linkchat-api.matrix-ai.com.cn`；用户复测通过 |
 | OBS-011 | MEDIUM | Desktop 安装器 | assisted 向导已恢复，但安装执行页仍无法取消，且缺少详细进度/日志 | OPEN | electron-builder NSIS 模板默认 `ShowInstDetails nevershow` 且安装 section 使用 `SetDetailsPrint none`；建议后续改自定义 NSIS script 或评估 MSI/WiX，实现详细日志、明确进度和中途取消后的回滚/清理 |
+| OBS-012 | LOW | Desktop 消息发送 | 当前防重复覆盖“发送/AI 回复进行中”场景；同一内容在 Bot 回复完成后仍可再次发送，会产生另一条消息 | OPEN | 当前行为可接受；若产品需要内容级幂等，后续应增加 client request id / idempotency key，并由服务端去重 |
 
 ## 15. 当前结论
 
 ```text
-测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket 和 `ai_usage` 落库验证；生产 Desktop UI smoke 经打包版修复后由用户确认通过。剩余遗留为 P1/P6 级：生产回滚路径已明确但未实际演练；安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
+测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket 和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登和发送中防重复均已由用户确认。剩余遗留为 P1/P6 级：生产回滚路径已明确但未实际演练；安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
 ```
