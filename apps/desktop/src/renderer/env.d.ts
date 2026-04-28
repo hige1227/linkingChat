@@ -81,6 +81,9 @@ interface ElectronAPI {
 declare module 'zustand';
 declare module 'react-router-dom';
 
+declare const __LINKINGCHAT_API_URL__: string | undefined;
+declare const __LINKINGCHAT_WS_URL__: string | undefined;
+
 interface Window {
   electronAPI: ElectronAPI;
 }

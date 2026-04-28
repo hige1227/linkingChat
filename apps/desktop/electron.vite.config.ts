@@ -17,8 +17,8 @@ export default defineConfig({
   },
   renderer: {
     define: {
-      'import.meta.env.VITE_API_URL': JSON.stringify(defaultApi),
-      'import.meta.env.VITE_WS_URL': JSON.stringify(defaultWs),
+      __LINKINGCHAT_API_URL__: JSON.stringify(defaultApi),
+      __LINKINGCHAT_WS_URL__: JSON.stringify(defaultWs),
     },
     resolve: {
       alias: {

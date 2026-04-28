@@ -204,7 +204,9 @@ export class WsClientService {
       });
 
       if (!res.ok) {
-        AuthStore.clear();
+        if (res.status === 401 || res.status === 403) {
+          AuthStore.clear();
+        }
         return;
       }
 

@@ -22,6 +22,12 @@ process.on('unhandledRejection', (reason) => {
 let mainWindow: BrowserWindow | null = null;
 const wsClient = new WsClientService();
 
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!gotSingleInstanceLock) {
+  app.quit();
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 900,
@@ -43,82 +49,105 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
-  registerAuthIpc(wsClient);
-  registerDeviceIpc(wsClient);
-  registerOpenClawIpc();
-  registerAgentIpc();
+if (gotSingleInstanceLock) {
+  registerAppHandlers();
+}
 
-  // Pre-warm both sidecars before login screen (non-blocking)
-  openClawProcessService.start().catch((err: Error) =>
-    console.warn('[Main] OpenClaw sidecar start error:', err.message)
-  );
-  hermesProcessService.start().catch((err: Error) =>
-    console.warn('[Main] Hermes sidecar start error:', err.message)
-  );
+function registerAppHandlers(): void {
+  app.on('second-instance', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  });
 
-  createWindow();
+  app.whenReady().then(() => {
+    registerAuthIpc(wsClient);
+    registerDeviceIpc(wsClient);
+    registerOpenClawIpc();
+    registerAgentIpc();
 
-  // Auto-connect if tokens exist
-  const tokens = AuthStore.load();
-  if (tokens) {
-    wsClient.connect();
-
-    // Initialize agent from persisted preference
-    AgentProviderFactory.active();
-
-    // First-launch setup (no-op if already done)
-    setupService.initialize('', tokens.accessToken).catch((err: Error) =>
-      console.warn('[Main] Setup error:', err.message)
+    // Pre-warm both sidecars before login screen (non-blocking)
+    openClawProcessService.start().catch((err: Error) =>
+      console.warn('[Main] OpenClaw sidecar start error:', err.message),
+    );
+    hermesProcessService.start().catch((err: Error) =>
+      console.warn('[Main] Hermes sidecar start error:', err.message),
     );
 
-    // Connect to OpenClaw Gateway with retry
-    const mode = openClawProcessService.resolveMode();
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY = 5_000;
-    (async () => {
-      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        try {
-          const status = await connectToGateway();
-          if (status.connected) {
-            console.log(`[Main] OpenClaw Gateway connected (mode=${mode}, attempt=${attempt})`);
-            return;
+    createWindow();
+
+    // Auto-connect if tokens exist
+    const tokens = AuthStore.load();
+    if (tokens) {
+      wsClient.connect();
+
+      // Initialize agent from persisted preference
+      AgentProviderFactory.active();
+
+      // First-launch setup (no-op if already done)
+      setupService.initialize('', tokens.accessToken).catch((err: Error) =>
+        console.warn('[Main] Setup error:', err.message),
+      );
+
+      // Connect to OpenClaw Gateway with retry
+      const mode = openClawProcessService.resolveMode();
+      const MAX_RETRIES = 3;
+      const RETRY_DELAY = 5_000;
+      (async () => {
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            const status = await connectToGateway();
+            if (status.connected) {
+              console.log(
+                `[Main] OpenClaw Gateway connected (mode=${mode}, attempt=${attempt})`,
+              );
+              return;
+            }
+            console.warn(
+              `[Main] OpenClaw Gateway attempt ${attempt}/${MAX_RETRIES} failed: ${status.error}`,
+            );
+          } catch (err) {
+            console.warn(
+              `[Main] OpenClaw Gateway attempt ${attempt}/${MAX_RETRIES} error:`,
+              (err as Error).message,
+            );
           }
-          console.warn(`[Main] OpenClaw Gateway attempt ${attempt}/${MAX_RETRIES} failed: ${status.error}`);
-        } catch (err) {
-          console.warn(`[Main] OpenClaw Gateway attempt ${attempt}/${MAX_RETRIES} error:`, (err as Error).message);
+          if (attempt < MAX_RETRIES) {
+            console.log(
+              `[Main] Retrying OpenClaw in ${RETRY_DELAY / 1000}s...`,
+            );
+            await new Promise((r) => setTimeout(r, RETRY_DELAY));
+          }
         }
-        if (attempt < MAX_RETRIES) {
-          console.log(`[Main] Retrying OpenClaw in ${RETRY_DELAY / 1000}s...`);
-          await new Promise((r) => setTimeout(r, RETRY_DELAY));
-        }
-      }
-      console.warn(`[Main] OpenClaw Gateway not available after ${MAX_RETRIES} attempts (mode=${mode})`);
-    })();
-  }
+        console.warn(
+          `[Main] OpenClaw Gateway not available after ${MAX_RETRIES} attempts (mode=${mode})`,
+        );
+      })();
+    }
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
   });
-});
 
-// Ensure sidecars are stopped on quit (covers macOS Cmd+Q)
-app.on('before-quit', () => {
-  openClawProcessService.stop().catch((err) => {
-    console.warn('[Main] OpenClaw process stop error on quit:', err);
+  // Ensure sidecars are stopped on quit (covers macOS Cmd+Q)
+  app.on('before-quit', () => {
+    openClawProcessService.stop().catch((err) => {
+      console.warn('[Main] OpenClaw process stop error on quit:', err);
+    });
+    hermesProcessService.stop().catch((err) => {
+      console.warn('[Main] Hermes process stop error on quit:', err);
+    });
   });
-  hermesProcessService.stop().catch((err) => {
-    console.warn('[Main] Hermes process stop error on quit:', err);
+
+  // Last-resort: synchronously kill Gateway on process exit to prevent orphan (Windows)
+  process.on('exit', () => {
+    openClawProcessService.killSync();
   });
-});
 
-// Last-resort: synchronously kill Gateway on process exit to prevent orphan (Windows)
-process.on('exit', () => {
-  openClawProcessService.killSync();
-});
-
-app.on('window-all-closed', () => {
-  wsClient.disconnect();
-  disconnectFromGateway().catch(() => {});
-  if (process.platform !== 'darwin') app.quit();
-});
+  app.on('window-all-closed', () => {
+    wsClient.disconnect();
+    disconnectFromGateway().catch(() => {});
+    if (process.platform !== 'darwin') app.quit();
+  });
+}

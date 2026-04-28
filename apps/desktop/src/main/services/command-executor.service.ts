@@ -228,7 +228,7 @@ export class CommandExecutor {
 
     for await (const chunk of client.chat(message, { timeout })) {
       switch (chunk.type) {
-        case 'tool_result': toolResults.push(chunk.text); break;
+        case 'tool_result': toolResults.push(chunk.output ?? chunk.text); break;
         case 'text': textParts.push(chunk.text); break;
         case 'error': errorText = chunk.text; break;
         case 'done': break;

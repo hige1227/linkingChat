@@ -121,7 +121,9 @@ export function registerAuthIpc(wsClient: WsClientService): void {
       });
 
       if (!res.ok) {
-        AuthStore.clear();
+        if (res.status === 401 || res.status === 403) {
+          AuthStore.clear();
+        }
         return null;
       }
 
