@@ -51,7 +51,7 @@ P1 可以有遗留，但必须记录:
 
 | 编号 | 标准 | 状态 |
 |------|------|------|
-| P1-1 | 邮箱验证、密码重置、限流、搜索、i18n 等扩展流程完成 | PARTIAL |
+| P1-1 | 邮箱验证、密码重置、限流、搜索、i18n 等扩展流程完成 | PASS |
 | P1-2 | 打包版冷启动、退出登录、重登、重复发送防护完成 | PASS |
 | P1-3 | 生产环境真实 smoke 完成，或因缺少目标信息标记 BLOCKED | PASS |
 
@@ -131,7 +131,7 @@ P1 可以有遗留，但必须记录:
 | C8 | DM 文本消息 | 双方实时收发，无重复 | PASS(API) | 消息 `cmogj8vp6001sgde82jy5s78o` 创建成功；实时 UI 待确认 |
 | C9 | 消息撤回 | 2 分钟内可撤回，超时失败 | PASS(API) | DB `deletedAt=2026-04-27 01:42:53.15`；超时撤回待后续负向验证 |
 | C10 | 群聊创建与群消息 | OWNER/MEMBER 正确，消息可达 | PASS(API) | 群 `cmogj8wkp001xgde8vvddk7t7`；群消息 `cmogj8wl2001zgde8d4dikpwu` |
-| C11 | 搜索英文/中文消息 | 结果权限正确 | PASS(API) | `test` 与 `中文搜索` 均返回 1 条结果；跨用户权限待 UI/负向补测 |
+| C11 | 搜索英文/中文消息 | 结果权限正确 | PASS(API) | `test` 与 `中文搜索` 均返回 1 条结果；非成员账号 `search-negative-20260428205611@test.local` 搜索他人会话唯一消息返回 `results=[]` / `total=0` |
 | C12 | 个人资料与状态 | 昵称/在线状态更新 | PASS(API) | A 昵称改为 `Regression A 20260427093809`，状态 `IDLE` |
 | C13 | i18n 切换 | 中英文切换并持久化 | PASS | 用户确认语言退出/重登持久化可用；Profile 非最大化可滚动到底部；状态文案已随语言切换为 `Online / Idle / Do Not Disturb / Offline` |
 | C14 | 忘记密码/重置密码 | 邮件验证码、旧密码失效、新密码可登录 | PASS(API) | C 账号 MailDev 收到重置邮件；旧密码失效，新密码登录成功 |
@@ -145,12 +145,12 @@ P1 可以有遗留，但必须记录:
 | D2 | Supervisor 短回复 | 真实模型返回指定短语 | PASS(UI+DB) | 用户确认回复；DB 记录用户消息和 Bot 回复 `DEV AI REGRESSION OK`；`ai_usage` 写入 `deepseek-chat` |
 | D3 | 长流式回复 | UI 不冻结，最终标记出现 | TODO | |
 | D4 | 生成中切换会话 | 不丢消息，不重复回复 | TODO | |
-| D5 | 连续点击/回车重复发送 | 只产生一次真实用户消息和一次 Bot 回复 | TODO | |
+| D5 | 连续点击/回车重复发送 | 只产生一次真实用户消息和一次 Bot 回复 | PASS(UI+DB) | 用户确认 Bot 回复进行中无法再次 Enter；生产 DB 显示相同内容第二次发送发生在第一条 Bot 回复落库后，未发现进行中重复提交 |
 | D6 | Server 重启恢复 | Desktop 自动重连，之后仍可 AI 回复 | PASS | 重启 3008 后健康检查 200；打包版在 17:46:15 CST 重新注册 `device-yehui-win32` 并保持 `ONLINE` |
 | D7 | DeepSeek/Kimi fallback | 主 provider 故障时 fallback 或错误清晰 | TODO | |
 | D8 | LLM 限流 | 超过分钟限制后返回清晰错误，不写 usage | PASS | 对 C 账号预置 `llm:rate:min:<userId>=20` 后请求 `llm-proxy`，SSE 返回 `Rate limit exceeded (per minute)`；`ai_usage` 未新增 |
 | D9 | `ai_usage` 落库 | 成功 AI 调用写 usage | PASS(API) | A 账号 `/ai/llm-proxy` 真实调用写入 1 行：`deepseek-chat`，prompt 14，completion 6 |
-| D10 | Jarvis/Supervisor 状态 | `jarvis_states` 持久化 | TODO | |
+| D10 | Jarvis/Supervisor 状态 | `jarvis_states` 持久化 | PASS | 本地真实 Redis/Postgres 服务级验证：`JarvisMemoryService.save()` 为 `jarvis-state-20260428125440@test.local` 写入 Redis 和 `jarvis_states`，DB row `cmoimoowa0002gd5sk0qs5d35`，Redis/DB fallback restore 均返回 2 条消息；`jarvis-memory.service.spec.ts` 5 tests passed |
 | D11 | Whisper / Draft / Predictive | 卡片显示与操作结果正确 | TODO | |
 
 ## 10. P4 真实桌面命令执行回归
@@ -173,10 +173,10 @@ P1 可以有遗留，但必须记录:
 | F3 | 启动打包版 | 应用打开，连接本地 API/WS | PASS | `LinkingChat.exe` 多进程启动；DB 设备 `device-yehui-win32` 状态 `ONLINE`，`lastSeenAt=2026-04-27 09:38:34.726Z` |
 | F4 | 打包版登录 | 登录成功，连接指示恢复 | PASS | 用户确认打包版 UI 通过；后端设备在线且归属 A 账号 |
 | F5 | 打包版 Bot 短回复 | 真实 AI 回复指定短语 | PASS | 用户确认通过；DB 消息 `cmoh0sp6g000fgdq4dxd3yjcp` 为 `PACKAGED AI REGRESSION OK`；`ai_usage` 写入 `deepseek-chat` prompt 17 / completion 9 |
-| F6 | 打包版长回复/切换/重复发送 | 与开发版一致 | TODO | |
+| F6 | 打包版长回复/切换/重复发送 | 与开发版一致 | PARTIAL | 重复发送防护已通过；长回复和生成中切换仍由 D3/D4 跟踪 |
 | F7 | 打包版真实命令执行 | 设备在线并返回命令结果 | PASS | `format C:` 返回 `COMMAND_DANGEROUS`；`echo LINKCHAT_PACKAGE_COMMAND_OK_20260427` 返回正确输出，命令 `cmoh0agqq0003gdqo9mobi7dp` |
-| F8 | 退出登录清理 token | auth store 与 LLM token store 清空 | TODO | |
-| F9 | 冷启动恢复 | 重启后 token 恢复、会话恢复、连接恢复 | TODO | |
+| F8 | 退出登录清理 token | auth store 与 LLM token store 清空 | PASS | 用户退出 `ice@test.com` 后，本地 auth store 变 `{}`，生产 chat/device 断开；LLM token 已由 logout path 清理 |
+| F9 | 冷启动恢复 | 重启后 token 恢复、会话恢复、连接恢复 | PASS | `win-unpacked` 冷启动自动进入主界面，生产 `/chat` 连接成功；重登后 token、chat/device 和 heartbeat 恢复 |
 
 ## 12. P6 生产部署流程验证
 
@@ -261,6 +261,8 @@ P1 可以有遗留，但必须记录:
 | 2026-04-28 20:07 CST | 用户 + Codex | C13 i18n 持久化复测 | FAIL -> FIXED | 用户确认切换 English 后退出/重登仍保持中文；修复 Profile 页退出时保留 `localStorage.locale`，避免清空语言偏好；`type-check`、Jest、`electron-vite build`、`dist:dir` 通过并已启动新产物，等待用户最终复测 |
 | 2026-04-28 20:28 CST | 用户 + Codex | Profile 滚动与状态 i18n 复测 | FIXED | 用户确认语言持久化已可用，但发现非最大化 Profile 页无法滚动到底部，且 `在线/离线/离开/请勿打扰` 始终中文；已将 Profile 页改为 `height: 100%; min-height: 0; overflow-y: auto`，状态文案改用 i18n key；`type-check`、Jest、build、`dist:dir` 通过并已启动新产物 |
 | 2026-04-28 20:31 CST | 用户 | C13 i18n 最终复测 | PASS | 用户确认 Profile 页滚动、状态英文文案和语言持久化通过，C13 收口为 PASS |
+| 2026-04-28 20:54 CST | Codex | D10 Jarvis 状态持久化 | PASS | 本地真实 Redis/Postgres 验证 `JarvisMemoryService.save/restore`：Redis hit、DB row `cmoimoowa0002gd5sk0qs5d35`，Redis/DB fallback 均 restore 2 条；`jarvis-memory.service.spec.ts` 5 tests passed |
+| 2026-04-28 20:56 CST | Codex | C11 搜索权限负向 | PASS | 新账号 `search-negative-20260428205611@test.local` 搜索他人会话唯一消息 `C15 message rate 20260428145649 #1`，返回 `results=[]` / `total=0`；P1-1 收口为 PASS |
 
 ## 14. 问题清单
 
@@ -294,5 +296,5 @@ P1 可以有遗留，但必须记录:
 ## 15. 当前结论
 
 ```text
-测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登和发送中防重复均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。剩余遗留为 P1/P6 级：i18n UI 切换仍待人工确认；生产回滚路径已明确但未实际演练；安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
+测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。剩余遗留集中在更深稳定性/故障演练：长流式回复、生成中切换、fallback/Redis 故障注入、生产回滚实演；安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
 ```
