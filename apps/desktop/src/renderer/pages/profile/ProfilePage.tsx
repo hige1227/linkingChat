@@ -16,10 +16,10 @@ interface UserProfile {
 }
 
 const STATUS_CONFIG = {
-  ONLINE: { label: '在线', color: '#4CAF50' },
-  IDLE: { label: '离开', color: '#FF9800' },
-  DND: { label: '请勿打扰', color: '#F44336' },
-  OFFLINE: { label: '离线', color: '#9E9E9E' },
+  ONLINE: { labelKey: 'online', color: '#4CAF50' },
+  IDLE: { labelKey: 'idle', color: '#FF9800' },
+  DND: { labelKey: 'doNotDisturb', color: '#F44336' },
+  OFFLINE: { labelKey: 'offline', color: '#9E9E9E' },
 };
 
 export const ProfilePage: React.FC = () => {
@@ -233,7 +233,7 @@ export const ProfilePage: React.FC = () => {
               className="status-dot"
               style={{ backgroundColor: statusConfig.color }}
             />
-            {statusConfig.label}
+            {t(statusConfig.labelKey)}
           </span>
         </div>
 
@@ -307,7 +307,7 @@ export const ProfilePage: React.FC = () => {
             </div>
             <div className="item-content">
               <div className="item-label">{t('status')}</div>
-              <div className="item-value">{statusConfig.label}</div>
+              <div className="item-value">{t(statusConfig.labelKey)}</div>
             </div>
             <div className="item-action">
               <svg viewBox="0 0 24 24" width="20" height="20">
@@ -327,7 +327,7 @@ export const ProfilePage: React.FC = () => {
                   <svg viewBox="0 0 24 24" width="16" height="16">
                     <circle fill={config.color} cx="12" cy="12" r="6" />
                   </svg>
-                  <span>{config.label}</span>
+                  <span>{t(config.labelKey)}</span>
                   {profile.status === status && (
                     <svg className="check-icon" viewBox="0 0 24 24" width="16" height="16">
                       <path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
