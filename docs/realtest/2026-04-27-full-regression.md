@@ -269,6 +269,7 @@ P1 可以有遗留，但必须记录:
 | 2026-04-28 22:33 CST | Codex | E5 Desktop 离线状态 | PASS | 关闭打包版后 `device-yehui-win32` 变为 `OFFLINE`，重启 `win-unpacked/LinkingChat.exe` 后恢复 `ONLINE`；当前打包版主窗口已重新启动 |
 | 2026-04-28 22:45 CST | Codex | D11 AI 卡片 WS/DB 链路 | PASS(WS+DB) | 生产 WS 收到 Whisper、Draft、Predictive 三类卡片 payload，accept/approve/execute 均返回成功且 DB 状态更新；UI 视觉层未单独截图确认 |
 | 2026-04-28 22:53 CST | Codex | G10 生产回滚隔离演练 | PASS(DRILL) | 旧候选镜像 `sha256:78a3fd59346d...` 以显式命令 `node dist/src/main.js` 在 `127.0.0.1:3018` 临时启动，`/api/v1/health` 返回 `{"status":"ok"}`；随后删除 `linkchat-rollback-drill`，当前生产本机和公网 health 均为 200 |
+| 2026-04-28 23:41 CST | Codex | 安装器执行页 NSIS 改进构建 | PASS(BUILD) | 新增 `apps/desktop/installer/installer.nsh`，打开 NSIS install/uninstall details、smooth progress bar、取消警告和非静默模式完成页停留；`type-check` 与 `pnpm --filter @linkingchat/desktop dist` 通过，生成 `LinkingChat Setup 0.0.1.exe` 时间 `2026-04-28 23:41:20`；人工 UI 复测待确认 |
 
 ## 14. 问题清单
 
@@ -288,11 +289,13 @@ P1 可以有遗留，但必须记录:
 | BUG-003 | HIGH | 生产迁移 SQL | `20260416000000_add_draft_type_enum` 引用不存在的 `"draft_type"` 列；实际表为 `"draftType"`，会阻断生产迁移 | FIXED | 已修正 migration SQL，备份后生产迁移执行成功 |
 | BLOCK-002 | BLOCKER | 生产公网入口 | `linkchat-api.matrix-ai.com.cn` 已解析到 `49.235.109.94`；新增独立 Nginx 站点 `linkchat-api` 只匹配该域名并代理到 `127.0.0.1:3008`，未修改 `openclaw`/`sports` 站点 | CLOSED | HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket 和 `ai_usage` 落库均通过 |
 | OBS-009 | MEDIUM | 生产 SSH | SSH 认证可用，但多次出现 `Connection timed out during banner exchange` 或 `Connection closed`，需要多次重试 | OPEN | 建议检查 sshd `MaxStartups`、连接限制、安全组或服务器负载 |
-| OBS-010 | MEDIUM | Desktop 安装器 | 旧安装器 `LinkingChat Setup 0.0.1.exe` 启动后用户无法取消或关闭，且没有路径选择/下一步等成熟安装流程 | OPEN | 建议改为 NSIS assisted installer：`oneClick=false`、允许选择安装目录、明确取消/上一步/下一步、安装前关闭旧进程 |
+| OBS-010 | MEDIUM | Desktop 安装器 | 旧安装器 `LinkingChat Setup 0.0.1.exe` 启动后用户无法取消或关闭，且没有路径选择/下一步等成熟安装流程 | CLOSED | 已改为 NSIS assisted installer：`oneClick=false`、允许选择安装目录；用户 2026-04-28 11:58 复测确认标准向导、取消、路径选择可用 |
 | BUG-004 | HIGH | Desktop 打包版 | 缺少单实例锁，可同时运行多组 `LinkingChat.exe`；旧实例可能持有旧 token/清理 auth store，导致新窗口 chat socket 灰灯、会话列表为空 | FIXED | 已在主进程加入 `app.requestSingleInstanceLock()`，第二实例聚焦已有窗口；token refresh 失败时只在 401/403 清理全局 auth store；用户复测通过 |
 | BUG-005 | HIGH | Desktop 打包版 | renderer 生产构建未正确注入 API/WS 地址，聊天页请求 `localhost:3008`，导致生产 token 被本地服务拒绝并报 `AUTH_INVALID` | FIXED | 已改为显式 `__LINKINGCHAT_API_URL__`/`__LINKINGCHAT_WS_URL__` 构建常量，并重建 `win-unpacked`；产物中 renderer 指向 `https://linkchat-api.matrix-ai.com.cn`；用户复测通过 |
-| OBS-011 | MEDIUM | Desktop 安装器 | assisted 向导已恢复，但安装执行页仍无法取消，且缺少详细进度/日志 | OPEN | electron-builder NSIS 模板默认 `ShowInstDetails nevershow` 且安装 section 使用 `SetDetailsPrint none`；建议后续改自定义 NSIS script 或评估 MSI/WiX，实现详细日志、明确进度和中途取消后的回滚/清理 |
+| OBS-011 | MEDIUM | Desktop 安装器 | assisted 向导已恢复，但安装执行页仍无法取消，且缺少详细进度/日志 | VERIFYING | 已新增 NSIS include：`ShowInstDetails show`、`ShowUninstDetails show`、smooth progress、取消警告、非静默模式 `SetAutoClose false`；`type-check` 与完整 `dist` 通过。由于 electron-builder 默认 `installSection.nsh` 仍在主安装段执行 `SetDetailsPrint none`，详细逐文件日志可能仍有限；等待用户人工确认执行页取消/详情是否满足 |
 | OBS-012 | LOW | Desktop 消息发送 | 当前防重复覆盖“发送/AI 回复进行中”场景；同一内容在 Bot 回复完成后仍可再次发送，会产生另一条消息 | OPEN | 当前行为可接受；若产品需要内容级幂等，后续应增加 client request id / idempotency key，并由服务端去重 |
+| OBS-013 | MEDIUM | Desktop 安装器自动化 | assisted NSIS 安装包的 `/S` 静默安装 smoke 在临时目录场景 90-180 秒未退出，且只创建空安装目录 | OPEN | 已确认无残留进程和临时目录；本次不作为人工安装 UI 阻断项。后续需单独修复 silent install path，或引入 CI 友好的 MSI/WiX/自定义 NSIS 脚本做安装器自动化 |
+| OBS-014 | MEDIUM | Desktop MSI/WiX | 试跑 `electron-builder --win msi` 进入 WiX linker 后失败，`LGHT0103` 报深层 OpenClaw sidecar 文件路径不可解析 | OPEN | 未启用 MSI target，避免影响默认 NSIS 产物；后续若转 MSI，需要先收敛 sidecar 体积/路径深度或拆分安装资源 |
 | BUG-006 | BLOCKER | 生产命令 WebSocket | `device:command:send` 只按 `targetDeviceId` 房间广播，未验证设备归属和目标 socket 用户；任意已登录用户若知道 `deviceId`，可向他人在线 Desktop 派发 shell 命令 | FIXED | 已在 `DeviceGateway` 增加 `devicesService.findOneById(targetDeviceId, userId)` 校验，并只向 `userId` 与 `deviceId` 均匹配的 socket id 派发；新增单测；生产热修复后跨用户复测返回 `DEVICE_NOT_AVAILABLE`，DB 未写入 `SHOULD_NOT_RUN_20260428` 命令 |
 | BUG-007 | MEDIUM | Desktop 导航 | `ProfilePage` 和 i18n 设置路由存在，但侧边栏没有 Profile/Settings 入口，用户无法从正常 UI 发现语言切换 | FIXED | 已在 `MainLayout` 侧边栏设备图标下方新增 Profile 图标入口；当前旧运行产物可用 DevTools `window.location.hash = '#/profile'` 跳转，下一次打包重建后直接可见 |
 | BUG-008 | HIGH | Desktop 打包版 | 残留无窗口 `LinkingChat.exe` 进程仍持有单实例锁时，用户双击 `win-unpacked/LinkingChat.exe` 会被二次实例逻辑拦截，但旧实例没有窗口可聚焦，表现为无法打开程序 | FIXED | 已修复 `second-instance`：当 `mainWindow` 不存在或已销毁时重新 `createWindow()`，并在窗口 `closed` 时清空引用；`dist:dir` 重建后启动成功，重复启动未增加进程 |
@@ -303,5 +306,5 @@ P1 可以有遗留，但必须记录:
 ## 15. 当前结论
 
 ```text
-测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查、Nginx HTTPS 统一代理接入和隔离回滚演练。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令、设备离线/恢复、AI 卡片 WS/DB 链路和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复、长流式回复切换和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。D3/D4 长流式回复切换发现桌面端跨会话发送锁问题，已修复并由用户复测通过；D7 已通过生产受控 DeepSeek 故障注入，确认 fallback 到 Kimi/Moonshot 且恢复后回到 DeepSeek；E6 已通过生产 Redis 故障注入和恢复后真实桌面命令 smoke；G10 已通过旧候选镜像在备用本机端口的隔离启动/health/销毁演练，公网流量未切到旧版本。剩余遗留集中在安装器体验：安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
+测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查、Nginx HTTPS 统一代理接入和隔离回滚演练。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令、设备离线/恢复、AI 卡片 WS/DB 链路和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复、长流式回复切换和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。D3/D4 长流式回复切换发现桌面端跨会话发送锁问题，已修复并由用户复测通过；D7 已通过生产受控 DeepSeek 故障注入，确认 fallback 到 Kimi/Moonshot 且恢复后回到 DeepSeek；E6 已通过生产 Redis 故障注入和恢复后真实桌面命令 smoke；G10 已通过旧候选镜像在备用本机端口的隔离启动/health/销毁演练，公网流量未切到旧版本。安装器已从旧 one-click 收敛到 assisted wizard，并新增 NSIS details/progress/cancel-warning 改进构建；剩余遗留集中在安装器执行页人工复测、静默安装自动化和 MSI/WiX 长路径问题。
 ```

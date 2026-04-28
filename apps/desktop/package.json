@@ -1,6 +1,10 @@
 {
   "name": "@linkingchat/desktop",
   "version": "0.0.1",
+  "description": "Desktop client for LinkingChat.",
+  "author": {
+    "name": "LinkingChat"
+  },
   "private": true,
   "main": "./out/main/index.js",
   "scripts": {

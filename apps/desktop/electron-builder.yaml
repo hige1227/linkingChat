@@ -46,6 +46,7 @@ win:
   icon: build/icon.ico
 nsis:
   oneClick: false
+  include: installer/installer.nsh
   allowToChangeInstallationDirectory: true
   allowElevation: true
   perMachine: false
