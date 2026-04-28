@@ -161,7 +161,7 @@ P1 可以有遗留，但必须记录:
 | E2 | 真实安全命令 | 例如 `echo LINKCHAT_REGRESSION_20260427` 返回正确输出 | PASS | 修复后命令 `echo LINKCHAT_REGRESSION_20260427_FIXED` 返回正确输出，source=`child_process` |
 | E3 | PowerShell 命令 | 例如查询当前目录或时间，返回真实结果 | PASS | 生产打包版真实执行 `powershell -NoProfile -Command "Write-Output 'LINKCHAT_POWERSHELL_20260428'; Get-Date -Format o"`，命令 `cmoia63ta0059pg0183xtaboc`，source=`child_process`，输出包含 `LINKCHAT_POWERSHELL_20260428` 和 `2026-04-28T15:04:48.7331431+08:00` |
 | E4 | 危险命令拦截 | `format C:` / `rm -rf /` 不执行且提示风险 | PASS | `format C:` 返回 `COMMAND_DANGEROUS`，未派发到 Desktop |
-| E5 | Desktop 离线状态 | 关闭 Desktop 后设备离线 | TODO | |
+| E5 | Desktop 离线状态 | 关闭 Desktop 后设备离线 | PASS | 关闭 `win-unpacked/LinkingChat.exe` 后生产 DB `device-yehui-win32` 从 `ONLINE` 变为 `OFFLINE`，`lastSeenAt=2026-04-28 14:32:00.708`；重启打包版后恢复 `ONLINE`，`lastSeenAt=2026-04-28 14:32:37.464` |
 | E6 | Server/Redis 故障恢复 | 依赖恢复后命令链路恢复 | PASS | 生产 Redis 停止期间 `/ai/llm-proxy` 657ms 返回 SSE error `Rate limit dependency unavailable`，`ai_usage` 计数保持 2 未新增；恢复 Redis healthy 后 AI smoke 新增 `deepseek-chat` usage；随后真实桌面命令 `cmoiq32yw000bpg018sbvsjya` 返回 `E6_COMMAND_RECOVERY_20260428222948`，`source=child_process` |
 
 ## 11. P5 Desktop 打包版回归
@@ -266,6 +266,7 @@ P1 可以有遗留，但必须记录:
 | 2026-04-28 22:12 CST | 用户 + Codex | D3/D4 长回复切换复测 | FAIL -> FIXED -> PASS | 用户确认修复后通过；生产 DB 显示 `Supervisor` 14:11:09 发起长回复后，`Coding Bot` 14:11:13 已成功发送同一测试标记，而 `Supervisor` 回复 14:11:22 才完成，跨会话发送不再被全局锁阻塞；`type-check`、相关 Jest、`electron-vite build`、`dist:dir` 通过 |
 | 2026-04-28 22:23 CST | Codex | D7 DeepSeek/Kimi fallback | PASS | 生产临时注入 DeepSeek 故障后 `/ai/llm-proxy` 仍返回 SSE；`ai_usage` 对 `d7-fallback-20260428222141@test.local` 记录 `moonshot-v1-8k`，恢复配置后下一条记录为 `deepseek-chat`；公网 health 恢复 200 |
 | 2026-04-28 22:30 CST | Codex | E6 Redis 故障恢复 | PASS | 停止生产 Redis 后 AI Gateway 快速返回清晰错误且不写 usage；恢复 Redis 后 AI smoke 和真实桌面命令均通过，命令 `cmoiq32yw000bpg018sbvsjya` 输出 `E6_COMMAND_RECOVERY_20260428222948` |
+| 2026-04-28 22:33 CST | Codex | E5 Desktop 离线状态 | PASS | 关闭打包版后 `device-yehui-win32` 变为 `OFFLINE`，重启 `win-unpacked/LinkingChat.exe` 后恢复 `ONLINE`；当前打包版主窗口已重新启动 |
 
 ## 14. 问题清单
 
@@ -300,5 +301,5 @@ P1 可以有遗留，但必须记录:
 ## 15. 当前结论
 
 ```text
-测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复、长流式回复切换和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。D3/D4 长流式回复切换发现桌面端跨会话发送锁问题，已修复并由用户复测通过；D7 已通过生产受控 DeepSeek 故障注入，确认 fallback 到 Kimi/Moonshot 且恢复后回到 DeepSeek；E6 已通过生产 Redis 故障注入和恢复后真实桌面命令 smoke。剩余遗留集中在生产回滚实演和安装器体验：安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
+测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令、设备离线/恢复和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复、长流式回复切换和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。D3/D4 长流式回复切换发现桌面端跨会话发送锁问题，已修复并由用户复测通过；D7 已通过生产受控 DeepSeek 故障注入，确认 fallback 到 Kimi/Moonshot 且恢复后回到 DeepSeek；E6 已通过生产 Redis 故障注入和恢复后真实桌面命令 smoke。剩余遗留集中在生产回滚实演和安装器体验：安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
 ```
