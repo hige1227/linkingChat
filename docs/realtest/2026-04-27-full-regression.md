@@ -193,7 +193,7 @@ P1 可以有遗留，但必须记录:
 | G7 | 发布服务 | 服务重建/重启完成 | PASS | `/opt/linkchat` 已同步当前源码和修复；`docker compose -f docker-compose.prod.yaml up -d --build server` 成功 |
 | G8 | 生产健康检查 | `/health`、Redis、DB、WS 正常 | PASS | 内部 `127.0.0.1:3008/api/v1/health` 200、metrics 200、server/postgres/redis healthy；公网 `https://linkchat-api.matrix-ai.com.cn/api/v1/health` 200，`/api/v1/ai/health` 200，Socket.IO `/device` WebSocket 连接成功 |
 | G9 | 生产 Desktop smoke | 登录、AI 回复、usage 落库 | PASS | 公网 HTTPS API smoke 通过：注册/登录/LLM token/真实 AI 回复 `PROD API AI REGRESSION OK`，`ai_usage` 落库；修复打包版 renderer API 后，用户确认生产 Desktop UI smoke 通过 |
-| G10 | 生产回滚演练 | 回滚路径明确或已演练 | PARTIAL | 回滚点已明确：恢复代码备份并重新构建，或回退旧 server 镜像 `sha256:4a975...`；未实际演练回滚 |
+| G10 | 生产回滚演练 | 回滚路径明确或已演练 | PASS(DRILL) | 未将公网流量切到旧版本；生产机旧具名镜像 `sha256:4a975...` 已不在 image store，改选未标记候选镜像 `sha256:78a3fd59346d025cdbc2fd37c26854c7a972f9ac69691371b086af7f3ad247c3` 隔离启动 `linkchat-rollback-drill`，绑定 `127.0.0.1:3018->3008`，本机 health 200 后删除容器；当前生产 `server/redis/postgres` healthy，公网 health 200 |
 
 需要用户补充的信息:
 
@@ -268,6 +268,7 @@ P1 可以有遗留，但必须记录:
 | 2026-04-28 22:30 CST | Codex | E6 Redis 故障恢复 | PASS | 停止生产 Redis 后 AI Gateway 快速返回清晰错误且不写 usage；恢复 Redis 后 AI smoke 和真实桌面命令均通过，命令 `cmoiq32yw000bpg018sbvsjya` 输出 `E6_COMMAND_RECOVERY_20260428222948` |
 | 2026-04-28 22:33 CST | Codex | E5 Desktop 离线状态 | PASS | 关闭打包版后 `device-yehui-win32` 变为 `OFFLINE`，重启 `win-unpacked/LinkingChat.exe` 后恢复 `ONLINE`；当前打包版主窗口已重新启动 |
 | 2026-04-28 22:45 CST | Codex | D11 AI 卡片 WS/DB 链路 | PASS(WS+DB) | 生产 WS 收到 Whisper、Draft、Predictive 三类卡片 payload，accept/approve/execute 均返回成功且 DB 状态更新；UI 视觉层未单独截图确认 |
+| 2026-04-28 22:53 CST | Codex | G10 生产回滚隔离演练 | PASS(DRILL) | 旧候选镜像 `sha256:78a3fd59346d...` 以显式命令 `node dist/src/main.js` 在 `127.0.0.1:3018` 临时启动，`/api/v1/health` 返回 `{"status":"ok"}`；随后删除 `linkchat-rollback-drill`，当前生产本机和公网 health 均为 200 |
 
 ## 14. 问题清单
 
@@ -302,5 +303,5 @@ P1 可以有遗留，但必须记录:
 ## 15. 当前结论
 
 ```text
-测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查和 Nginx HTTPS 统一代理接入。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令、设备离线/恢复、AI 卡片 WS/DB 链路和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复、长流式回复切换和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。D3/D4 长流式回复切换发现桌面端跨会话发送锁问题，已修复并由用户复测通过；D7 已通过生产受控 DeepSeek 故障注入，确认 fallback 到 Kimi/Moonshot 且恢复后回到 DeepSeek；E6 已通过生产 Redis 故障注入和恢复后真实桌面命令 smoke。剩余遗留集中在生产回滚实演和安装器体验：安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
+测试已完成一轮端到端回归。P0-1 至 P0-7 全部通过；P1-1/P1-2/P1-3 已通过。生产侧已完成 server 构建、备份、迁移、发布、容器健康检查、Nginx HTTPS 统一代理接入和隔离回滚演练。`linkchat-api.matrix-ai.com.cn` 已通过公网 HTTPS health、AI health、注册/登录、真实 AI 回复、Socket.IO WebSocket、真实 PowerShell 桌面命令、设备离线/恢复、AI 卡片 WS/DB 链路和 `ai_usage` 落库验证；生产 Desktop UI smoke、打包版冷启动、退出、重登、发送中防重复、长流式回复切换和 i18n 持久化均已由用户确认。本轮发现并修复 1 个生产 BLOCKER：跨用户按 `deviceId` 派发桌面 shell 命令；生产热修复后跨用户复测已返回 `DEVICE_NOT_AVAILABLE` 且未落库命令。D3/D4 长流式回复切换发现桌面端跨会话发送锁问题，已修复并由用户复测通过；D7 已通过生产受控 DeepSeek 故障注入，确认 fallback 到 Kimi/Moonshot 且恢复后回到 DeepSeek；E6 已通过生产 Redis 故障注入和恢复后真实桌面命令 smoke；G10 已通过旧候选镜像在备用本机端口的隔离启动/health/销毁演练，公网流量未切到旧版本。剩余遗留集中在安装器体验：安装器 assisted 向导页已通过，但安装执行页仍缺少可取消能力和详细进度/日志，需要后续自定义 NSIS 或 MSI/WiX 方案收敛。
 ```
