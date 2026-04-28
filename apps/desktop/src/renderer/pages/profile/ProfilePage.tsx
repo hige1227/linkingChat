@@ -155,7 +155,9 @@ export const ProfilePage: React.FC = () => {
       if (window.electronAPI) {
         await window.electronAPI.logout();
       }
+      const locale = localStorage.getItem('locale');
       localStorage.clear();
+      if (locale) localStorage.setItem('locale', locale);
       setLogoutDialogOpen(false);
       window.location.reload();
     } catch (err) {
